@@ -170,10 +170,9 @@ describe('GameScreen', () => {
     expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
   });
 
-  it('Restart resets score and timer to zero and stays on the game screen', () => {
-    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+  it('Restart in daily mode resets score to 0 but keeps the timer running', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" onPickDifficulty={vi.fn()} />);
 
-    // Get into playing state and make a move
     fireEvent.click(screen.getByText('Reveal Pattern'));
     act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByText('Hide / Start Solving'));
@@ -181,15 +180,33 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
 
-    // At least one move was made
+    expect(Number(screen.getByTestId('score-value').textContent)).toBeGreaterThan(0);
+    const timerBefore = screen.getByTestId('timer-value').textContent;
+
+    fireEvent.click(screen.getByText('Restart'));
+
+    // Score resets to 0; timer continues from where it was (not 00:00)
+    expect(screen.getByTestId('score-value')).toHaveTextContent('0');
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+  });
+
+  it('Restart in practice mode resets score and timer to zero', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="practice" onPickDifficulty={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
+
     expect(Number(screen.getByTestId('score-value').textContent)).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText('Restart'));
 
-    // Game is reset
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
     expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
-    // Still on game screen
     expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
   });
 

@@ -12,6 +12,8 @@ import {
   getResult,
   todayKey,
 } from './persistence/dailyState';
+import { loadInProgress } from './persistence/inProgress';
+import type { InProgressBlob } from './persistence/inProgress';
 
 type AppView = 'difficulty' | 'game';
 
@@ -21,17 +23,30 @@ export default function App() {
   const [puzzle, setPuzzle] = useState<GeneratedPuzzle | null>(null);
   const [gameMode, setGameMode] = useState<'daily' | 'practice'>('daily');
   const [currentLevel, setCurrentLevel] = useState<4 | 5 | 6 | 8 | null>(null);
-  // Day key captured at puzzle launch — travels with the session so a post-midnight
-  // finish records under the day the attempt started.
   const [dayKey, setDayKey] = useState<string>('');
   const [dailyState, setDailyState] = useState(() => loadState());
+  const [resumeBlob, setResumeBlob] = useState<InProgressBlob | undefined>(undefined);
 
   const handleSelectDifficulty = (size: 4 | 5 | 6 | 8) => {
     const key = todayKey();
     const completed = isCompletedToday(dailyState, size, key);
     setCurrentLevel(size);
     setDayKey(key);
-    setGameMode(completed ? 'practice' : 'daily');
+    const isDailyMode = !completed;
+    setGameMode(isDailyMode ? 'daily' : 'practice');
+
+    // Check for an in-progress attempt only in daily mode (practice never resumes)
+    let blob: InProgressBlob | undefined = undefined;
+    if (isDailyMode) {
+      const loaded = loadInProgress();
+      // loadInProgress already validates version and date === todayKey()
+      // Also ensure gridSize matches the selected level
+      if (loaded && loaded.gridSize === size) {
+        blob = loaded;
+      }
+    }
+    setResumeBlob(blob);
+
     setPuzzle(generatePuzzle(dailySeed(new Date()), size));
     setView('game');
   };
@@ -45,7 +60,6 @@ export default function App() {
     [currentLevel, dayKey],
   );
 
-  // Build completed-today map for DifficultyPicker using the current UTC day.
   const today = todayKey();
   const completedToday: Partial<Record<4 | 5 | 6 | 8, { moves: number; elapsedMs: number }>> = {};
   for (const size of [4, 5, 6, 8] as const) {
@@ -71,6 +85,8 @@ export default function App() {
           <GameScreen
             puzzle={puzzle}
             mode={gameMode}
+            dayKey={dayKey}
+            resume={resumeBlob}
             onPickDifficulty={() => setView('difficulty')}
             onDailyComplete={handleDailyComplete}
           />
@@ -79,14 +95,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-169"
+          href="https://linear.app/terenc/issue/TER-167"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-169
+          TER-167
         </a>{' '}
-        — Reward-screen tap-to-advance
+        — Persistent daily-attempt timer
       </footer>
     </>
   );

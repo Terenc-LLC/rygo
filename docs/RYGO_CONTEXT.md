@@ -261,7 +261,7 @@ The first four types live in `src/engine/types.ts`. `GamePhase` is exported from
 
 **Note (May 2, 2026):** `'validating'` GamePhase added in [TER-153](https://linear.app/terenc/issue/TER-153) — sits between `'playing'` and `'complete'` for the win-state validation sweep. [TER-148](https://linear.app/terenc/issue/TER-148) models the pattern↔board transition at the UI layer with a local boolean (not a hook phase) — different architectural choice from [TER-153](https://linear.app/terenc/issue/TER-153) because the transition affects only the visual, not the game state.
 
-### useGame hook — READY (`src/hooks/useGame.ts`)
+### useGame hook — UPDATED (`src/hooks/useGame.ts`, [TER-167](https://linear.app/terenc/issue/TER-167))
 
 ```ts
 export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
@@ -283,13 +283,20 @@ export interface GameActions {
   selectColor: (c: Color) => void;
   placeAt: (row: number, col: number) => void;
   reset: () => void;
-  completeValidation: () => void; // added in TER-153
+  completeValidation: () => void;
+  bankTime: () => void;    // added TER-167: bank + stop clock (pause)
+  resumeTimer: () => void; // added TER-167: restart clock from banked value
 }
 
-export function useGame(puzzle: GeneratedPuzzle): GameView & GameActions;
+export function useGame(
+  puzzle: GeneratedPuzzle,
+  options?: { resume?: InProgressBlob; keepClockOnReset?: boolean }
+): GameView & GameActions;
 ```
 
-`useReducer`-based state machine with action types (`REVEAL_PATTERN`, `HIDE_PATTERN`, `SELECT_COLOR`, `PLACE_AT`, `RESET`, `TICK`, plus `COMPLETE_VALIDATION` from [TER-153](https://linear.app/terenc/issue/TER-153)). Timer: single 100ms `setInterval`; stores `timerStartedAt` timestamp in reducer state; `elapsedMs` = `Date.now() - timerStartedAt` on each tick; frozen at completion value once phase = `validating`. Completion check runs inside `PLACE_AT` reducer case (not a `useEffect`) to set phase and elapsedMs atomically. Every `placeAt` call counts as a move per the design doc. `boardsMatch` is a local unexported helper. 9 unit tests using `vi.useFakeTimers()`.
+**Timer model updated in [TER-167](https://linear.app/terenc/issue/TER-167):** accumulator-based. Internal state: `accumulatedMs` (banked time) + `runStartedAt` (epoch ms when current run started, null when paused). `elapsedMs` = `accumulatedMs + clampDelta(now, runStartedAt)` on each TICK; frozen at completion (`runStartedAt = null`, `accumulatedMs = frozen`). Replaces the old single-`timerStartedAt` wall-clock. New actions: `BANK_TIME` (pause: `accumulatedMs += clampDelta(now, runStartedAt); runStartedAt = null`), `RESUME_TIMER` (set `runStartedAt = now`). `RESET` accepts `keepClock: boolean` — when true (daily mode), preserves `accumulatedMs`/`runStartedAt`/`elapsedMs`; when false (practice), zeros the timer. `REVEAL_PATTERN` in idle uses `runStartedAt ?? now` so it doesn't restart a clock that's already running (post-reset daily). Pathological deltas clamped: negative → 0, max per run = 7,200,000ms (2 h). Completion check atomically sets `phase = validating`, freezes `elapsedMs`, and clears `runStartedAt`.
+
+`useGame` options: `resume?: InProgressBlob` — initializes state from the blob (board, phase, activeColor, moveCount, accumulatedMs); a one-shot `useEffect` dispatches `RESUME_TIMER` on mount. `keepClockOnReset?: boolean` — wires the RESET keepClock flag. `boardsMatch` is a local unexported helper.
 
 **Notes (May 2, 2026):**
 
@@ -368,7 +375,30 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 
 `rygo:state` localStorage schema (version 1): `{ version: 1, daily: { "4": { "YYYY-MM-DD": { moves, elapsedMs, completedAt } }, "5": {}, "6": {}, "8": {} } }`. Key: grid-size string → UTC day string → result. Version > 1 treated as unreadable (returns empty, writes no-op). All reads/writes wrapped in try/catch. No derived values stored (streaks compute from history in TER-143). 34 unit tests, all passing.
 
-**Data flow (TER-142):** App loads state at startup (`useState(() => loadState())`). DifficultyPicker receives a `completedToday` map (level → `{moves, elapsedMs}`). When a level is completed and `isCompletedToday` is true, tapping it starts practice mode (same seed, `mode: 'practice'`, no recording). GameScreen fires `onDailyComplete({moves, elapsedMs})` exactly once when `phase === 'complete'` and `mode === 'daily'`; App calls `recordDailyResult` and refreshes state. Day key is captured at puzzle launch and travels with the session (post-midnight finishes record under start day). LevelButton in completed state shows recorded result + live H:MM:SS countdown to next UTC day. Known minor gap (review note, May 24): the picker's completed-state + countdown can go stale if left open across a UTC midnight (display-only, self-heals on re-render) — to be folded into [TER-167](https://linear.app/terenc/issue/TER-167) rollover handling.
+**Data flow (TER-142):** App loads state at startup (`useState(() => loadState())`). DifficultyPicker receives a `completedToday` map (level → `{moves, elapsedMs}`). When a level is completed and `isCompletedToday` is true, tapping it starts practice mode (same seed, `mode: 'practice'`, no recording). GameScreen fires `onDailyComplete({moves, elapsedMs})` exactly once when `phase === 'complete'` and `mode === 'daily'`; App calls `recordDailyResult` and refreshes state. Day key is captured at puzzle launch and travels with the session (post-midnight finishes record under start day). LevelButton in completed state shows recorded result + live H:MM:SS countdown to next UTC day. Cross-midnight staleness gap on the picker (display-only) addressed in [TER-167](https://linear.app/terenc/issue/TER-167) via `loadInProgress()` date validation — a stale in-progress blob is discarded on the next level selection.
+
+### In-progress persistence — READY (`src/persistence/inProgress.ts`, [TER-167](https://linear.app/terenc/issue/TER-167))
+
+```ts
+export const IN_PROGRESS_KEY = 'rygo:inprogress';
+export interface InProgressBlob {
+  version: 1;
+  date: string;           // UTC YYYY-MM-DD
+  gridSize: 4 | 5 | 6 | 8;
+  board: Board;
+  phase: 'idle' | 'pattern-revealed' | 'playing';
+  activeColor: Color | null;
+  moveCount: number;
+  patternVisible: boolean;
+  accumulatedMs: number;
+  savedAt: number;        // epoch ms
+}
+export function loadInProgress(): InProgressBlob | null;  // null if absent/stale/corrupt/future-version
+export function saveInProgress(blob: InProgressBlob): void;
+export function deleteInProgress(): void;
+```
+
+Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. 13 unit tests. Practice mode never calls any of these.
 
 ## Coding conventions
 
@@ -416,7 +446,7 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
-* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass complete; spec written and GDD-locked (v1.7). [TER-169](https://linear.app/terenc/issue/TER-169) has shipped, so this is the **next M3 Code candidate** (it builds on the shared `validating→complete` seam). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
+* [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ In Review. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board).
 
 ### M4 — Polish (post-launch)
 
@@ -707,3 +737,17 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes / session log:** the GameScreen tap-to-advance arch-note update and the TER-169 Code session-log entry were added by Code in PR #31 and are retained.
 
 **Next recommended:** [TER-167](https://linear.app/terenc/issue/TER-167) (persistent attempt timer) — spec written, GDD-locked, now source-of-truth-consistent. Once this docs PR merges it's the next Code candidate; promotion Backlog→Todo is Chris's gate. Then [TER-143](https://linear.app/terenc/issue/TER-143) (stats) and [TER-144](https://linear.app/terenc/issue/TER-144) (share) remain for M3, each needing a design pass.
+
+### 2026-05-24 — [TER-167](https://linear.app/terenc/issue/TER-167) Persistent daily-attempt timer (Claude Code / Sonnet 4.6)
+
+Replaced the single-`timerStartedAt` wall-clock in `useGame` with an accumulator model (`accumulatedMs` + `runStartedAt`). Key changes:
+
+**`src/hooks/useGame.ts`:** Internal state gains `accumulatedMs: number` and `runStartedAt: number | null`. New actions: `BANK_TIME` (banks `clampDelta(now, runStartedAt)` into `accumulatedMs`, sets `runStartedAt = null`), `RESUME_TIMER` (sets `runStartedAt = now` if not already running and phase ≠ validating/complete). `TICK` updates `elapsedMs = accumulatedMs + clampDelta(now, runStartedAt)` whenever `runStartedAt !== null`. `PLACE_AT` completion freezes `elapsedMs = accumulatedMs + clampDelta(now, runStartedAt)` atomically and clears `runStartedAt`. `RESET` accepts `keepClock: boolean` — daily mode keeps accumulator + running clock, practice resets to zero. `REVEAL_PATTERN` in idle uses `runStartedAt ?? action.now` so a post-reset running clock isn't restarted. `useGame` signature gains `options?: { resume?: InProgressBlob; keepClockOnReset?: boolean }` — when `resume` is provided, state is initialized from the blob and a one-shot `useEffect` dispatches `RESUME_TIMER`. `bankTime()` and `resumeTimer()` added to `GameActions`. Pathological deltas clamped: negative → 0, max 7,200,000 ms per run.
+
+**`src/persistence/inProgress.ts`** (new): `rygo:inprogress` localStorage key, version 1. `InProgressBlob` shape: version, date, gridSize, board, phase, activeColor, moveCount, patternVisible, accumulatedMs, savedAt. `loadInProgress()` validates date === todayKey() and version ≤ 1 (null on any failure). `saveInProgress()` and `deleteInProgress()` silent on errors.
+
+**`src/components/GameScreen.tsx`:** New props `dayKey?` and `resume?`. Passes resume blob + `keepClockOnReset: true` to `useGame` in daily mode. `visibilitychange` + `pagehide` listeners (daily only): call `game.bankTime()` + `saveInProgress(buildBlob())` on hide, `game.resumeTimer()` on show. `handleRestart` manually builds a cleared-board blob before `game.reset()` and saves it (daily only). `handleQuit` banks + saves before navigating. `deleteInProgress()` called in the completion `useEffect`.
+
+**`src/App.tsx`:** On level select (daily mode only), calls `loadInProgress()` and validates gridSize matches. Passes `resume` blob and `dayKey` to `GameScreen`. Stale blobs (wrong date) are discarded by `loadInProgress` itself.
+
+**Tests:** `useGame.test.ts` — 7 new tests: `reset without keepClock zeros timer`, `reset with keepClock preserves timer`, `bankTime/resumeTimer`, `resume from blob`, `negative delta clamped`. `GameScreen.test.tsx` — split restart test into daily (timer kept) + practice (timer zeros). `inProgress.test.ts` — 13 new tests covering round-trip, stale date, future version, corrupt JSON, missing fields, localStorage errors. 183 tests passing; build clean. PR opened against main.

@@ -5,16 +5,21 @@ import { useGame } from '../hooks/useGame';
 import { Grid } from './Grid';
 import { ColorPicker } from './ColorPicker';
 import { Summary } from './Summary';
+import type { InProgressBlob } from '../persistence/inProgress';
+import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistence/inProgress';
+import { todayKey } from '../persistence/dailyState';
+import type { Board } from '../engine/types';
 
 interface GameScreenProps {
   puzzle: GeneratedPuzzle;
   mode?: 'daily' | 'practice';
+  dayKey?: string;
+  resume?: InProgressBlob;
   onPickDifficulty: () => void;
   onDailyComplete?: (result: { moves: number; elapsedMs: number }) => void;
 }
 
 // Total sweep budget in ms; per-row delay = SWEEP_MS / rowCount.
-// Fixed budget keeps the beat identical across all grid sizes (GDD: 750–1000ms window).
 const SWEEP_MS = 850;
 
 // Grid-cols Tailwind class per size — used for the glow overlay grid.
@@ -32,6 +37,10 @@ function formatTime(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function emptyBoard(size: number): Board {
+  return Array.from({ length: size }, () => Array<'empty'>(size).fill('empty'));
+}
+
 const PHASE_LABEL: Record<string, string> = {
   idle: 'Tap to reveal',
   'pattern-revealed': 'Memorize the pattern',
@@ -40,18 +49,88 @@ const PHASE_LABEL: Record<string, string> = {
   complete: '',
 };
 
-export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyComplete }: GameScreenProps): JSX.Element {
-  const game = useGame(puzzle);
+export function GameScreen({
+  puzzle,
+  mode = 'daily',
+  dayKey,
+  resume,
+  onPickDifficulty,
+  onDailyComplete,
+}: GameScreenProps): JSX.Element {
+  const game = useGame(puzzle, {
+    resume: mode === 'daily' ? resume : undefined,
+    keepClockOnReset: mode === 'daily',
+  });
   const [transitioning, setTransitioning] = useState(false);
   const timerRef = useRef<number | null>(null);
-  // Captured once at mount; stable for the component's lifetime.
   const prefersReducedMotion = useRef(
     typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
-  // Fire onDailyComplete exactly once when phase transitions to 'complete' in daily mode.
   const hasReportedCompletion = useRef(false);
+
+  // Stable ref to game so event handlers always see the latest state.
+  const gameRef = useRef(game);
+  gameRef.current = game;
+
+  const effectiveDayKey = dayKey ?? todayKey();
+
+  // Build the in-progress blob from current game state (called at save points).
+  const buildBlob = (overrideAccumulatedMs?: number): InProgressBlob => {
+    const g = gameRef.current;
+    // Use provided override (e.g. pre-computed before a reset), else use elapsedMs
+    // which is within 100ms of the real banked value (last TICK).
+    const accMs = overrideAccumulatedMs ?? g.elapsedMs;
+    return {
+      version: 1,
+      date: effectiveDayKey,
+      gridSize: puzzle.gridSize,
+      board: g.current,
+      phase: (g.phase === 'idle' || g.phase === 'pattern-revealed' || g.phase === 'playing')
+        ? g.phase
+        : 'playing',
+      activeColor: g.activeColor,
+      moveCount: g.moveCount,
+      patternVisible: g.phase === 'pattern-revealed',
+      accumulatedMs: accMs,
+      savedAt: Date.now(),
+    };
+  };
+
+  // Page-lifecycle: bank + persist on hidden/pagehide, resume on visible.
+  useEffect(() => {
+    if (mode !== 'daily') return;
+
+    const handleHide = () => {
+      gameRef.current.bankTime();
+      // Save the blob — elapsedMs at this point is pre-bank tick value (≤100ms stale).
+      // We compute the blob before bankTime updates state (React batches), so we use
+      // elapsedMs which is close enough.
+      saveInProgress(buildBlob());
+    };
+
+    const handleShow = () => {
+      gameRef.current.resumeTimer();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        handleHide();
+      } else {
+        handleShow();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handleHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handleHide);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   useEffect(() => {
     return () => {
@@ -66,6 +145,7 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
   useEffect(() => {
     if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
       hasReportedCompletion.current = true;
+      deleteInProgress();
       onDailyComplete?.({ moves: game.moveCount, elapsedMs: game.elapsedMs });
     }
   }, [phase, mode, onDailyComplete, game.moveCount, game.elapsedMs]);
@@ -82,7 +162,6 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
     );
   }
 
-  // Validating: board frozen, row-by-row glow sweep, no interactive controls.
   if (game.phase === 'validating') {
     const perRowDelay = SWEEP_MS / game.gridSize;
     return (
@@ -105,7 +184,6 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
           </div>
         </div>
 
-        {/* Screen-reader announcement: paired with the visual Solved! label above */}
         <div aria-live="polite" className="sr-only">
           Solved! Puzzle complete.
         </div>
@@ -127,7 +205,6 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
                       animationDelay: `${rowIdx * perRowDelay}ms`,
                       animationFillMode: 'both',
                       animationTimingFunction: 'ease-in-out',
-                      // Inset ring: green glow overlay that does not recolor cell backgrounds
                       boxShadow: 'inset 0 0 0 3px #2E9D5C',
                     }}
                   />
@@ -176,11 +253,32 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
   const handleRestart = () => {
     clearTransitionTimer();
     setTransitioning(false);
+    if (mode === 'daily') {
+      // Save in-progress with the cleared board state. The clock is kept by RESET (keepClock=true).
+      // We construct the blob manually since the reducer hasn't updated yet.
+      saveInProgress({
+        version: 1,
+        date: effectiveDayKey,
+        gridSize: puzzle.gridSize,
+        board: emptyBoard(puzzle.gridSize),
+        phase: 'idle',
+        activeColor: null,
+        moveCount: 0,
+        patternVisible: false,
+        accumulatedMs: game.elapsedMs, // within 100ms of real banked value
+        savedAt: Date.now(),
+      });
+    }
     game.reset();
   };
 
   const handleQuit = () => {
     clearTransitionTimer();
+    if (mode === 'daily') {
+      // Bank time and persist before navigating away.
+      game.bankTime();
+      saveInProgress(buildBlob());
+    }
     onPickDifficulty();
   };
 
@@ -255,3 +353,6 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
     </div>
   );
 }
+
+// Re-export for tests that need to inspect localStorage key.
+export { IN_PROGRESS_KEY };

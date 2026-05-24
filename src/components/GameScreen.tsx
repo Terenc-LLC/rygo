@@ -10,6 +10,7 @@ interface GameScreenProps {
   puzzle: GeneratedPuzzle;
   mode?: 'daily' | 'practice';
   onPickDifficulty: () => void;
+  onDailyComplete?: (result: { moves: number; elapsedMs: number }) => void;
 }
 
 // Total sweep budget in ms; per-row delay = SWEEP_MS / rowCount.
@@ -39,7 +40,7 @@ const PHASE_LABEL: Record<string, string> = {
   complete: '',
 };
 
-export function GameScreen({ puzzle, onPickDifficulty }: GameScreenProps): JSX.Element {
+export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyComplete }: GameScreenProps): JSX.Element {
   const game = useGame(puzzle);
   const [transitioning, setTransitioning] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -49,6 +50,8 @@ export function GameScreen({ puzzle, onPickDifficulty }: GameScreenProps): JSX.E
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
   );
+  // Fire onDailyComplete exactly once when phase transitions to 'complete' in daily mode.
+  const hasReportedCompletion = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -58,9 +61,18 @@ export function GameScreen({ puzzle, onPickDifficulty }: GameScreenProps): JSX.E
     };
   }, []);
 
+  // Report daily completion exactly once when phase first becomes 'complete'.
+  const { phase } = game;
+  useEffect(() => {
+    if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
+      hasReportedCompletion.current = true;
+      onDailyComplete?.({ moves: game.moveCount, elapsedMs: game.elapsedMs });
+    }
+  }, [phase, mode, onDailyComplete, game.moveCount, game.elapsedMs]);
+
   // Drive the validation sweep: dispatch completeValidation after the sweep budget
   // (or a short static hold under reduced-motion). Uses timerRef for unmount cleanup.
-  const { phase, completeValidation } = game;
+  const { completeValidation } = game;
   useEffect(() => {
     if (phase !== 'validating') return;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);

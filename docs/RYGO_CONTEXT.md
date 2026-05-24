@@ -156,7 +156,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 
 ### Retention scope (MVP+ pre-launch)
 
-* The four retention features — daily play tracking, once-per-day lock per level, per-level stats with score distribution, and emoji-board share button — are required before public launch but are not strict MVP. Tracked in M3 — Daily ritual (pre-launch) milestone via [TER-142](https://linear.app/terenc/issue/TER-142), [TER-143](https://linear.app/terenc/issue/TER-143), [TER-144](https://linear.app/terenc/issue/TER-144).
+* The four retention features — daily play tracking, once-per-day lock per level, per-level stats, and emoji-board share button — are required before public launch but are not strict MVP. Tracked in M3 — Daily ritual (pre-launch) milestone via [TER-142](https://linear.app/terenc/issue/TER-142), [TER-143](https://linear.app/terenc/issue/TER-143), [TER-144](https://linear.app/terenc/issue/TER-144). The per-level score-distribution histogram was descoped from [TER-143](https://linear.app/terenc/issue/TER-143) on May 24, 2026 — the per-level cards ship a today-vs-personal-best comparison instead (four histograms broke the no-scroll requirement); the histogram is deferred to a post-launch stats-v2 pass.
 * Anonymous, per-device only. No accounts, no backend, no cloud sync. localStorage is the single source of truth.
 * Hard never-repeat puzzle guarantee is NOT in scope — generator's seed space already gives statistically-perfect uniqueness for the relevant time horizon.
 
@@ -467,7 +467,7 @@ export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, toda
 ### M3 — Daily ritual (pre-launch)
 
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
-* [TER-143](https://linear.app/terenc/issue/TER-143) — ✅ In Review. Stats screen (global streak + per-level self-comparison).
+* [TER-143](https://linear.app/terenc/issue/TER-143) — ✅ Done. Stats screen (global streak + per-level self-comparison). Shipped May 24, 2026.
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ Done. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Shipped May 24, 2026.
 
@@ -649,8 +649,6 @@ Locked-section updates absorbed in this PR:
 
 **M2 follow-ups status:** 6 of 9 shipped (TER-145 / TER-149 / TER-151 / TER-147 / TER-152 / TER-148). Remaining: [TER-150](https://linear.app/terenc/issue/TER-150) unblocked; [TER-146](https://linear.app/terenc/issue/TER-146) unblocked but design pass pending; [TER-153](https://linear.app/terenc/issue/TER-153) design pass pending.
 
-**Linear documents:** scheduled for deletion after this PR merges. Linear `get_document` calls against the three legacy doc IDs (RYGO_CONTEXT, GDD, Process) will fail starting then; switch to `GitHub:get_file_contents` for all three.
-
 **Next recommended:** [TER-150](https://linear.app/terenc/issue/TER-150) (every-click-counts scoring) — locked spec, narrow blast radius (touches `useGame` reducer + tests). For a parallel design slot, [TER-146](https://linear.app/terenc/issue/TER-146) generator rewrite or [TER-153](https://linear.app/terenc/issue/TER-153) validation sweep are the two M2 issues still needing design passes.
 
 ### 2026-05-03 — [TER-150](https://linear.app/terenc/issue/TER-150) Every-click-counts scoring (Claude Code / Sonnet 4.6)
@@ -796,3 +794,17 @@ Locked-section updates absorbed in this docs-only PR:
 Created `src/persistence/stats.ts` with three pure helpers: `previousDayKey` (UTC day stepping using `Date.UTC` for correct month/year/leap-year boundaries), `computeGlobalStreak` (unions completed day-keys across all four sizes, applies grace rule for today-not-done, computes best via sorted-run scan), and `computeLevelSummary` (scans one size's day-map, returns `null` — never `NaN` — when `played === 0`). Created `src/hooks/useStats.ts` as a thin wrapper returning `StatsView` with exactly four `LevelStats` in `[4, 5, 6, 8]` order. Created `src/components/StatCard.tsx` (three render states: empty, today played, not played today) and `src/components/StatsScreen.tsx` (Back button + streak banner + four level cards). Extended App view-state to `'difficulty' | 'game' | 'stats'`; wired `onShowStats` callback. Moved the DifficultyPicker stats button from top-right to top-left (issue spec, avoids ThemeToggle collision). 222 tests passing (was 185); build clean. PR opened against main.
 
 **Next recommended:** [TER-143](https://linear.app/terenc/issue/TER-143) (stats screen — per-level streaks, history, score distribution) and [TER-144](https://linear.app/terenc/issue/TER-144) (share button — Web Share API + clipboard, emoji-board) are the two remaining M3 issues. Each needs a design pass before Code. TER-143 reads the `rygo:state` history that's now fully in place; TER-144's design pass must revisit the grind-guard question forward-flagged from the TER-167 integrity model (shared scores become a bragging surface). Promotion Backlog→Todo stays Chris's gate.
+
+### 2026-05-24 — [TER-143](https://linear.app/terenc/issue/TER-143) closed by Opus; M3 retention features complete (142 + 143 + 167)
+
+Chris reported [TER-143](https://linear.app/terenc/issue/TER-143)'s PR merged (PR #35). Opus reviewed the diff (the pure `stats.ts` helpers — `previousDayKey` UTC day-stepping, `computeGlobalStreak` with grace rule + longest-run best, `computeLevelSummary` returning null-not-NaN at zero plays; `useStats` returning four levels in `[4, 5, 6, 8]` order; StatsScreen + StatCard with brand tokens and the self-consistent delta cue; stats button relocated to the DifficultyPicker top-left away from the fixed ThemeToggle; App view-state extended to `'difficulty' | 'game' | 'stats'`) with CI green and 222 tests passing (+37), and marked the issue Done — a clean, two-pass-free approval.
+
+Two manual-verify items carried forward (non-blocking): the no-scroll acceptance criterion can't be asserted by RTL (jsdom doesn't measure layout), so the header + four cards fitting an iPhone SE without scroll is a Chris on-device check in both themes (Extreme's card has the longest copy); and an optional cosmetic — the streak banner appends `· best M` even when `best === current`, hideable if it reads redundant on device.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-143](https://linear.app/terenc/issue/TER-143) → ✅ Done.
+* **Retention scope (Key design decisions):** dropped "with score distribution" from the four-retention-features line and added a note that the per-level score-distribution histogram was descoped from TER-143 on May 24, 2026 — the per-level cards ship a today-vs-personal-best comparison instead (four histograms broke the no-scroll requirement); the histogram is deferred to a post-launch stats-v2 pass. The GDD does not mention score distribution, so no GDD change was needed.
+* **Architecture notes / session log:** the Stats module note (`stats.ts` / `useStats.ts` / StatsScreen / StatCard) and the TER-143 Code session-log entry were added by Code in PR #35 and are retained as-is.
+
+**Next recommended:** [TER-144](https://linear.app/terenc/issue/TER-144) (share button) — the last remaining M3 issue. It is now unblocked: its `computeGlobalStreak` dependency is on main as of PR #35. The spec is written and spoiler-free (score-only, never the solved board), and its blocked-by [TER-143](https://linear.app/terenc/issue/TER-143) relation is satisfied. Promotion Backlog→Todo is Chris's gate.

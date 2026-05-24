@@ -384,7 +384,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-147](https://linear.app/terenc/issue/TER-147) — ✅ Done. Same-color clearing mechanic (engine + hook).
 * [TER-152](https://linear.app/terenc/issue/TER-152) — ✅ Done. RYGO brand palette tokens (Tailwind v4 `@theme` block, swap utilities to brand tokens, contrast verification).
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
-* [TER-150](https://linear.app/terenc/issue/TER-150) — Every-click-counts scoring (color switch, hide pattern). ✅ In Review.
+* [TER-150](https://linear.app/terenc/issue/TER-150) — ✅ Done. Every-click-counts scoring (color switches + hide pattern charge moves).
 * [TER-146](https://linear.app/terenc/issue/TER-146) — Generator: full coverage + all 3 colors required + retune. ✅ Unblocked (design pass pending).
 * [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + 750–1000ms sweep + RYGO mark glow before Summary). Design pass pending.
 
@@ -574,3 +574,13 @@ Locked-section updates absorbed in this PR:
 ### 2026-05-03 — [TER-150](https://linear.app/terenc/issue/TER-150) Every-click-counts scoring (Claude Code / Sonnet 4.6)
 
 Updated `SELECT_COLOR` and `HIDE_PATTERN` reducer cases in `src/hooks/useGame.ts` to charge +1 move. `SELECT_COLOR` to the already-active color returns state unchanged (no charge). `HIDE_PATTERN` now increments `moveCount` by 1. No changes to `REVEAL_PATTERN`, `PLACE_AT`, or the hook's public interface. 6 existing tests updated to match new scoring rules; 6 new tests added covering HIDE_PATTERN charge, SELECT_COLOR no-op, SELECT_COLOR sequences, and the full 8-move realistic sequence. 126 tests passing; build clean. PR opened against main.
+
+### 2026-05-04 — [TER-150](https://linear.app/terenc/issue/TER-150) closed by Opus
+
+Chris reported [TER-150](https://linear.app/terenc/issue/TER-150)'s PR merged (PR #16). Opus marked the issue Done. Every-click-counts scoring is now live: `SELECT_COLOR` to a different color charges +1, re-selecting the active color is a no-op, `HIDE_PATTERN` charges +1. 126 tests passing.
+
+No locked-section updates required beyond the issue map flip — TER-150 was a self-contained M2 follow-up with no changes to project identity, tech stack, design decisions, or open questions.
+
+**M2 follow-ups status:** 7 of 9 shipped (TER-145 / TER-149 / TER-151 / TER-147 / TER-152 / TER-148 / TER-150). Remaining: [TER-146](https://linear.app/terenc/issue/TER-146) (generator full-coverage rewrite — spec refreshed for v2.4 staleness in the same close-out, moved to Todo). [TER-153](https://linear.app/terenc/issue/TER-153) (validation sweep — design pass still pending; needs Chris + Opus conversation before going to Code).
+
+**Next recommended:** [TER-146](https://linear.app/terenc/issue/TER-146) — locked spec (algorithm, solution-length ranges, color weights all defined), now refreshed for v2.4 doc paths and inline-checklist format. Available for autonomous-mode pickup. [TER-153](https://linear.app/terenc/issue/TER-153) still needs design conversation first.

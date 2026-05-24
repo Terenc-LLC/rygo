@@ -352,6 +352,21 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 
 `src/test/setup.ts` patches `globalThis.localStorage` with a full in-memory `Storage` implementation. Required because Node.js 25 ships a built-in `localStorage` global that is non-functional without `--localstorage-file` and shadows jsdom's implementation in Vitest 4.x test workers. All tests pass under this mock; new localStorage-dependent tests work correctly. **Do not remove this mock — it is necessary for both Node 20 and Node 25 environments.** GameScreen tests additionally stub `window.matchMedia` in `beforeEach` (jsdom lacks it) for the [TER-153](https://linear.app/terenc/issue/TER-153) reduced-motion path.
 
+### Persistence module — READY (`src/persistence/dailyState.ts`, [TER-142](https://linear.app/terenc/issue/TER-142))
+
+```ts
+export function todayKey(date?: Date): string           // UTC YYYY-MM-DD; shared with dailySeed
+export function loadState(): DailyState                 // safe: returns empty on error/corrupt JSON
+export function isCompletedToday(state, level, day): boolean
+export function getResult(state, level, day): DailyResult | null
+export function recordDailyResult(level, day, result): void  // first-write-wins; silent on errors
+export function msUntilNextUtcDay(now?: number): number // countdown driver
+```
+
+`rygo:state` localStorage schema (version 1): `{ version: 1, daily: { "4": { "YYYY-MM-DD": { moves, elapsedMs, completedAt } }, "5": {}, "6": {}, "8": {} } }`. Key: grid-size string → UTC day string → result. Version > 1 treated as unreadable (returns empty, writes no-op). All reads/writes wrapped in try/catch. No derived values stored (streaks compute from history in TER-143). 34 unit tests, all passing.
+
+**Data flow (TER-142):** App loads state at startup (`useState(() => loadState())`). DifficultyPicker receives a `completedToday` map (level → `{moves, elapsedMs}`). When a level is completed and `isCompletedToday` is true, tapping it starts practice mode (same seed, `mode: 'practice'`, no recording). GameScreen fires `onDailyComplete({moves, elapsedMs})` exactly once when `phase === 'complete'` and `mode === 'daily'`; App calls `recordDailyResult` and refreshes state. Day key is captured at puzzle launch and travels with the session (post-midnight finishes record under start day). LevelButton in completed state shows recorded result + live H:MM:SS countdown to next UTC day.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -395,7 +410,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 
 ### M3 — Daily ritual (pre-launch)
 
-* [TER-142](https://linear.app/terenc/issue/TER-142) — Daily play tracking + once-per-day lock + localStorage foundation. M2 follow-ups all shipped; this is the first M3 issue and the localStorage-schema foundation the other two build on. Needs a design pass before Code.
+* [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ In Review. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
 
@@ -622,3 +637,7 @@ Locked-section updates absorbed in this PR:
 * **M3:** [TER-142](https://linear.app/terenc/issue/TER-142) blocker note cleared — M2 follow-ups all shipped; it's the first M3 issue.
 
 **Next recommended:** M3 — Daily ritual. [TER-142](https://linear.app/terenc/issue/TER-142) (daily play tracking + once-per-day lock + localStorage foundation) goes first — it defines the localStorage schema the stats and share features read from. Then [TER-143](https://linear.app/terenc/issue/TER-143) (stats) and [TER-144](https://linear.app/terenc/issue/TER-144) (share). Each needs a design pass before Code; TER-142 especially, since its schema is load-bearing for the rest of M3.
+
+### 2026-05-24 — [TER-142](https://linear.app/terenc/issue/TER-142) Daily play tracking + once-per-day lock + localStorage foundation (Claude Code / Sonnet 4.6)
+
+Created `src/persistence/dailyState.ts` with the full `rygo:state` schema (version 1), all six pure helpers, and every localStorage access wrapped in try/catch. 34 unit tests covering happy paths, idempotency, first-write-wins, corrupt JSON, newer-schema guard, and localStorage unavailability. Updated `LevelButton` to show recorded result + live H:MM:SS countdown in completed state, and `DifficultyPicker` to accept and pass through the `completedToday` map. Added `onDailyComplete` callback to `GameScreen` (fires once on `phase === 'complete'` in daily mode). Wired everything in `App`: state loaded at startup, day key captured at puzzle launch, recording on completion, practice mode when level is already completed today (same seed, no recording). 165 tests passing; build clean. PR opened against main.

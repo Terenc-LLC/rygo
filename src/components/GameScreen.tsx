@@ -104,10 +104,15 @@ export function GameScreen({
 
     const handleHide = () => {
       gameRef.current.bankTime();
-      // Save the blob — elapsedMs at this point is pre-bank tick value (≤100ms stale).
-      // We compute the blob before bankTime updates state (React batches), so we use
-      // elapsedMs which is close enough.
-      saveInProgress(buildBlob());
+      // Only persist in phases where the attempt is still in progress.
+      // Skipping 'validating' (solved but not yet tapped) and 'complete' prevents
+      // writing a solved-board blob that would strand the user on resume with no
+      // way to submit the result. bankTime above is a no-op in those phases
+      // (runStartedAt is already null post-freeze), so it's always safe to call.
+      const { phase } = gameRef.current;
+      if (phase === 'idle' || phase === 'pattern-revealed' || phase === 'playing') {
+        saveInProgress(buildBlob());
+      }
     };
 
     const handleShow = () => {

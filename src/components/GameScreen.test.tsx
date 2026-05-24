@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GameScreen } from './GameScreen';
+import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
@@ -33,6 +33,7 @@ describe('GameScreen', () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     mockMatchMedia(false); // default: no reduced-motion preference
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -208,6 +209,59 @@ describe('GameScreen', () => {
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
     expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
     expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+  });
+
+  it('visibilitychange→hidden in validating phase does NOT write a blob to rygo:inprogress', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" dayKey="2026-05-24" onPickDifficulty={vi.fn()} />);
+
+    // Reach validating phase (solve the puzzle)
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    expect(screen.getByText('Solved!')).toBeInTheDocument(); // validating
+
+    // Simulate backgrounding while in validating
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
+  });
+
+  it('visibilitychange→hidden in complete phase does NOT resurrect the blob', () => {
+    const onDailyComplete = vi.fn();
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-24"
+        onPickDifficulty={vi.fn()}
+        onDailyComplete={onDailyComplete}
+      />
+    );
+
+    // Reach complete phase
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument(); // complete
+    expect(onDailyComplete).toHaveBeenCalledOnce();
+
+    // No blob should be present after completion
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
+
+    // Simulate backgrounding while on Summary
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    // Blob must still be absent — completion delete not undone
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
   });
 
   it('Quit calls onPickDifficulty immediately without window.confirm', () => {

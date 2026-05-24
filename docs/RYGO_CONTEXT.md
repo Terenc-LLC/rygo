@@ -398,7 +398,7 @@ export function saveInProgress(blob: InProgressBlob): void;
 export function deleteInProgress(): void;
 ```
 
-Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. 13 unit tests. Practice mode never calls any of these.
+Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. The pause-save handler guards on phase — it persists only in `{idle, pattern-revealed, playing}`, never in `validating`/`complete`, so a solved board is never written (would otherwise strand a resumed session with no continue button). 13 unit tests in `inProgress.test.ts` + 2 GameScreen guard tests. Practice mode never calls any of these.
 
 ## Coding conventions
 
@@ -446,7 +446,7 @@ Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and appen
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
-* [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ In Review. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board).
+* [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ Done. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Shipped May 24, 2026.
 
 ### M4 — Polish (post-launch)
 
@@ -753,3 +753,17 @@ Replaced the single-`timerStartedAt` wall-clock in `useGame` with an accumulator
 **Tests:** `useGame.test.ts` — 7 new tests: `reset without keepClock zeros timer`, `reset with keepClock preserves timer`, `bankTime/resumeTimer`, `resume from blob`, `negative delta clamped`. `GameScreen.test.tsx` — split restart test into daily (timer kept) + practice (timer zeros). `inProgress.test.ts` — 13 new tests covering round-trip, stale date, future version, corrupt JSON, missing fields, localStorage errors. 183 tests passing; build clean. PR opened against main.
 
 **Fix pass (Opus review):** `handleHide` in the visibilitychange/pagehide listener now guards on phase — `saveInProgress` is only called when phase is `{idle, pattern-revealed, playing}`; skipped for `validating` and `complete`. This prevents writing a solved-board blob that would strand a resumed session with no "continue" button, and prevents re-creating the blob after completion already deleted it. Added `localStorage.clear()` to `beforeEach` in `GameScreen.test.tsx` for proper inter-test isolation (shared in-memory store was leaking state across tests). Two new GameScreen tests: (1) backgrounding in validating phase writes no blob; (2) backgrounding in complete phase leaves `rygo:inprogress` absent. 185 tests passing; build clean.
+
+### 2026-05-24 — [TER-167](https://linear.app/terenc/issue/TER-167) closed by Opus; M3 daily-ritual foundation now complete (142 + 167)
+
+Chris reported [TER-167](https://linear.app/terenc/issue/TER-167)'s PR merged (PR #33). Opus reviewed the diff across two passes — first pass flagged one edge bug (the visibilitychange/pagehide save fired in any phase and `buildBlob` coerced `validating`/`complete` → `'playing'`, so backgrounding after solving but before tapping "continue" — an open-ended window since TER-169 removed auto-advance — persisted a solved board and stranded the resumed session with no way to submit, losing that day's completion); second pass confirmed the fix (phase-guarded `handleHide`, two new guard tests, `localStorage.clear()` isolation) with CI green and 185 tests passing — and marked the issue Done. **The M3 daily-ritual foundation is now in place: TER-142 (results schema + daily lock) + TER-167 (persistent attempt timer + in-progress resume).**
+
+Two non-blocking notes carried forward as conscious accepts (not filed): a single `rygo:inprogress` blob means only one level's in-progress attempt survives at a time — switching levels mid-attempt drops the other (matches the spec's single-blob data model; per-level keying would be a follow-up if real use wants it); and a sub-100ms `accumulatedMs` save-staleness on pause (`buildBlob` reads `elapsedMs` before the bank re-renders; bounded, self-corrects on the next save).
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-167](https://linear.app/terenc/issue/TER-167) → ✅ Done (M3).
+* **Architecture notes / session log:** the `useGame` accumulator-timer rewrite (UPDATED note) and the new `In-progress persistence` (`inProgress.ts`) note were added by Code in PR #33 and are retained; the `inProgress.ts` note here gains a line on the phase-guarded pause-save from the fix pass. The TER-167 Code session-log entry (incl. the fix-pass paragraph) was added by Code and is retained.
+* **No GDD / Game-mechanics change needed:** the active-play accumulator timer was already locked (GDD v1.7) and the matching Game-mechanics bullet added in the TER-169 close-out docs PR (PR #32), so the source of truth was already consistent before this issue shipped.
+
+**Next recommended:** [TER-143](https://linear.app/terenc/issue/TER-143) (stats screen — per-level streaks, history, score distribution) and [TER-144](https://linear.app/terenc/issue/TER-144) (share button — Web Share API + clipboard, emoji-board) are the two remaining M3 issues. Each needs a design pass before Code. TER-143 reads the `rygo:state` history that's now fully in place; TER-144's design pass must revisit the grind-guard question forward-flagged from the TER-167 integrity model (shared scores become a bragging surface). Promotion Backlog→Todo stays Chris's gate.

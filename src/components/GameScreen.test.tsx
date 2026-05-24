@@ -102,7 +102,7 @@ describe('GameScreen', () => {
     expect(screen.getByLabelText('Red cell at row 2, column 2')).toBeInTheDocument();
   });
 
-  it('winning placement enters validating phase (Solved! shown), then summary after sweep', () => {
+  it('winning placement enters validating phase (Solved! shown) with tap-to-continue affordance', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Reveal Pattern'));
@@ -113,16 +113,21 @@ describe('GameScreen', () => {
     // Tap (row 1, col 1) = index (0,0) — matches target
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // Now in validating — summary not yet shown
+    // Now in validating — Solved! shown, tap-to-continue affordance present
     expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
     expect(screen.getByText('Solved!')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue to summary' })).toBeInTheDocument();
 
-    // Advance past SWEEP_MS (850ms) → summary appears
-    act(() => vi.advanceTimersByTime(1000));
+    // Advance well past SWEEP_MS (850ms) — no auto-advance
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
+
+    // Player taps to continue → summary appears
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
     expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
   });
 
-  it('interactive controls are suppressed during validating phase', () => {
+  it('game controls are suppressed during validating phase; tap-to-continue is present', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
     fireEvent.click(screen.getByText('Reveal Pattern'));
@@ -132,15 +137,16 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // In validating: no interactive controls
+    // In validating: gameplay controls suppressed; tap-to-continue present
     expect(screen.queryByText('Reveal Pattern')).toBeNull();
     expect(screen.queryByText('Hide / Start Solving')).toBeNull();
     expect(screen.queryByText('Restart')).toBeNull();
     expect(screen.queryByText('Quit')).toBeNull();
     expect(screen.queryByLabelText('Select red')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Continue to summary' })).toBeInTheDocument();
   });
 
-  it('under prefers-reduced-motion, advances to summary after 400ms static hold', () => {
+  it('under prefers-reduced-motion, shows solved board + tap-to-continue with no auto-advance', () => {
     mockMatchMedia(true); // override: reduced-motion active
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
@@ -151,11 +157,16 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // In validating — summary not yet shown
+    // In validating — tap-to-continue present, no auto-advance
+    expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Continue to summary' })).toBeInTheDocument();
+
+    // Advance well past any former timeout — still no auto-advance
+    act(() => vi.advanceTimersByTime(2000));
     expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
 
-    // Advance 400ms (reduced-motion hold) → summary appears without waiting full 850ms
-    act(() => vi.advanceTimersByTime(400));
+    // Player taps to continue → summary appears
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
     expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
   });
 

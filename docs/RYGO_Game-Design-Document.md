@@ -2,8 +2,8 @@
 
 > **Brand:** RYGO (locked May 2, 2026 — was codename "Yergers")
 > **Tagline:** Minimalist daily logic-constraints puzzle at [playRYGO.com](<http://playRYGO.com>)
-> **Status:** v1.5 — MVP scope (May 2, 2026: brand integration; brand palette adopted as game-content colors)
-> **Last updated:** May 2, 2026
+> **Status:** v1.6 — MVP scope (May 24, 2026: win-state advance changed to tap-to-continue)
+> **Last updated:** May 24, 2026
 
 ## Concept
 
@@ -172,16 +172,16 @@ When the active color matches the color of the tapped cell, the tap **clears** r
 13. **Auto-detection:** as soon as the boards match exactly, the timer stops and the player enters a brief **validation sequence** (see below).
 14. The end-of-game summary shows: score (moves), time, and grid size.
 
-### Validation sequence (locked v1.5)
+### Validation sequence (locked v1.5; advance updated v1.6)
 
 When the board matches the target, the game does NOT immediately swap to the summary screen. The current "ripped away from you" abrupt-cut is a bug. Instead:
 
 * The timer freezes at the exact moment the boards matched (no extra ms charged).
 * A \~750–1000ms validation sweep plays — a row-by-row pulse that gives the player a sense of "yes, you did it" without forcing them to read a popup.
 * The RYGO mark in the chrome flips to a solid, glowing-green state to signal success.
-* After the sweep completes, the Summary card replaces the GameScreen.
+* **The solved board then holds; the player taps to advance to the Summary (v1.6).** There is no timed auto-advance — a celebration the player dismisses never feels rushed. Under `prefers-reduced-motion` the animated sweep is skipped and the solved board is shown immediately, but the tap-to-advance gesture is still required.
 
-The architectural shape: a new `'validating'` GamePhase between `'playing'` and `'complete'`. The timer freeze happens in the reducer; the visual sweep is a UI-layer animation gated on phase. The full spec lives in [TER-153](https://linear.app/terenc/issue/TER-153/win-state-validation-sequence-validating-gamephase-row-pulse-mark-glow).
+The architectural shape: a new `'validating'` GamePhase between `'playing'` and `'complete'`. The timer freeze happens in the reducer; the visual sweep is a UI-layer animation gated on phase, and the `'validating' → 'complete'` transition is driven by the player's tap. The original sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153/win-state-validation-sequence-validating-gamephase-row-pulse-mark-glow); the tap-to-advance change is specced in [TER-169](https://linear.app/terenc/issue/TER-169).
 
 ### Constraints during play
 
@@ -265,6 +265,7 @@ These are flagged but not blocking. We'll address each before the relevant featu
 
 ## Changelog
 
+* **v1.6 (May 24, 2026):** Win-state advance changed from a timed auto-advance to **tap-to-continue** — after the validation sweep, the solved board holds until the player taps to open the Summary (reduced-motion shows the solved board immediately and still requires the tap). Spec in [TER-169](https://linear.app/terenc/issue/TER-169).
 * **v1.5 (May 2, 2026):** Brand integration. Codename "Yergers" → final brand "RYGO." Added Brand identity section. Adopted brand color palette as game-content colors (RYGO Red `#D8463A`, RYGO Yellow `#E6B73B`, RYGO Green `#2E9D5C`); shape fills changed to Paper / Ink. Page surface palette adopts Ink (dark) / Paper (light) instead of Tailwind gray-950 / white. Locked validation sequence between completion and summary — abrupt-cut bug. localStorage key `yergers:theme` → `rygo:theme` (migration in [TER-151](https://linear.app/terenc/issue/TER-151/yergers-rygo-rebrand-rename-brand-asset-wiring-lockup-localstorage)).
 * **v1.4 (May 2, 2026):** Major rules update following first real-play feedback.
   * **Difficulty ladder:** expanded from {4×4, 6×6, 8×8} to {4×4, 5×5, 6×6, 8×8} with labels Easy / Normal / Hard / Extreme.

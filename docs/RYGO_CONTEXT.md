@@ -43,7 +43,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 * **Dark mode:** Class-based. `@custom-variant dark (&:where(.dark, .dark *))` in `index.css`. `class="dark"` set on the html element by default in `index.html`. Toggle UI shipped in [TER-137](https://linear.app/terenc/issue/TER-137).
 * **Testing:** Vitest v4 with jsdom environment
 * **State:** React local state for MVP. No global state library.
-* **Persistence (MVP):** None server-side. localStorage for theme preference (key `rygo:theme`; one-time migration shim from `yergers:theme` shipped in [TER-151](https://linear.app/terenc/issue/TER-151)) and daily play history / streaks (key `rygo:state`; lands in [TER-142](https://linear.app/terenc/issue/TER-142)).
+* **Persistence (MVP):** None server-side. localStorage for theme preference (key `rygo:theme`; one-time migration shim from `yergers:theme` shipped in [TER-151](https://linear.app/terenc/issue/TER-151)) and daily play history / streaks (key `rygo:state`; shipped in [TER-142](https://linear.app/terenc/issue/TER-142)).
 * **Backend:** None for MVP. Pattern generation is client-side, daily seed derived from date.
 * **Hosting:** Vercel.
 * **Package manager:** npm
@@ -54,7 +54,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 
 ## Source-of-truth documents
 
-* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.5** (May 2, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
+* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.6** (May 24, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 * **Terenc Development Process** — `Terenc-LLC/rygo/docs/Terenc-Development-Process.md` on GitHub main. Currently at **v2.4** (May 3, 2026). Canonical copy per project; org-level synchronization is a manual responsibility until a central terenc-org doc location is established.
 * **This context document** — `Terenc-LLC/rygo/docs/RYGO_CONTEXT.md` on GitHub main. Title is `RYGO_CONTEXT.md` (was `YERGERS_CONTEXT.md`). (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 
@@ -96,7 +96,7 @@ These are settled. Don't re-litigate without raising it explicitly with Opus.
   * **Full coverage** — every cell in the target is colored. No empty cells in any generated target.
   * **All three colors required** — every generated target uses red, yellow, AND green. Two-color targets are rejected and regenerated.
 * **First reveal is free.** Timer starts on first reveal but move counter does not increment.
-* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays before the Summary appears. (Locked design doc v1.5; shipped in [TER-153](https://linear.app/terenc/issue/TER-153).)
+* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays; the solved board then holds and the player taps to advance to the Summary (no timed auto-advance; reduced-motion shows the solved board immediately and still requires the tap). (Locked design doc v1.5/v1.6; sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance is [TER-169](https://linear.app/terenc/issue/TER-169), GDD v1.6.)
 * **Pattern and playable board are never visible at the same time.** Transitioning between them shows a 1-second blank "Get ready..." screen in either direction; the timer keeps running through the blank.
 
 ### Difficulty ladder
@@ -166,7 +166,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * Cascade animations — defer to polish (M4). The win-state validation sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153) (M2); any further cell-fill / completion cascades remain M4.
 * Respect `prefers-color-scheme` on first visit — currently no.
 * Lock Node version in `package.json` engines — recommended `"engines": {"node": ">=20"}`.
-* Shapes opt-in/out toggle — Chris raised, decided to leave shapes always-on for MVP. Revisit only if real users complain.
+* Shapes opt-out toggle — default shapes ON (color-blind accessibility is MVP and stays the default); add an optional user toggle to hide shapes, paired with future CVD-friendly color schemes as the accessible path for players who turn shapes off. Post-launch — needs a settings surface (none exists yet). Note: aggregate "track which choice users make" is not possible under the current no-backend / per-device-localStorage architecture; only the local preference can be stored. (Reframed May 24, 2026 from "always-on for MVP, revisit if users complain.")
 * Pattern generator solution-length ranges — initial v1.4 ranges set in [TER-146](https://linear.app/terenc/issue/TER-146) (starting L and MOVE_CAP per size; see the Pattern generator architecture note). Still to be retuned with real-play data; the per-size feel — especially whether Easy 4×4 stays easy at the longer lengths — is a Chris manual-verify item.
 * Pattern generator color weights (red 0.40 / yellow 0.40 / green 0.20) are a starting hypothesis from [TER-146](https://linear.app/terenc/issue/TER-146) — retune with real-play data.
 
@@ -304,12 +304,12 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 
 **Screens:**
 
-* **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)).
-* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, phase text), Grid (board when !patternVisible, target when patternVisible; replaced by "Get ready..." during a 1-second transition blank), reveal/hide toggle button, `ColorPicker` (hidden during pattern-revealed), Restart button (calls `reset()`, stays on game screen, clears pending transition timer), Quit button (calls `onPickDifficulty` directly — no `window.confirm`). Transition blank: local `transitioning: boolean` state + `timerRef: useRef<number | null>` cleared via `useEffect` cleanup; `revealPattern()`/`hidePattern()` called at click time so game timer starts immediately through the blank. `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142). On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all controls suppressed, and dispatches `completeValidation()` on a `timerRef` timeout (400ms static hold under `prefers-reduced-motion`); on `phase === 'complete'`, renders `Summary` in place of the game UI. (Validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); the rest shipped in [TER-148](https://linear.app/terenc/issue/TER-148).)
+* **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)). Now also accepts a `completedToday` map and passes each level's recorded result through to its `LevelButton` ([TER-142](https://linear.app/terenc/issue/TER-142)).
+* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, phase text), Grid (board when !patternVisible, target when patternVisible; replaced by "Get ready..." during a 1-second transition blank), reveal/hide toggle button, `ColorPicker` (hidden during pattern-revealed), Restart button (calls `reset()`, stays on game screen, clears pending transition timer), Quit button (calls `onPickDifficulty` directly — no `window.confirm`). Transition blank: local `transitioning: boolean` state + `timerRef: useRef<number | null>` cleared via `useEffect` cleanup; `revealPattern()`/`hidePattern()` called at click time so game timer starts immediately through the blank. `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all controls suppressed, and dispatches `completeValidation()` on a `timerRef` timeout (400ms static hold under `prefers-reduced-motion`); on `phase === 'complete'`, renders `Summary` in place of the game UI. (Validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); the rest shipped in [TER-148](https://linear.app/terenc/issue/TER-148).) NOTE: the validating→complete advance becomes a player tap (no auto-advance) when [TER-169](https://linear.app/terenc/issue/TER-169) ships; this note will be updated then.
 
 **Sub-components:**
 
-* **LevelButton** (`src/components/LevelButton.tsx`) — large button with `size: 4 | 5 | 6 | 8`, `label`, `onSelect`, `completedToday?: { moves, elapsedMs }` (unused slot for [TER-142](https://linear.app/terenc/issue/TER-142)).
+* **LevelButton** (`src/components/LevelButton.tsx`) — large button with `size: 4 | 5 | 6 | 8`, `label`, `onSelect`, `completedToday?: { moves, elapsedMs }`. In completed state ([TER-142](https://linear.app/terenc/issue/TER-142)) shows the recorded result (`{moves} moves · {M:SS}`) plus a live H:MM:SS countdown to the next UTC day and a "Practice" affordance; tapping still calls `onSelect` (which starts practice mode).
 * **ColorPicker** (`src/components/ColorPicker.tsx`) — red/yellow/green buttons showing color bg + shape icon. Active state: `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink` (non-color cue; blue-500 contrasts all three game colors in both themes; shipped in [TER-148](https://linear.app/terenc/issue/TER-148)).
 * **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), `flex gap-3` button row with "Play again" + "Change difficulty". Share-button slot reserved for [TER-144](https://linear.app/terenc/issue/TER-144).
 * **ThemeToggle** (`src/components/ThemeToggle.tsx`) — receives `theme` and `toggleTheme` as props from App. Shows `Sun` when dark, `Moon` when light. `aria-label` reflects the action.
@@ -346,7 +346,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 | Shape fills              | `text-paper` (on red/green), `text-ink` (on yellow)    | (same)                                               |
 | Win-state glow overlay   | inset ring `#2E9D5C` (RYGO Green), opacity-pulsed      | (same)                                               |
 
-**Active-ring note:** `ring-white ring-offset-white` was invisible against Paper (`#F5F3EE`) in light mode. Fixed in [TER-148](https://linear.app/terenc/issue/TER-148): changed to `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink`.
+**Active-ring note:** `ring-white ring-offset-white` was invisible against Paper (`#F5F3EE`) in light mode. Fixed in [TER-148](https://linear.app/terenc/issue/TER-148): changed to `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink`. (Empty-cell `bg-gray-100` on Paper light-mode contrast is addressed in [TER-168](https://linear.app/terenc/issue/TER-168).)
 
 ### Test infrastructure — UPDATED ([TER-137](https://linear.app/terenc/issue/TER-137))
 
@@ -365,7 +365,7 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 
 `rygo:state` localStorage schema (version 1): `{ version: 1, daily: { "4": { "YYYY-MM-DD": { moves, elapsedMs, completedAt } }, "5": {}, "6": {}, "8": {} } }`. Key: grid-size string → UTC day string → result. Version > 1 treated as unreadable (returns empty, writes no-op). All reads/writes wrapped in try/catch. No derived values stored (streaks compute from history in TER-143). 34 unit tests, all passing.
 
-**Data flow (TER-142):** App loads state at startup (`useState(() => loadState())`). DifficultyPicker receives a `completedToday` map (level → `{moves, elapsedMs}`). When a level is completed and `isCompletedToday` is true, tapping it starts practice mode (same seed, `mode: 'practice'`, no recording). GameScreen fires `onDailyComplete({moves, elapsedMs})` exactly once when `phase === 'complete'` and `mode === 'daily'`; App calls `recordDailyResult` and refreshes state. Day key is captured at puzzle launch and travels with the session (post-midnight finishes record under start day). LevelButton in completed state shows recorded result + live H:MM:SS countdown to next UTC day.
+**Data flow (TER-142):** App loads state at startup (`useState(() => loadState())`). DifficultyPicker receives a `completedToday` map (level → `{moves, elapsedMs}`). When a level is completed and `isCompletedToday` is true, tapping it starts practice mode (same seed, `mode: 'practice'`, no recording). GameScreen fires `onDailyComplete({moves, elapsedMs})` exactly once when `phase === 'complete'` and `mode === 'daily'`; App calls `recordDailyResult` and refreshes state. Day key is captured at puzzle launch and travels with the session (post-midnight finishes record under start day). LevelButton in completed state shows recorded result + live H:MM:SS countdown to next UTC day. Known minor gap (review note, May 24): the picker's completed-state + countdown can go stale if left open across a UTC midnight (display-only, self-heals on re-render) — to be folded into [TER-167](https://linear.app/terenc/issue/TER-167) rollover handling.
 
 ## Coding conventions
 
@@ -410,13 +410,19 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 
 ### M3 — Daily ritual (pre-launch)
 
-* [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ In Review. Daily play tracking + once-per-day lock + localStorage foundation.
+* [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
+* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass in progress; sequenced after [TER-142](https://linear.app/terenc/issue/TER-142) (schema shipped). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
 
 ### M4 — Polish (post-launch)
 
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
+
+### Unscheduled (pre-launch bugs / polish, no milestone yet)
+
+* [TER-168](https://linear.app/terenc/issue/TER-168) — Light-mode grid contrast (empty cells / grid structure wash out against Paper). Ready for Code; filed May 24, 2026.
+* [TER-169](https://linear.app/terenc/issue/TER-169) — Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Code-ready once the GDD v1.6 / tap-to-advance docs PR merges; filed May 24, 2026.
 
 ## Session log
 
@@ -641,3 +647,19 @@ Locked-section updates absorbed in this PR:
 ### 2026-05-24 — [TER-142](https://linear.app/terenc/issue/TER-142) Daily play tracking + once-per-day lock + localStorage foundation (Claude Code / Sonnet 4.6)
 
 Created `src/persistence/dailyState.ts` with the full `rygo:state` schema (version 1), all six pure helpers, and every localStorage access wrapped in try/catch. 34 unit tests covering happy paths, idempotency, first-write-wins, corrupt JSON, newer-schema guard, and localStorage unavailability. Updated `LevelButton` to show recorded result + live H:MM:SS countdown in completed state, and `DifficultyPicker` to accept and pass through the `completedToday` map. Added `onDailyComplete` callback to `GameScreen` (fires once on `phase === 'complete'` in daily mode). Wired everything in `App`: state loaded at startup, day key captured at puzzle launch, recording on completion, practice mode when level is already completed today (same seed, no recording). 165 tests passing; build clean. PR opened against main.
+
+### 2026-05-24 — [TER-142](https://linear.app/terenc/issue/TER-142) closed by Opus; first M3 issue shipped; this docs PR also locks [TER-169](https://linear.app/terenc/issue/TER-169) tap-to-advance
+
+Chris reported [TER-142](https://linear.app/terenc/issue/TER-142)'s PR merged (PR #27). Opus reviewed the diff (the `rygo:state` v1 schema + six pure helpers in `src/persistence/dailyState.ts`; the daily lock wired through `App` / `DifficultyPicker` / `GameScreen`; completed-state result + countdown; same-seed practice mode) with CI green and 165 tests passing, and marked the issue Done. **First M3 issue shipped — the localStorage foundation that TER-143 (stats) and TER-144 (share) read from is now in place.**
+
+Review notes carried forward (non-blocking): the DifficultyPicker can show a stale completed-state + `0:00:00` countdown if left open across a UTC midnight (display-only, self-heals on re-render) — fold into [TER-167](https://linear.app/terenc/issue/TER-167) rollover handling rather than patch separately. Code left the Linear issue In Progress (the doc issue-map line said In Review); Opus moved it through In Review → Done.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-142](https://linear.app/terenc/issue/TER-142) → ✅ Done. Added [TER-167](https://linear.app/terenc/issue/TER-167) to M3 (design pass in progress) and a new "Unscheduled" subsection for [TER-168](https://linear.app/terenc/issue/TER-168) (light-mode grid contrast) and [TER-169](https://linear.app/terenc/issue/TER-169) (reward-screen tap-to-advance).
+* **TER-169 design lock (bundled):** GDD bumped to v1.6; the Game-mechanics validation-sequence bullet now reads "sweep plays, solved board holds, player taps to advance — no timed auto-advance; reduced-motion shows the solved board immediately and still requires the tap." This makes [TER-169](https://linear.app/terenc/issue/TER-169) Code-ready. The GameScreen architecture note still describes the shipped TER-153 auto-advance and will be updated when TER-169 lands.
+* **Open questions:** reframed the shapes entry from "always-on for MVP" to a post-launch opt-out toggle (default on) paired with future CVD-friendly palettes; noted aggregate choice-tracking isn't possible under the current no-backend architecture.
+* **Source-of-truth documents + Tech stack:** GDD reference bumped to v1.6; `rygo:state` line changed from "lands in TER-142" to "shipped in TER-142."
+* **Architecture notes:** DifficultyPicker / GameScreen `onDailyComplete` / LevelButton completed-state / Persistence module entries had already been added by Code in the TER-142 PR and are retained, with a one-line note on the cross-midnight staleness gap.
+
+**Next recommended:** [TER-167](https://linear.app/terenc/issue/TER-167) design pass (persistent attempt timer) — TER-142's schema is settled, so its dependency is clear; it's the natural next M3 design conversation before [TER-143](https://linear.app/terenc/issue/TER-143). For an immediate Code slot, [TER-168](https://linear.app/terenc/issue/TER-168) (light-mode grid) is ready to promote now, and [TER-169](https://linear.app/terenc/issue/TER-169) becomes Code-ready once this docs PR merges.

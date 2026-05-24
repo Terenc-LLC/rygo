@@ -79,14 +79,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-142"
+          href="https://linear.app/terenc/issue/TER-169"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-142
+          TER-169
         </a>{' '}
-        — Daily play tracking + once-per-day lock
+        — Reward-screen tap-to-advance
       </footer>
     </>
   );

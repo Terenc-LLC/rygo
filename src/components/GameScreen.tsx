@@ -70,25 +70,6 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
     }
   }, [phase, mode, onDailyComplete, game.moveCount, game.elapsedMs]);
 
-  // Drive the validation sweep: dispatch completeValidation after the sweep budget
-  // (or a short static hold under reduced-motion). Uses timerRef for unmount cleanup.
-  const { completeValidation } = game;
-  useEffect(() => {
-    if (phase !== 'validating') return;
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    const delay = prefersReducedMotion.current ? 400 : SWEEP_MS;
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      completeValidation();
-    }, delay);
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [phase, completeValidation]);
-
   if (game.phase === 'complete') {
     return (
       <Summary
@@ -155,6 +136,14 @@ export function GameScreen({ puzzle, mode = 'daily', onPickDifficulty, onDailyCo
             </div>
           )}
         </div>
+
+        <button
+          onClick={game.completeValidation}
+          className="w-full py-3 rounded-xl bg-gray-200 dark:bg-gray-700 text-ink dark:text-paper font-semibold active:scale-95 transition-transform duration-100"
+          aria-label="Continue to summary"
+        >
+          Tap to continue
+        </button>
       </div>
     );
   }

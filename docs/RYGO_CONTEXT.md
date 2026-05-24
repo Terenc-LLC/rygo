@@ -167,10 +167,12 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * Respect `prefers-color-scheme` on first visit — currently no.
 * Lock Node version in `package.json` engines — recommended `"engines": {"node": ">=20"}`.
 * Shapes opt-in/out toggle — Chris raised, decided to leave shapes always-on for MVP. Revisit only if real users complain.
-* Pattern generator: add max-attempts cap on the rejection-retry loop. Currently unbounded — extremely unlikely to loop forever in practice (the bulk-1000 test confirms termination), but defensive code would cap. Re-evaluate when the new full-coverage generator ([TER-146](https://linear.app/terenc/issue/TER-146)) lands; the new constraints make the rejection loop slightly less likely to terminate quickly.
-* Pattern generator solution-length ranges for the new full-coverage rules — to be retuned when [TER-146](https://linear.app/terenc/issue/TER-146) lands. Real-play data will guide final ranges.
+* Pattern generator solution-length ranges — initial v1.4 ranges set in [TER-146](https://linear.app/terenc/issue/TER-146) (starting L and MOVE_CAP per size; see the Pattern generator architecture note). Still to be retuned with real-play data; the per-size feel — especially whether Easy 4×4 stays easy at the longer lengths — is a Chris manual-verify item.
+* Pattern generator color weights (red 0.40 / yellow 0.40 / green 0.20) are a starting hypothesis from [TER-146](https://linear.app/terenc/issue/TER-146) — retune with real-play data.
 
 *(Resolved May 3, 2026: "Migrate context doc from Linear to GitHub" — done in v2.4 docs-only PR. Three Linear last-write-wins clobbering incidents drove the call. Removed from open questions.)*
+
+*(Resolved May 24, 2026: "Add max-attempts cap on the generator rejection-retry loop" — done in [TER-146](https://linear.app/terenc/issue/TER-146): the outer loop is capped at 100 attempts and throws a descriptive seed+gridSize error if exhausted. With the Phase A green guarantee the cap is effectively unreachable; the bulk-1000 test confirms termination. Removed from open questions.)*
 
 ## Architecture notes
 
@@ -384,13 +386,13 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-147](https://linear.app/terenc/issue/TER-147) — ✅ Done. Same-color clearing mechanic (engine + hook).
 * [TER-152](https://linear.app/terenc/issue/TER-152) — ✅ Done. RYGO brand palette tokens (Tailwind v4 `@theme` block, swap utilities to brand tokens, contrast verification).
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
-* [TER-150](https://linear.app/terenc/issue/TER-150) — Every-click-counts scoring (color switch, hide pattern). ✅ In Review.
-* [TER-146](https://linear.app/terenc/issue/TER-146) — Generator: full coverage + all 3 colors required + retune. ✅ In Review.
-* [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + row-glow sweep + Solved! label). ✅ In Review.
+* [TER-150](https://linear.app/terenc/issue/TER-150) — ✅ Done. Every-click-counts scoring (color switch, hide pattern).
+* [TER-146](https://linear.app/terenc/issue/TER-146) — ✅ Done. Generator v1.4: full coverage + all 3 colors + retune (Phase A green guarantee, 100-attempt cap).
+* [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + 750–1000ms sweep + RYGO mark glow before Summary). Design pass pending. **Last open M2 issue.**
 
 ### M3 — Daily ritual (pre-launch)
 
-* [TER-142](https://linear.app/terenc/issue/TER-142) — Daily play tracking + once-per-day lock + localStorage foundation. Blocked by M2 follow-ups ([TER-146](https://linear.app/terenc/issue/TER-146)/150/153 should land first to avoid double-touching the same files).
+* [TER-142](https://linear.app/terenc/issue/TER-142) — Daily play tracking + once-per-day lock + localStorage foundation. Blocked by M2 follow-ups ([TER-153](https://linear.app/terenc/issue/TER-153) should land first to avoid double-touching the same files).
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-137](https://linear.app/terenc/issue/TER-137) + [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Blocked by [TER-137](https://linear.app/terenc/issue/TER-137).
 
@@ -581,10 +583,14 @@ Updated `SELECT_COLOR` and `HIDE_PATTERN` reducer cases in `src/hooks/useGame.ts
 
 Session 2 (May 24): applied Option 2 retune per Opus/Chris decision comment. During Phase A, whenever green is absent from the current board state, the next appended move is forced to green (targeting a seed-derived empty cell). This closes the structural gap: Phase B cannot place green on a fully-covered board, so Phase A is the only window. Also capped the outer retry loop at 100 attempts (previously 1000) and changed cap-exceeded throw to include seed and gridSize as a bug signal. Added `_getMaxAttemptsObserved()` to test instrumentation. Re-ran bulk-1000 test: 100% full coverage, 100% all-3-colors, cap-exceeded rate ≤ 5%, max attempts per puzzle ≤ 10 (well under the 100 cap). 127 tests passing; build clean. PR opened against main.
 
-### 2026-05-24 — [TER-153](https://linear.app/terenc/issue/TER-153) Win-state validation sequence (Claude Code / Sonnet 4.6)
+### 2026-05-24 — [TER-146](https://linear.app/terenc/issue/TER-146) closed by Opus
 
-Added `'validating'` GamePhase between `'playing'` and `'complete'`. Reducer changes: `PLACE_AT` now transitions to `'validating'` (not `'complete'`) on a matching board, freezing `elapsedMs` atomically; new `COMPLETE_VALIDATION` action flips `'validating' → 'complete'`; `completeValidation()` exposed on `GameActions`. Added comment on the same-color-clear path explaining why it skips the completion check (full-coverage targets, TER-146).
+Chris reported [TER-146](https://linear.app/terenc/issue/TER-146)'s PR merged (PR #23). Opus reviewed the diff (Phase A green guarantee, deterministic forced-cell selection, 100-attempt cap with descriptive throw), confirmed acceptance criteria against the bulk-1000 results, and marked the issue Done. **M2 follow-ups: 9 of 10 now Done.**
 
-GameScreen changes: `'validating'` early-return renders the frozen matched board with a row-by-row green inset-ring glow overlay (CSS `rowGlow` keyframe with per-row animation-delay stagger at `SWEEP_MS / rowCount`). Glow is an absolutely-positioned overlay grid — does not recolor or obscure cell colors or shapes. "Solved!" shown in the phase-label slot; `aria-live="polite"` region announces completion. All interactive controls suppressed during validating. Sweep driven by `setTimeout(SWEEP_MS=850ms)` stored in `timerRef`, cleared on unmount. Under `prefers-reduced-motion`, skips the animated overlay and holds 400ms before dispatching `completeValidation()`.
+Locked-section updates absorbed in this docs-only PR:
 
-Tests: `useGame.test.ts` — updated existing completion test to assert `'validating'` (not `'complete'`); updated timer-stop test to use the validating→complete path; 3 new tests (completeValidation transitions to complete, no-op outside validating, timer frozen through validating). `GameScreen.test.tsx` — updated summary-appears test to advance timers past SWEEP_MS; 3 new tests (controls suppressed, reduced-motion 400ms hold, normal sweep 850ms). Added jsdom `matchMedia` stub in `beforeEach`. 131 tests passing; build clean. PR opened against main.
+* **Open questions:** removed the resolved "add max-attempts cap on the rejection-retry loop" entry (cap shipped in TER-146) and added a one-line resolution note. Reframed the solution-length-ranges entry to "initial v1.4 ranges set; retune with real-play data" and split the color-weights hypothesis into its own real-play-data item.
+* **Issue map:** [TER-146](https://linear.app/terenc/issue/TER-146) → ✅ Done; [TER-153](https://linear.app/terenc/issue/TER-153) annotated as the last open M2 issue; M3 blocker note simplified now that only TER-153 remains ahead of it.
+* **Architecture notes / session log:** the generator v1.4 entry and the Code session-log entry were added by Code in the TER-146 PR and are retained as-is.
+
+**Next recommended:** design pass on [TER-153](https://linear.app/terenc/issue/TER-153) (win-state validation sweep — `'validating'` GamePhase, 750–1000ms row pulse, RYGO mark glow). It is the last open M2 issue; closing it completes M2 and unblocks M3 (daily ritual: TER-142 → 143 → 144).

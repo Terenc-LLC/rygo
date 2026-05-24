@@ -23,7 +23,7 @@ Code may **not** modify these sections without explicit Opus instruction (Opus u
 
 If Code believes a locked decision needs to change, Code stops and posts a Linear comment asking Opus to open a docs-only PR with the update. **Never silently restructure or remove content from this document.**
 
-**Concurrency note:** since v2.4 (May 3, 2026), this doc lives in git rather than Linear. Parallel branches touching the same sections create surfaced merge conflicts at PR time rather than silent last-write-wins clobbering. The mitigation is unchanged: Chris stages Code launches sequentially, and Opus avoids docs-only PRs while Code is mid-session.
+**Concurrency note:** since v2.4 (May 3, 2026), this doc lives in git rather than Linear. Parallel branches touching the same sections create surfaced merge conflicts at PR time rather than silent last-write-wins clobbering. The mitigation is unchanged: Chris stages Code launches sequentially, and Opus avoids docs-only PRs while Code is mid-session. (Note, May 24: a Code branch that predates an open Opus docs-only PR can still collide on resolution — land Opus docs PRs before launching the next Code session.)
 
 ## Project identity
 
@@ -96,7 +96,7 @@ These are settled. Don't re-litigate without raising it explicitly with Opus.
   * **Full coverage** — every cell in the target is colored. No empty cells in any generated target.
   * **All three colors required** — every generated target uses red, yellow, AND green. Two-color targets are rejected and regenerated.
 * **First reveal is free.** Timer starts on first reveal but move counter does not increment.
-* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays before the Summary appears. (Locked design doc v1.5; implementation in [TER-153](https://linear.app/terenc/issue/TER-153).)
+* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays before the Summary appears. (Locked design doc v1.5; shipped in [TER-153](https://linear.app/terenc/issue/TER-153).)
 * **Pattern and playable board are never visible at the same time.** Transitioning between them shows a 1-second blank "Get ready..." screen in either direction; the timer keeps running through the blank.
 
 ### Difficulty ladder
@@ -134,7 +134,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * **Color picker buttons** also display the shape, with active color indicated by a non-color cue (border / ring) so the active state is meaningful for color-blind users. **The active-color cue must be visible in both light and dark themes** — not a white/light ring that disappears against a light background.
 * **All cells are** `<button>` elements with `aria-label`s describing state and position (e.g., "Red cell at row 2, column 3").
 * **Shapes are inline SVGs**, defined in `src/components/Shapes.tsx`.
-* **No reliance on color alone for any state indicator** anywhere in the UI.
+* **No reliance on color alone for any state indicator** anywhere in the UI. (The win-state success cue in [TER-153](https://linear.app/terenc/issue/TER-153) pairs the green glow with a "Solved!" label and an `aria-live` announcement.)
 * **Cell size at 8×8 on iPhone SE viewport is ~43px**, marginally below the 44px Apple HIG target. Accepted tradeoff per Chris on May 1, 2026 (the entire cell is the hit target; revisit if real users miss taps).
 
 ### Theming
@@ -163,7 +163,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 
 * Tutorial / first-run experience — defer to polish (M4).
 * Sound design — design intent locked (percussive wooden tap on placement, three-note R-Y-G ascending chime on completion); implementation deferred to M4.
-* Cascade animations — defer to polish (M4) except the validation sweep ([TER-153](https://linear.app/terenc/issue/TER-153), M2).
+* Cascade animations — defer to polish (M4). The win-state validation sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153) (M2); any further cell-fill / completion cascades remain M4.
 * Respect `prefers-color-scheme` on first visit — currently no.
 * Lock Node version in `package.json` engines — recommended `"engines": {"node": ">=20"}`.
 * Shapes opt-in/out toggle — Chris raised, decided to leave shapes always-on for MVP. Revisit only if real users complain.
@@ -292,7 +292,7 @@ export function useGame(puzzle: GeneratedPuzzle): GameView & GameActions;
 
 * **[TER-150](https://linear.app/terenc/issue/TER-150) shipped (May 3, 2026):** Every-click-counts scoring now fully implemented. `SELECT_COLOR` to a different color → +1; re-selecting the same color → 0 (no-op, returns state unchanged). `HIDE_PATTERN` → +1 (added here). `REVEAL_PATTERN` after first → +1 (already there). `PLACE_AT` → +1 (already there). Same-color clearing ([TER-147](https://linear.app/terenc/issue/TER-147)) → +1. 15 unit tests (was 9); 126 total passing.
 * [TER-147](https://linear.app/terenc/issue/TER-147) adds clearing semantics (shipped May 2, 2026): `PLACE_AT` branches on `state.current[row][col] === state.activeColor` — true calls `applyClear`, increments `moveCount` by 1, no completion check; false follows existing placement path unchanged.
-* [TER-153](https://linear.app/terenc/issue/TER-153) adds the `'validating'` phase and `completeValidation` action: when the boards match, phase goes to `'validating'` (timer freezes), GameScreen runs a 750–1000ms visual sweep, then dispatches `COMPLETE_VALIDATION` to flip phase to `'complete'`.
+* **[TER-153](https://linear.app/terenc/issue/TER-153) shipped (May 24, 2026):** the `'validating'` phase and `completeValidation` action are live. When the boards match, `PLACE_AT` sets phase `'validating'` (timer frozen atomically); GameScreen runs the 850ms row-glow sweep, then dispatches `COMPLETE_VALIDATION` to flip phase to `'complete'`. `COMPLETE_VALIDATION` is a no-op outside `'validating'`.
 
 ### Completion check
 
@@ -305,7 +305,7 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 **Screens:**
 
 * **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)).
-* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, phase text), Grid (board when !patternVisible, target when patternVisible; replaced by "Get ready..." during a 1-second transition blank), reveal/hide toggle button, `ColorPicker` (hidden during pattern-revealed), Restart button (calls `reset()`, stays on game screen, clears pending transition timer), Quit button (calls `onPickDifficulty` directly — no `window.confirm`). Transition blank: local `transitioning: boolean` state + `timerRef: useRef<number | null>` cleared via `useEffect` cleanup; `revealPattern()`/`hidePattern()` called at click time so game timer starts immediately through the blank. `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142). When `phase === 'validating'`, runs the win-sweep animation; when `phase === 'complete'`, renders `Summary` in place of the game UI. (Shipped in [TER-148](https://linear.app/terenc/issue/TER-148).)
+* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, phase text), Grid (board when !patternVisible, target when patternVisible; replaced by "Get ready..." during a 1-second transition blank), reveal/hide toggle button, `ColorPicker` (hidden during pattern-revealed), Restart button (calls `reset()`, stays on game screen, clears pending transition timer), Quit button (calls `onPickDifficulty` directly — no `window.confirm`). Transition blank: local `transitioning: boolean` state + `timerRef: useRef<number | null>` cleared via `useEffect` cleanup; `revealPattern()`/`hidePattern()` called at click time so game timer starts immediately through the blank. `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142). On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all controls suppressed, and dispatches `completeValidation()` on a `timerRef` timeout (400ms static hold under `prefers-reduced-motion`); on `phase === 'complete'`, renders `Summary` in place of the game UI. (Validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); the rest shipped in [TER-148](https://linear.app/terenc/issue/TER-148).)
 
 **Sub-components:**
 
@@ -315,6 +315,8 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 * **ThemeToggle** (`src/components/ThemeToggle.tsx`) — receives `theme` and `toggleTheme` as props from App. Shows `Sun` when dark, `Moon` when light. `aria-label` reflects the action.
 
 **Board interactivity:** Grid cells are disabled (`onCellTap` = undefined) in `idle`, `pattern-revealed`, and `validating` phases; enabled only in `playing`.
+
+**Win-state row-glow sweep (shipped in** [TER-153](https://linear.app/terenc/issue/TER-153)**, May 24, 2026):** during `'validating'`, an absolutely-positioned overlay grid (matching `grid-cols-N gap-1`) renders one div per cell carrying the `rowGlow` CSS animation — an inset green ring (`box-shadow inset 0 0 0 3px #2E9D5C`) that fades in/out, staggered per row by `SWEEP_MS / gridSize` (`SWEEP_MS = 850`). Overlay is `pointer-events-none` and does not recolor the cells underneath. `@keyframes rowGlow` lives in `src/index.css`. `prefers-reduced-motion` is captured once at mount in a `useRef`; when set, the overlay is skipped and the hold is 400ms.
 
 ### Theme system — READY (`src/hooks/useTheme.ts`, [TER-137](https://linear.app/terenc/issue/TER-137))
 
@@ -342,12 +344,13 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 | Primary action button    | `bg-blue-600 text-white`                               | (same)                                               |
 | Game-content cells       | `bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green`     | (theme-invariant)                                    |
 | Shape fills              | `text-paper` (on red/green), `text-ink` (on yellow)    | (same)                                               |
+| Win-state glow overlay   | inset ring `#2E9D5C` (RYGO Green), opacity-pulsed      | (same)                                               |
 
 **Active-ring note:** `ring-white ring-offset-white` was invisible against Paper (`#F5F3EE`) in light mode. Fixed in [TER-148](https://linear.app/terenc/issue/TER-148): changed to `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink`.
 
 ### Test infrastructure — UPDATED ([TER-137](https://linear.app/terenc/issue/TER-137))
 
-`src/test/setup.ts` patches `globalThis.localStorage` with a full in-memory `Storage` implementation. Required because Node.js 25 ships a built-in `localStorage` global that is non-functional without `--localstorage-file` and shadows jsdom's implementation in Vitest 4.x test workers. All tests pass under this mock; new localStorage-dependent tests work correctly. **Do not remove this mock — it is necessary for both Node 20 and Node 25 environments.**
+`src/test/setup.ts` patches `globalThis.localStorage` with a full in-memory `Storage` implementation. Required because Node.js 25 ships a built-in `localStorage` global that is non-functional without `--localstorage-file` and shadows jsdom's implementation in Vitest 4.x test workers. All tests pass under this mock; new localStorage-dependent tests work correctly. **Do not remove this mock — it is necessary for both Node 20 and Node 25 environments.** GameScreen tests additionally stub `window.matchMedia` in `beforeEach` (jsdom lacks it) for the [TER-153](https://linear.app/terenc/issue/TER-153) reduced-motion path.
 
 ## Coding conventions
 
@@ -376,7 +379,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-140](https://linear.app/terenc/issue/TER-140) — ✅ Done. Page bg/text theme-aware fix.
 * [TER-141](https://linear.app/terenc/issue/TER-141) — ✅ Done. Persistent "last shipped" footer.
 
-### M2 — Playable MVP
+### M2 — Playable MVP (✅ complete)
 
 * [TER-136](https://linear.app/terenc/issue/TER-136) — ✅ Done. useGame hook (state, timer, move counter, auto-completion).
 * [TER-137](https://linear.app/terenc/issue/TER-137) — ✅ Done. Full game UI + theme toggle. M2 baseline shipped.
@@ -388,13 +391,13 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
 * [TER-150](https://linear.app/terenc/issue/TER-150) — ✅ Done. Every-click-counts scoring (color switch, hide pattern).
 * [TER-146](https://linear.app/terenc/issue/TER-146) — ✅ Done. Generator v1.4: full coverage + all 3 colors + retune (Phase A green guarantee, 100-attempt cap).
-* [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + 750–1000ms sweep + RYGO mark glow before Summary). Design pass pending. **Last open M2 issue.**
+* [TER-153](https://linear.app/terenc/issue/TER-153) — ✅ Done. Win-state validation sequence (`'validating'` GamePhase + green row-glow sweep + Solved! label before Summary).
 
 ### M3 — Daily ritual (pre-launch)
 
-* [TER-142](https://linear.app/terenc/issue/TER-142) — Daily play tracking + once-per-day lock + localStorage foundation. Blocked by M2 follow-ups ([TER-153](https://linear.app/terenc/issue/TER-153) should land first to avoid double-touching the same files).
-* [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-137](https://linear.app/terenc/issue/TER-137) + [TER-142](https://linear.app/terenc/issue/TER-142).
-* [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Blocked by [TER-137](https://linear.app/terenc/issue/TER-137).
+* [TER-142](https://linear.app/terenc/issue/TER-142) — Daily play tracking + once-per-day lock + localStorage foundation. M2 follow-ups all shipped; this is the first M3 issue and the localStorage-schema foundation the other two build on. Needs a design pass before Code.
+* [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
+* [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
 
 ### M4 — Polish (post-launch)
 
@@ -594,3 +597,28 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes / session log:** the generator v1.4 entry and the Code session-log entry were added by Code in the TER-146 PR and are retained as-is.
 
 **Next recommended:** design pass on [TER-153](https://linear.app/terenc/issue/TER-153) (win-state validation sweep — `'validating'` GamePhase, 750–1000ms row pulse, RYGO mark glow). It is the last open M2 issue; closing it completes M2 and unblocks M3 (daily ritual: TER-142 → 143 → 144).
+
+### 2026-05-24 — [TER-153](https://linear.app/terenc/issue/TER-153) Win-state validation sequence (Claude Code / Sonnet 4.6)
+
+*(Restored by Opus — this entry was dropped when the TER-153 branch's merge-conflict resolution kept main's side of this file. The code shipped intact; only this doc entry was lost.)*
+
+Added `'validating'` GamePhase between `'playing'` and `'complete'`. Reducer changes: `PLACE_AT` now transitions to `'validating'` (not `'complete'`) on a matching board, freezing `elapsedMs` atomically; new `COMPLETE_VALIDATION` action flips `'validating' → 'complete'`; `completeValidation()` exposed on `GameActions`. Added a comment on the same-color-clear path explaining why it skips the completion check (full-coverage targets, TER-146).
+
+GameScreen changes: `'validating'` early-return renders the frozen matched board with a row-by-row green inset-ring glow overlay (CSS `rowGlow` keyframe with per-row animation-delay stagger at `SWEEP_MS / rowCount`). Glow is an absolutely-positioned overlay grid — does not recolor or obscure cell colors or shapes. "Solved!" shown in the phase-label slot; `aria-live="polite"` region announces completion. All interactive controls suppressed during validating. Sweep driven by `setTimeout(SWEEP_MS=850ms)` stored in `timerRef`, cleared on unmount. Under `prefers-reduced-motion`, skips the animated overlay and holds 400ms before dispatching `completeValidation()`.
+
+Tests: `useGame.test.ts` — updated existing completion test to assert `'validating'`; updated timer-stop test to use the validating→complete path; 3 new tests (completeValidation transitions, no-op outside validating, timer frozen through validating). `GameScreen.test.tsx` — updated summary-appears test to advance past SWEEP_MS; 3 new tests (controls suppressed, normal sweep, reduced-motion 400ms hold). Added jsdom `matchMedia` stub. 131 tests passing; build clean. PR #25.
+
+### 2026-05-24 — [TER-153](https://linear.app/terenc/issue/TER-153) closed by Opus; M2 complete
+
+Chris reported [TER-153](https://linear.app/terenc/issue/TER-153)'s PR merged (PR #25). Opus reviewed the diff (validating-phase reducer changes, the row-glow overlay sweep, reduced-motion 400ms hold, controls suppression, test coverage) with CI green, and marked the issue Done. **M2 — Playable MVP is now complete; every M2 issue is Done.**
+
+**Merge-conflict recovery:** PR #25's branch predated the TER-146 docs-only close-out (PR #24), so both touched the TER-153 issue-map line and the session log. Resolving the conflict (merge commit `9016849`) kept main's side and dropped Code's TER-153 doc edits — the issue-map status bump and the session-log entry. The code landed cleanly; only those doc edits were lost. Code's TER-153 session-log entry is restored above, and the issue-map line is set to Done here. (The v2.4 git path surfaced this as a real conflict rather than a silent clobber, but a Code branch predating an open Opus docs-only PR can still lose doc edits on resolution — reminder added to the concurrency note: land Opus docs PRs before launching the next Code session.)
+
+Locked-section updates absorbed in this PR:
+
+* **Issue map:** [TER-153](https://linear.app/terenc/issue/TER-153) → ✅ Done; M2 header marked ✅ complete.
+* **Open questions:** cascade-animations bullet updated — the validation sweep shipped in TER-153; further cascades remain M4.
+* **Architecture notes:** added the win-state row-glow sweep details (GameScreen `'validating'` branch, `rowGlow` keyframe, reduced-motion handling), the useGame `'validating'`/`completeValidation` shipped note, the glow-overlay row in the theme palette table, and the `matchMedia` test-stub note. Accessibility note amended to mention the Solved!/aria-live success cue.
+* **M3:** [TER-142](https://linear.app/terenc/issue/TER-142) blocker note cleared — M2 follow-ups all shipped; it's the first M3 issue.
+
+**Next recommended:** M3 — Daily ritual. [TER-142](https://linear.app/terenc/issue/TER-142) (daily play tracking + once-per-day lock + localStorage foundation) goes first — it defines the localStorage schema the stats and share features read from. Then [TER-143](https://linear.app/terenc/issue/TER-143) (stats) and [TER-144](https://linear.app/terenc/issue/TER-144) (share). Each needs a design pass before Code; TER-142 especially, since its schema is load-bearing for the rest of M3.

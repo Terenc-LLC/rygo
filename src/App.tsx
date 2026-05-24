@@ -38,14 +38,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-146"
+          href="https://linear.app/terenc/issue/TER-153"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-146
+          TER-153
         </a>{' '}
-        — Generator full coverage
+        — Win-state validation sweep
       </footer>
     </>
   );

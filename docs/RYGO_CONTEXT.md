@@ -386,7 +386,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
 * [TER-150](https://linear.app/terenc/issue/TER-150) — Every-click-counts scoring (color switch, hide pattern). ✅ In Review.
 * [TER-146](https://linear.app/terenc/issue/TER-146) — Generator: full coverage + all 3 colors required + retune. ✅ In Review.
-* [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + 750–1000ms sweep + RYGO mark glow before Summary). Design pass pending.
+* [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + row-glow sweep + Solved! label). ✅ In Review.
 
 ### M3 — Daily ritual (pre-launch)
 
@@ -580,3 +580,11 @@ Updated `SELECT_COLOR` and `HIDE_PATTERN` reducer cases in `src/hooks/useGame.ts
 **Two-session implementation.** Session 1 (May 4): implemented v1.4 algorithm — full-coverage Phase A/B append loop, color weights red 0.40 / yellow 0.40 / green 0.20, solution-length ranges and MOVE_CAPs per issue table, trivial-puzzle rejection retained. Bulk-1000 test: 100% full coverage, 100% all-3-colors, all non-triviality checks passing — but cap-exceeded rate 7.4% (above 5% escape hatch). Stopped per spec; posted Linear escape-hatch comment.
 
 Session 2 (May 24): applied Option 2 retune per Opus/Chris decision comment. During Phase A, whenever green is absent from the current board state, the next appended move is forced to green (targeting a seed-derived empty cell). This closes the structural gap: Phase B cannot place green on a fully-covered board, so Phase A is the only window. Also capped the outer retry loop at 100 attempts (previously 1000) and changed cap-exceeded throw to include seed and gridSize as a bug signal. Added `_getMaxAttemptsObserved()` to test instrumentation. Re-ran bulk-1000 test: 100% full coverage, 100% all-3-colors, cap-exceeded rate ≤ 5%, max attempts per puzzle ≤ 10 (well under the 100 cap). 127 tests passing; build clean. PR opened against main.
+
+### 2026-05-24 — [TER-153](https://linear.app/terenc/issue/TER-153) Win-state validation sequence (Claude Code / Sonnet 4.6)
+
+Added `'validating'` GamePhase between `'playing'` and `'complete'`. Reducer changes: `PLACE_AT` now transitions to `'validating'` (not `'complete'`) on a matching board, freezing `elapsedMs` atomically; new `COMPLETE_VALIDATION` action flips `'validating' → 'complete'`; `completeValidation()` exposed on `GameActions`. Added comment on the same-color-clear path explaining why it skips the completion check (full-coverage targets, TER-146).
+
+GameScreen changes: `'validating'` early-return renders the frozen matched board with a row-by-row green inset-ring glow overlay (CSS `rowGlow` keyframe with per-row animation-delay stagger at `SWEEP_MS / rowCount`). Glow is an absolutely-positioned overlay grid — does not recolor or obscure cell colors or shapes. "Solved!" shown in the phase-label slot; `aria-live="polite"` region announces completion. All interactive controls suppressed during validating. Sweep driven by `setTimeout(SWEEP_MS=850ms)` stored in `timerRef`, cleared on unmount. Under `prefers-reduced-motion`, skips the animated overlay and holds 400ms before dispatching `completeValidation()`.
+
+Tests: `useGame.test.ts` — updated existing completion test to assert `'validating'` (not `'complete'`); updated timer-stop test to use the validating→complete path; 3 new tests (completeValidation transitions to complete, no-op outside validating, timer frozen through validating). `GameScreen.test.tsx` — updated summary-appears test to advance timers past SWEEP_MS; 3 new tests (controls suppressed, reduced-motion 400ms hold, normal sweep 850ms). Added jsdom `matchMedia` stub in `beforeEach`. 131 tests passing; build clean. PR opened against main.

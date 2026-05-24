@@ -3,7 +3,7 @@ import type { Board, Color } from '../engine/types';
 import type { GeneratedPuzzle } from '../engine/generator';
 import { applyMove, applyClear } from '../engine/placement';
 
-export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'complete';
+export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
 
 export interface GameView {
   phase: GamePhase;
@@ -21,6 +21,7 @@ export interface GameActions {
   hidePattern: () => void;
   selectColor: (c: Color) => void;
   placeAt: (row: number, col: number) => void;
+  completeValidation: () => void;
   reset: () => void;
 }
 
@@ -38,6 +39,7 @@ type Action =
   | { type: 'HIDE_PATTERN' }
   | { type: 'SELECT_COLOR'; color: Color }
   | { type: 'PLACE_AT'; row: number; col: number; target: Board; now: number }
+  | { type: 'COMPLETE_VALIDATION' }
   | { type: 'RESET'; gridSize: 4 | 5 | 6 | 8 }
   | { type: 'TICK'; now: number };
 
@@ -89,7 +91,9 @@ function reducer(state: GameState, action: Action): GameState {
     case 'PLACE_AT': {
       if (state.phase !== 'playing' || state.activeColor === null) return state;
       if (state.current[action.row][action.col] === state.activeColor) {
-        // Same-color tap: clear via this color's reach; cannot complete the puzzle.
+        // Same-color tap: clear via this color's reach. Clearing cannot complete the puzzle:
+        // all targets are fully covered (TER-146), and a clear produces empty cells — so
+        // this path deliberately skips the completion check.
         return {
           ...state,
           current: applyClear(state.current, state.activeColor, action.row, action.col),
@@ -102,12 +106,18 @@ function reducer(state: GameState, action: Action): GameState {
         ...state,
         current: newBoard,
         moveCount: state.moveCount + 1,
-        phase: isComplete ? 'complete' : state.phase,
+        phase: isComplete ? 'validating' : state.phase,
         elapsedMs:
           isComplete && state.timerStartedAt !== null
             ? action.now - state.timerStartedAt
             : state.elapsedMs,
       };
+    }
+    case 'COMPLETE_VALIDATION': {
+      if (state.phase === 'validating') {
+        return { ...state, phase: 'complete' };
+      }
+      return state;
     }
     case 'RESET': {
       return makeInitialState(action.gridSize);
@@ -158,6 +168,10 @@ export function useGame(puzzle: GeneratedPuzzle): GameView & GameActions {
     });
   }, []);
 
+  const completeValidation = useCallback(() => {
+    dispatch({ type: 'COMPLETE_VALIDATION' });
+  }, []);
+
   const reset = useCallback(() => {
     dispatch({ type: 'RESET', gridSize: puzzleRef.current.gridSize });
   }, []);
@@ -175,6 +189,7 @@ export function useGame(puzzle: GeneratedPuzzle): GameView & GameActions {
     hidePattern,
     selectColor,
     placeAt,
+    completeValidation,
     reset,
   };
 }

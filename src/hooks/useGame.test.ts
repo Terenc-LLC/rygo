@@ -158,7 +158,7 @@ describe('useGame', () => {
     expect(result.current.current[1][1]).toBe('red');
   });
 
-  it('when placement makes board match target, phase becomes complete', () => {
+  it('when placement makes board match target, phase becomes validating (not complete)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
     act(() => { result.current.revealPattern(); });
@@ -168,10 +168,32 @@ describe('useGame', () => {
     // Place red at (0,0) — matches the one-cell target
     act(() => { result.current.placeAt(0, 0); });
 
+    expect(result.current.phase).toBe('validating');
+  });
+
+  it('completeValidation transitions from validating to complete', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(0, 0); });
+
+    expect(result.current.phase).toBe('validating');
+
+    act(() => { result.current.completeValidation(); });
+
     expect(result.current.phase).toBe('complete');
   });
 
-  it('timer stops and elapsedMs is preserved after completion', () => {
+  it('completeValidation is a no-op outside validating', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.completeValidation(); }); // idle phase — no-op
+    expect(result.current.phase).toBe('idle');
+  });
+
+  it('timer stops and elapsedMs is preserved through validating → complete', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
     act(() => { result.current.revealPattern(); });
@@ -179,17 +201,18 @@ describe('useGame', () => {
     act(() => { result.current.selectColor('red'); });
 
     act(() => { vi.advanceTimersByTime(300); });
-    const elapsedAtCompletion = result.current.elapsedMs;
 
-    act(() => { result.current.placeAt(0, 0); });
-    const elapsedAfterComplete = result.current.elapsedMs;
+    act(() => { result.current.placeAt(0, 0); }); // → validating, elapsedMs frozen
+    const elapsedAtValidating = result.current.elapsedMs;
+    expect(result.current.phase).toBe('validating');
+    expect(elapsedAtValidating).toBeGreaterThan(0);
 
-    act(() => { vi.advanceTimersByTime(500); });
+    act(() => { vi.advanceTimersByTime(500); }); // timer should NOT advance in validating
+    expect(result.current.elapsedMs).toBe(elapsedAtValidating);
 
+    act(() => { result.current.completeValidation(); }); // → complete
     expect(result.current.phase).toBe('complete');
-    expect(result.current.elapsedMs).toBe(elapsedAfterComplete);
-    expect(elapsedAfterComplete).toBeGreaterThan(0);
-    expect(result.current.elapsedMs).toBeLessThanOrEqual(elapsedAtCompletion + 100);
+    expect(result.current.elapsedMs).toBe(elapsedAtValidating);
   });
 
   it('tapping a same-color cell clears it and increments moveCount', () => {

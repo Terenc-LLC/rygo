@@ -8,3 +8,10 @@
   --color-rygo-yellow: #E6B73B;
   --color-rygo-green: #2E9D5C;
 }
+
+@keyframes rowGlow {
+  0%,
+  100% { opacity: 0; }
+  20%,
+  80% { opacity: 1; }
+}

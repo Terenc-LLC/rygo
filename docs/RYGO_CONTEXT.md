@@ -54,7 +54,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 
 ## Source-of-truth documents
 
-* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.6** (May 24, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
+* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.7** (May 24, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 * **Terenc Development Process** — `Terenc-LLC/rygo/docs/Terenc-Development-Process.md` on GitHub main. Currently at **v2.4** (May 3, 2026). Canonical copy per project; org-level synchronization is a manual responsibility until a central terenc-org doc location is established.
 * **This context document** — `Terenc-LLC/rygo/docs/RYGO_CONTEXT.md` on GitHub main. Title is `RYGO_CONTEXT.md` (was `YERGERS_CONTEXT.md`). (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 
@@ -96,7 +96,8 @@ These are settled. Don't re-litigate without raising it explicitly with Opus.
   * **Full coverage** — every cell in the target is colored. No empty cells in any generated target.
   * **All three colors required** — every generated target uses red, yellow, AND green. Two-color targets are rejected and regenerated.
 * **First reveal is free.** Timer starts on first reveal but move counter does not increment.
-* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays; the solved board then holds and the player taps to advance to the Summary (no timed auto-advance; reduced-motion shows the solved board immediately and still requires the tap). (Locked design doc v1.5/v1.6; sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance is [TER-169](https://linear.app/terenc/issue/TER-169), GDD v1.6.)
+* **Timer is an active-play accumulator (locked; lands in [TER-167](https://linear.app/terenc/issue/TER-167)).** Measures active play time: runs while the puzzle is open (including through the transition blanks), banks and pauses when the attempt is set aside (backgrounding, refresh, quit-to-picker) and resumes on return, never resets on Restart, and discards a stale attempt at UTC rollover; the in-progress board is restored on return. (GDD v1.7.)
+* **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays; the solved board then holds and the player taps to advance to the Summary (no timed auto-advance; reduced-motion shows the solved board immediately and still requires the tap). (Locked design doc v1.5/v1.6; sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169), GDD v1.6.)
 * **Pattern and playable board are never visible at the same time.** Transitioning between them shows a 1-second blank "Get ready..." screen in either direction; the timer keeps running through the blank.
 
 ### Difficulty ladder
@@ -415,7 +416,7 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
-* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass complete (May 24); spec written; **sequenced after [TER-169](https://linear.app/terenc/issue/TER-169)** (shared `validating→complete` seam). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
+* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass complete; spec written and GDD-locked (v1.7). [TER-169](https://linear.app/terenc/issue/TER-169) has shipped, so this is the **next M3 Code candidate** (it builds on the shared `validating→complete` seam). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
 
 ### M4 — Polish (post-launch)
 
@@ -424,7 +425,7 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 ### Unscheduled (pre-launch bugs / polish, no milestone yet)
 
 * [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
-* [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ In Review. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026. Land before [TER-167](https://linear.app/terenc/issue/TER-167).
+* [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
 
 ## Session log
 
@@ -691,3 +692,18 @@ Locked-section updates absorbed in this docs-only PR:
 Replaced the auto-advance `setTimeout` in GameScreen with a player-controlled tap. The `useEffect` that called `completeValidation()` after 850ms (or 400ms under `prefers-reduced-motion`) is removed. During `'validating'`, a "Tap to continue" button (`aria-label="Continue to summary"`, full-width, keyboard-accessible) is now rendered below the board and calls `game.completeValidation()` on click. The row-glow sweep animation and `SWEEP_MS = 850` are unchanged. Under `prefers-reduced-motion` the sweep overlay is skipped (as before) and the tap is still required (no forced timeout). `useGame` reducer is unchanged; `COMPLETE_VALIDATION` still flows only through user gesture.
 
 Updated `GameScreen.test.tsx`: the "summary after sweep" test now verifies no auto-advance after 2000ms and that clicking the button shows the summary; the reduced-motion test updated identically; the controls-suppression test updated to also assert the "Tap to continue" button IS present. 165 tests passing; build clean. PR opened against main.
+
+### 2026-05-24 — [TER-169](https://linear.app/terenc/issue/TER-169) closed by Opus; this docs PR also locks [TER-167](https://linear.app/terenc/issue/TER-167) timer (GDD v1.7)
+
+Chris reported [TER-169](https://linear.app/terenc/issue/TER-169)'s PR merged (PR #31). Opus reviewed the diff (auto-advance `setTimeout` / `useEffect` removed, including the 400ms reduced-motion branch; full-width "Tap to continue" button with `aria-label="Continue to summary"` dispatching `completeValidation()`; reducer unchanged; sweep + reduced-motion overlay-skip preserved; tests rewritten to assert no auto-advance + tap-to-advance in both motion settings) with CI green and 165 tests passing, and marked the issue Done. Code correctly updated the GameScreen architecture note to describe tap-to-advance, so no arch-note fold-in was needed this time.
+
+Non-blocking feel note carried forward: the "Tap to continue" button renders during the 850ms sweep (skippable). Chris to decide on device whether to gate it until sweep-end — a one-line follow-up if so.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-169](https://linear.app/terenc/issue/TER-169) → ✅ Done (Unscheduled). [TER-167](https://linear.app/terenc/issue/TER-167) M3 line updated — spec written and GDD-locked (v1.7); now the next M3 Code candidate.
+* **TER-167 timer lock (bundled, GDD v1.7):** the GDD Timer section + Constraints bullet were redefined from the v1.0 "runs continuously, cannot be paused" wall-clock to an active-play accumulator (banks/pauses when the attempt is set aside, resumes on return, never resets on Restart, discards a stale attempt at UTC rollover, restores the in-progress board). Context-doc Game-mechanics gains a matching locked timer bullet; source-of-truth GDD reference bumped to v1.7. This makes [TER-167](https://linear.app/terenc/issue/TER-167) source-of-truth-consistent before it goes to Code.
+* **Game mechanics:** validation bullet updated — tap-to-advance now shipped in [TER-169](https://linear.app/terenc/issue/TER-169) (was "is TER-169").
+* **Architecture notes / session log:** the GameScreen tap-to-advance arch-note update and the TER-169 Code session-log entry were added by Code in PR #31 and are retained.
+
+**Next recommended:** [TER-167](https://linear.app/terenc/issue/TER-167) (persistent attempt timer) — spec written, GDD-locked, now source-of-truth-consistent. Once this docs PR merges it's the next Code candidate; promotion Backlog→Todo is Chris's gate. Then [TER-143](https://linear.app/terenc/issue/TER-143) (stats) and [TER-144](https://linear.app/terenc/issue/TER-144) (share) remain for M3, each needing a design pass.

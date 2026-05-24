@@ -2,7 +2,7 @@
 
 > **Brand:** RYGO (locked May 2, 2026 — was codename "Yergers")
 > **Tagline:** Minimalist daily logic-constraints puzzle at [playRYGO.com](<http://playRYGO.com>)
-> **Status:** v1.6 — MVP scope (May 24, 2026: win-state advance changed to tap-to-continue)
+> **Status:** v1.7 — MVP scope (May 24, 2026: timer redefined as an active-play accumulator with pause/resume)
 > **Last updated:** May 24, 2026
 
 ## Concept
@@ -59,7 +59,7 @@ Increments on **every meaningful click**. See the Scoring section for the full r
 
 ### Timer
 
-Starts on the first pattern reveal. Runs continuously until the player completes the puzzle, including during the 1-second pattern↔board transition blanks. Cannot be paused.
+Starts on the first pattern reveal. Measures **active play time**, not wall-clock: it runs while the puzzle is open (including through the 1-second pattern↔board transition blanks), **banks and pauses** when the attempt is set aside — backgrounding the app, closing or refreshing the tab, or quitting to the difficulty picker — and resumes from the banked total on return. It does **not** reset on Restart: Restart clears the board and the move count, but the clock keeps its banked time and keeps running (so restart-grinding costs time). The in-progress attempt — board and clock — is restored on return until the puzzle is completed or the UTC day rolls over; a rollover while the attempt is paused discards the stale attempt and serves a fresh puzzle. (Accumulator timer + pause/resume + resume-in-progress board are specced in [TER-167](https://linear.app/terenc/issue/TER-167).)
 
 ## Rules
 
@@ -187,7 +187,7 @@ The architectural shape: a new `'validating'` GamePhase between `'playing'` and 
 
 * The pattern and the playable board are **never visible at the same time**.
 * The 1-second transition blank applies in both directions (board → pattern, pattern → board) and the timer keeps running through it.
-* The timer never pauses once started.
+* The timer measures active play time: it banks and pauses when the attempt is set aside (background, refresh, quit-to-picker) and resumes on return, and never resets on Restart ([TER-167](https://linear.app/terenc/issue/TER-167)).
 * The first reveal is free; every subsequent reveal counts as one move.
 * All other meaningful clicks count — see Scoring.
 
@@ -265,6 +265,7 @@ These are flagged but not blocking. We'll address each before the relevant featu
 
 ## Changelog
 
+* **v1.7 (May 24, 2026):** Timer redefined as an **active-play accumulator** — it banks and pauses when the attempt is set aside (background, refresh, quit-to-picker) and resumes on return, never resets on Restart, and discards a stale attempt at UTC rollover; the in-progress board is restored on return. Replaces the v1.0 "runs continuously, cannot be paused" wall-clock. Spec in [TER-167](https://linear.app/terenc/issue/TER-167).
 * **v1.6 (May 24, 2026):** Win-state advance changed from a timed auto-advance to **tap-to-continue** — after the validation sweep, the solved board holds until the player taps to open the Summary (reduced-motion shows the solved board immediately and still requires the tap). Spec in [TER-169](https://linear.app/terenc/issue/TER-169).
 * **v1.5 (May 2, 2026):** Brand integration. Codename "Yergers" → final brand "RYGO." Added Brand identity section. Adopted brand color palette as game-content colors (RYGO Red `#D8463A`, RYGO Yellow `#E6B73B`, RYGO Green `#2E9D5C`); shape fills changed to Paper / Ink. Page surface palette adopts Ink (dark) / Paper (light) instead of Tailwind gray-950 / white. Locked validation sequence between completion and summary — abrupt-cut bug. localStorage key `yergers:theme` → `rygo:theme` (migration in [TER-151](https://linear.app/terenc/issue/TER-151/yergers-rygo-rebrand-rename-brand-asset-wiring-lockup-localstorage)).
 * **v1.4 (May 2, 2026):** Major rules update following first real-play feedback.

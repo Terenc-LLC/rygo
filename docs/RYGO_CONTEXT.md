@@ -208,6 +208,8 @@ Three shape components in `Shapes.tsx`: `Square`, `Triangle`, `Circle`. All inli
 
 **Updated (May 2, 2026,** [TER-148](https://linear.app/terenc/issue/TER-148)**):** Cell `<button>` transitions expanded to `transition-[transform,background-color,color] duration-150` (was `transition-transform duration-100`) to animate color changes smoothly. `active:scale-95` retained for interactive cells only.
 
+**Updated (May 24, 2026,** [TER-168](https://linear.app/terenc/issue/TER-168)**):** Light-mode empty-cell background changed from `bg-gray-100` to `bg-stone-300` (`#D6D3D1`, ~1.35:1 vs Paper) so empty cells and grid lines are visible in light mode. Dark mode (`dark:bg-gray-800`) unchanged.
+
 ### Page chrome theming — UPDATED (`src/App.tsx`, [TER-152](https://linear.app/terenc/issue/TER-152))
 
 `<main>` uses `bg-paper dark:bg-ink`. Primary text uses `text-ink dark:text-paper`. Page background and text respond to the `dark` class on the html element. Game-content colors (cells, shape fills) remain theme-invariant. Brand tokens defined via Tailwind v4 `@theme` block in `src/index.css`. Shipped in [TER-152](https://linear.app/terenc/issue/TER-152), May 2, 2026.
@@ -413,7 +415,7 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
-* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass in progress; sequenced after [TER-142](https://linear.app/terenc/issue/TER-142) (schema shipped). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
+* [TER-167](https://linear.app/terenc/issue/TER-167) — Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Design pass complete (May 24); spec written; **sequenced after [TER-169](https://linear.app/terenc/issue/TER-169)** (shared `validating→complete` seam). Related to [TER-143](https://linear.app/terenc/issue/TER-143).
 
 ### M4 — Polish (post-launch)
 
@@ -421,8 +423,8 @@ export function msUntilNextUtcDay(now?: number): number // countdown driver
 
 ### Unscheduled (pre-launch bugs / polish, no milestone yet)
 
-* [TER-168](https://linear.app/terenc/issue/TER-168) — Light-mode grid contrast (empty cells / grid structure wash out against Paper). Ready for Code; filed May 24, 2026.
-* [TER-169](https://linear.app/terenc/issue/TER-169) — Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Code-ready once the GDD v1.6 / tap-to-advance docs PR merges; filed May 24, 2026.
+* [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
+* [TER-169](https://linear.app/terenc/issue/TER-169) — Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Code-ready (GDD v1.6 lock merged); filed May 24, 2026. Land before [TER-167](https://linear.app/terenc/issue/TER-167).
 
 ## Session log
 
@@ -663,3 +665,23 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes:** DifficultyPicker / GameScreen `onDailyComplete` / LevelButton completed-state / Persistence module entries had already been added by Code in the TER-142 PR and are retained, with a one-line note on the cross-midnight staleness gap.
 
 **Next recommended:** [TER-167](https://linear.app/terenc/issue/TER-167) design pass (persistent attempt timer) — TER-142's schema is settled, so its dependency is clear; it's the natural next M3 design conversation before [TER-143](https://linear.app/terenc/issue/TER-143). For an immediate Code slot, [TER-168](https://linear.app/terenc/issue/TER-168) (light-mode grid) is ready to promote now, and [TER-169](https://linear.app/terenc/issue/TER-169) becomes Code-ready once this docs PR merges.
+
+### 2026-05-24 — [TER-168](https://linear.app/terenc/issue/TER-168) Light-mode grid contrast (Claude Code / Sonnet 4.6)
+
+*(Session-log entry added by Opus at close-out — Code's PR #29 updated the theme-palette table but omitted this entry.)*
+
+Changed the light-mode empty-cell background from `bg-gray-100` (`#F3F4F6`, near-identical luminance to Paper) to `bg-stone-300` (`#D6D3D1`, ~1.35:1 contrast vs Paper `#F5F3EE`), so empty cells and the `gap-1` grid lines are visible in light mode at all four sizes. Dark mode (`dark:bg-gray-800`) unchanged; filled cells, shape fills, the active ring, and all other surfaces untouched. Touched the `CELL_BG` empty entry in `Grid.tsx`, the `Grid.test.tsx` class assertion, and the theme-palette table in this doc. 165 tests passing; build clean. PR #29.
+
+### 2026-05-24 — [TER-168](https://linear.app/terenc/issue/TER-168) closed by Opus
+
+Chris reported [TER-168](https://linear.app/terenc/issue/TER-168)'s PR merged (PR #29). Opus reviewed the diff (single-token swap to `bg-stone-300`, contrast verified at ~1.34:1 vs Paper, `Grid.test.tsx` assertion updated, theme-palette table updated), CI green / 165 tests, and marked the issue Done.
+
+Follow-up noted (not filed): the same warm-Paper wash-out affects sibling surfaces still on cool grays — `LevelButton` and the Summary card (`bg-gray-100`) and the reveal/action buttons (`bg-gray-200`). Candidate for a small follow-up issue if it shows on device; flagged for Chris during light-mode verification.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-168](https://linear.app/terenc/issue/TER-168) → ✅ Done (Unscheduled subsection). [TER-167](https://linear.app/terenc/issue/TER-167) note updated — design pass complete, spec written, sequenced after [TER-169](https://linear.app/terenc/issue/TER-169); [TER-169](https://linear.app/terenc/issue/TER-169) marked Code-ready (GDD v1.6 lock merged) and to land first.
+* **Architecture notes:** the Grid component note now records the `bg-stone-300` light-mode empty-cell change; the theme-palette table row + heading ref were already added by Code in PR #29 and are retained.
+* **Session log:** this close-out entry plus the TER-168 Code session entry that PR #29 omitted.
+
+**Next recommended:** [TER-169](https://linear.app/terenc/issue/TER-169) (reward-screen tap-to-advance) — Code-ready, smallest of the open items, and lands before [TER-167](https://linear.app/terenc/issue/TER-167) since both touch the `validating→complete` seam. Then [TER-167](https://linear.app/terenc/issue/TER-167) (persistent attempt timer, spec ready).

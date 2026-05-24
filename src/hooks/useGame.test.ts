@@ -264,6 +264,109 @@ describe('useGame', () => {
     expect(result.current.activeColor).toBeNull();
   });
 
+  it('reset without keepClock zeros the timer (practice behavior)', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.revealPattern(); });
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(result.current.elapsedMs).toBeGreaterThan(0);
+
+    act(() => { result.current.reset(); });
+
+    expect(result.current.phase).toBe('idle');
+    expect(result.current.elapsedMs).toBe(0);
+    expect(result.current.moveCount).toBe(0);
+  });
+
+  it('reset with keepClock preserves the running timer (daily restart behavior)', () => {
+    const { result } = renderHook(() =>
+      useGame(makeTestPuzzle(), { keepClockOnReset: true }),
+    );
+
+    act(() => { result.current.revealPattern(); });
+    act(() => { vi.advanceTimersByTime(500); });
+    const elapsedBeforeReset = result.current.elapsedMs;
+    expect(elapsedBeforeReset).toBeGreaterThan(0);
+
+    act(() => { result.current.reset(); });
+
+    expect(result.current.phase).toBe('idle');
+    expect(result.current.moveCount).toBe(0);
+    expect(result.current.elapsedMs).toBeGreaterThanOrEqual(elapsedBeforeReset);
+  });
+
+  it('bankTime stops the timer and accumulates; resumeTimer restarts it', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.revealPattern(); });
+    act(() => { vi.advanceTimersByTime(300); });
+    const beforeBank = result.current.elapsedMs;
+    expect(beforeBank).toBeGreaterThan(0);
+
+    act(() => { result.current.bankTime(); });
+    const bankedValue = result.current.elapsedMs;
+
+    // Timer should be frozen — advancing time does NOT change elapsedMs
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(result.current.elapsedMs).toBe(bankedValue);
+
+    // Resume: clock restarts from the banked value
+    act(() => { result.current.resumeTimer(); });
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(result.current.elapsedMs).toBeGreaterThan(bankedValue);
+  });
+
+  it('resuming from an in-progress blob restores state and continues the clock', () => {
+    const target: Board = [
+      ['red', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+    ];
+    const puzzle = makeTestPuzzle();
+    const resume = {
+      version: 1 as const,
+      date: '2026-05-24',
+      gridSize: 4 as const,
+      board: target,
+      phase: 'playing' as const,
+      activeColor: 'red' as const,
+      moveCount: 5,
+      patternVisible: false,
+      accumulatedMs: 12000,
+      savedAt: 0,
+    };
+
+    const { result } = renderHook(() => useGame(puzzle, { resume }));
+
+    // On mount, RESUME_TIMER fires (in useEffect) after render
+    act(() => {});
+
+    expect(result.current.phase).toBe('playing');
+    expect(result.current.moveCount).toBe(5);
+    expect(result.current.elapsedMs).toBeGreaterThanOrEqual(12000);
+
+    // Clock should be running — advancing time increases elapsedMs
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(result.current.elapsedMs).toBeGreaterThan(12000);
+  });
+
+  it('pathological negative delta (clock set back) is treated as zero', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.revealPattern(); });
+    act(() => { vi.advanceTimersByTime(200); });
+    const before = result.current.elapsedMs;
+
+    // Set system time backwards
+    act(() => { vi.setSystemTime(0); });
+    act(() => { vi.advanceTimersByTime(100); }); // tick with now=100 < runStartedAt
+
+    // elapsedMs should not go negative — stays at the banked value (0 added)
+    expect(result.current.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(result.current.elapsedMs).toBeLessThanOrEqual(before);
+  });
+
   it('realistic 8-move sequence: Reveal(0) → Hide(+1) → SelectRed(+1) → Place×3(+3) → SelectYellow(+1) → Place×2(+2) = 8', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 

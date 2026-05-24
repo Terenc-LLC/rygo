@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { GameScreen } from './GameScreen';
+import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
@@ -33,6 +33,7 @@ describe('GameScreen', () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     mockMatchMedia(false); // default: no reduced-motion preference
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -170,10 +171,9 @@ describe('GameScreen', () => {
     expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
   });
 
-  it('Restart resets score and timer to zero and stays on the game screen', () => {
-    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+  it('Restart in daily mode resets score to 0 but keeps the timer running', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" onPickDifficulty={vi.fn()} />);
 
-    // Get into playing state and make a move
     fireEvent.click(screen.getByText('Reveal Pattern'));
     act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByText('Hide / Start Solving'));
@@ -181,16 +181,87 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
 
-    // At least one move was made
+    expect(Number(screen.getByTestId('score-value').textContent)).toBeGreaterThan(0);
+    const timerBefore = screen.getByTestId('timer-value').textContent;
+
+    fireEvent.click(screen.getByText('Restart'));
+
+    // Score resets to 0; timer continues from where it was (not 00:00)
+    expect(screen.getByTestId('score-value')).toHaveTextContent('0');
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+  });
+
+  it('Restart in practice mode resets score and timer to zero', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="practice" onPickDifficulty={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
+
     expect(Number(screen.getByTestId('score-value').textContent)).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByText('Restart'));
 
-    // Game is reset
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
     expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
-    // Still on game screen
     expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+  });
+
+  it('visibilitychange→hidden in validating phase does NOT write a blob to rygo:inprogress', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" dayKey="2026-05-24" onPickDifficulty={vi.fn()} />);
+
+    // Reach validating phase (solve the puzzle)
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    expect(screen.getByText('Solved!')).toBeInTheDocument(); // validating
+
+    // Simulate backgrounding while in validating
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
+  });
+
+  it('visibilitychange→hidden in complete phase does NOT resurrect the blob', () => {
+    const onDailyComplete = vi.fn();
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-24"
+        onPickDifficulty={vi.fn()}
+        onDailyComplete={onDailyComplete}
+      />
+    );
+
+    // Reach complete phase
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument(); // complete
+    expect(onDailyComplete).toHaveBeenCalledOnce();
+
+    // No blob should be present after completion
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
+
+    // Simulate backgrounding while on Summary
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    fireEvent(document, new Event('visibilitychange'));
+
+    // Blob must still be absent — completion delete not undone
+    expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
   });
 
   it('Quit calls onPickDifficulty immediately without window.confirm', () => {

@@ -327,7 +327,7 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void; setTheme: (
 
 `useState` initializer runs `migrateLegacyKeys()` (migrates any pre-existing `'yergers:theme'` value to `'rygo:theme'` once, idempotent) then reads `localStorage.getItem('rygo:theme')`, defaults to `'dark'`. `useEffect` on `[theme]` calls `document.documentElement.classList.add/remove('dark')` and `localStorage.setItem(...)`. Single `useTheme` call in App; ThemeToggle receives props rather than calling the hook itself.
 
-### Theme palette (light / dark) — UPDATED ([TER-137](https://linear.app/terenc/issue/TER-137), [TER-152](https://linear.app/terenc/issue/TER-152))
+### Theme palette (light / dark) — UPDATED ([TER-137](https://linear.app/terenc/issue/TER-137), [TER-152](https://linear.app/terenc/issue/TER-152), [TER-168](https://linear.app/terenc/issue/TER-168))
 
 Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152](https://linear.app/terenc/issue/TER-152), May 2, 2026.
 
@@ -336,7 +336,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 | Page background          | `bg-paper` (`#F5F3EE`)                                 | `bg-ink` (`#14110E`)                                 |
 | Page / heading text      | `text-ink` (`#14110E`)                                 | `text-paper` (`#F5F3EE`)                             |
 | Secondary text / labels  | `text-gray-500`                                        | `text-gray-400`                                      |
-| Empty grid cells         | `bg-gray-100`                                          | `bg-gray-800`                                        |
+| Empty grid cells         | `bg-stone-300` (`#D6D3D1`, ~1.35:1 vs Paper)           | `bg-gray-800`                                        |
 | Default / level buttons  | `bg-gray-100`                                          | `bg-gray-800`                                        |
 | Reveal / action buttons  | `bg-gray-200`                                          | `bg-gray-700`                                        |
 | Summary card             | `bg-gray-100`                                          | `bg-gray-800`                                        |

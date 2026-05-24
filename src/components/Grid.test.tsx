@@ -38,10 +38,10 @@ describe('cell count', () => {
 // ---------------------------------------------------------------------------
 
 describe('cell background classes', () => {
-  it('empty cells have bg-gray-100 and dark:bg-gray-800', () => {
+  it('empty cells have bg-stone-300 and dark:bg-gray-800', () => {
     render(<Grid board={makeBoard(4, 'empty')} size={4} />);
     screen.getAllByRole('button').forEach(btn => {
-      expect(btn.className).toContain('bg-gray-100');
+      expect(btn.className).toContain('bg-stone-300');
       expect(btn.className).toContain('dark:bg-gray-800');
     });
   });

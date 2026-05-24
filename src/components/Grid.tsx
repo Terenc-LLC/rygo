@@ -23,7 +23,7 @@ const STATE_LABEL: Record<CellState, string> = {
 };
 
 const CELL_BG: Record<CellState, string> = {
-  empty: 'bg-gray-100 dark:bg-gray-800',
+  empty: 'bg-stone-300 dark:bg-gray-800',
   red: 'bg-rygo-red',
   yellow: 'bg-rygo-yellow',
   green: 'bg-rygo-green',

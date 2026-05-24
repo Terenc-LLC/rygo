@@ -6,6 +6,7 @@ import {
   MOVE_CAP,
   _resetCapStats,
   _getCapExceededPuzzleCount,
+  _getMaxAttemptsObserved,
 } from './generator';
 import { applyMove } from './placement';
 import type { Board } from './types';
@@ -127,6 +128,10 @@ describe('generatePuzzle — full coverage + all 3 colors + non-triviality (1000
     // Cap-exceeded rate ≤ 5% of puzzles (escape hatch threshold)
     const capExceededRate = _getCapExceededPuzzleCount() / 1000;
     expect(capExceededRate).toBeLessThanOrEqual(0.05);
+
+    // Max attempts per puzzle stays well under the 100-attempt cap (low single digits expected)
+    const maxAttempts = _getMaxAttemptsObserved();
+    expect(maxAttempts).toBeLessThanOrEqual(10);
   });
 });
 

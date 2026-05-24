@@ -99,11 +99,17 @@ export const MOVE_CAP: Record<4 | 5 | 6 | 8, number> = {
   8: 36,
 };
 
-// Test instrumentation: counts puzzles that required more than one attempt.
-// Reset before a bulk test run; read after to assess cap-exceeded rate.
+// Test instrumentation: counts puzzles that required more than one attempt,
+// and tracks the maximum number of attempts any single puzzle required.
+// Reset before a bulk test run; read after to assess cap-exceeded rate and retry depth.
 let _capExceededPuzzleCount = 0;
-export function _resetCapStats(): void { _capExceededPuzzleCount = 0; }
+let _maxAttemptsObserved = 0;
+export function _resetCapStats(): void {
+  _capExceededPuzzleCount = 0;
+  _maxAttemptsObserved = 0;
+}
 export function _getCapExceededPuzzleCount(): number { return _capExceededPuzzleCount; }
+export function _getMaxAttemptsObserved(): number { return _maxAttemptsObserved; }
 
 function tryGenerate(seed: string, gridSize: 4 | 5 | 6 | 8, attempt: number): GeneratedPuzzle | null {
   // Each attempt uses a distinct internal RNG seed so retries explore different boards.
@@ -156,10 +162,13 @@ function tryGenerate(seed: string, gridSize: 4 | 5 | 6 | 8, attempt: number): Ge
     if (solution.length >= cap) return null;
 
     if (emptyCells.length > 0) {
-      // Phase A: pick a random empty cell and append a random-color move.
+      // Phase A: pick a random empty cell. If green is absent from the current board,
+      // force green — Phase B cannot place green on a fully-covered board, so this is
+      // the only window to guarantee it appears. Cell index is rng-derived (deterministic).
       const idx = Math.floor(rng() * emptyCells.length);
       const [row, col] = emptyCells[idx];
-      solution.push({ color: sampleColor(rng), row, col });
+      const color = !colorPresent.green ? 'green' : sampleColor(rng);
+      solution.push({ color, row, col });
     } else {
       // Phase B: board is fully covered but a color is missing.
       // Priority order: red → yellow → green (first missing in that order).
@@ -194,14 +203,20 @@ function tryGenerate(seed: string, gridSize: 4 | 5 | 6 | 8, attempt: number): Ge
 }
 
 export function generatePuzzle(seed: string, gridSize: 4 | 5 | 6 | 8): GeneratedPuzzle {
-  for (let attempt = 0; attempt < 1000; attempt++) {
+  // Cap at 100 attempts. With the Phase A green guarantee this should be unreachable —
+  // a throw here signals a bug (unsatisfiable seed/size combo) rather than a tuning issue.
+  const MAX_ATTEMPTS = 100;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const result = tryGenerate(seed, gridSize, attempt);
     if (result !== null) {
       if (attempt > 0) _capExceededPuzzleCount++;
+      if (attempt + 1 > _maxAttemptsObserved) _maxAttemptsObserved = attempt + 1;
       return result;
     }
   }
-  throw new Error(`generatePuzzle: could not produce a non-trivial puzzle for seed "${seed}" after 1000 attempts`);
+  throw new Error(
+    `generatePuzzle: exhausted ${MAX_ATTEMPTS} attempts — seed="${seed}" gridSize=${gridSize}. This is a bug; report seed and gridSize.`
+  );
 }
 
 export function dailySeed(date: Date): string {

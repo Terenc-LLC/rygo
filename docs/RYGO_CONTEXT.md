@@ -224,12 +224,12 @@ export function dailySeed(date: Date): string; // returns 'RYGO-YYYY-MM-DD' from
 Deterministic, seeded puzzle generator. Zero external dependencies. Implementation details:
 
 * **RNG:** mulberry32 (hand-rolled ~10-line PRNG) seeded via a djb2-style string hash. No npm dependency.
-* **Algorithm:** generate a solution sequence → simulate on empty board with `applyMove` → resulting board is the target. Solvability is guaranteed by construction.
-* **Color weights:** red 0.45, yellow 0.40, green 0.15. Green is downweighted because its wide cascade reach (full row + column) causes disproportionate single-color outcomes. These are starting values; tune by playtesting.
-* **Trivial-puzzle rejection:** rejects and retries if the result is all-empty, all-one-color, >85% single color, or if the first move alone produces the target. Each retry uses `hash(seed + "/" + attempt)` so retries are independent but the overall output remains deterministic from the user-facing seed.
-* **Solution length:** 4×4: 4–7 moves, 5×5: 5–9 moves, 6×6: 6–10 moves, 8×8: 8–14 moves. (5×5 added in [TER-145](https://linear.app/terenc/issue/TER-145); all ranges will be retuned in [TER-146](https://linear.app/terenc/issue/TER-146).)
-
-**Note (May 2, 2026):** [TER-146](https://linear.app/terenc/issue/TER-146) expands this to enforce full coverage and all-three-colors, retunes weights, and updates the solution-length ranges. Will likely produce longer solutions overall. The `dailySeed` prefix switched from `'YERGERS-'` to `'RYGO-'` in [TER-151](https://linear.app/terenc/issue/TER-151) (one-time deterministic-output change, acceptable pre-launch).
+* **Algorithm (v1.4 — [TER-146](https://linear.app/terenc/issue/TER-146)):** Generate a starting sequence of L moves → simulate on empty board → if fully covered and all-3-colors, accept (if non-trivial). Otherwise: Phase A — append moves targeting empty cells, forcing green if green is absent from the current board state (guarantees a window for green before the board fills); Phase B — fix any remaining missing non-green colors (red or yellow can overwrite existing cells). Abort attempt if total moves exceed MOVE_CAP; outer loop retries up to 100 times before throwing. Solvability is guaranteed by construction.
+* **Color weights:** red 0.40, yellow 0.40, green 0.20. Green raised from 0.15 (TER-149 blocking limits effective reach); Phase A green-forcing closes the structural gap. Starting hypothesis — retune with real-play data.
+* **Trivial-puzzle rejection:** rejects and retries if all-empty, all-one-color, >85% single color, or first move alone produces the target. Each retry uses `hash(seed + "/" + attempt)` so retries are independent but output is deterministic from the user-facing seed.
+* **Solution length (v1.4):** Starting L — 4×4: 6–10, 5×5: 8–12, 6×6: 10–16, 8×8: 14–22. MOVE_CAP — 4×4: 14, 5×5: 18, 6×6: 24, 8×8: 36. Actual solution length = starting L + any appended moves (≤ MOVE_CAP).
+* **Full coverage + all-3-colors:** every target cell is red/yellow/green (no empty). All three colors appear at least once. Both conditions verified before accepting a puzzle. Bulk-1000 test confirms 100% compliance and cap-exceeded rate ≤ 5%.
+* **dailySeed prefix:** `'RYGO-'` (switched from `'YERGERS-'` in [TER-151](https://linear.app/terenc/issue/TER-151)).
 
 ### App footer — READY (`src/App.tsx`)
 
@@ -385,7 +385,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 * [TER-152](https://linear.app/terenc/issue/TER-152) — ✅ Done. RYGO brand palette tokens (Tailwind v4 `@theme` block, swap utilities to brand tokens, contrast verification).
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
 * [TER-150](https://linear.app/terenc/issue/TER-150) — Every-click-counts scoring (color switch, hide pattern). ✅ In Review.
-* [TER-146](https://linear.app/terenc/issue/TER-146) — Generator: full coverage + all 3 colors required + retune. ✅ Unblocked (design pass pending).
+* [TER-146](https://linear.app/terenc/issue/TER-146) — Generator: full coverage + all 3 colors required + retune. ✅ In Review.
 * [TER-153](https://linear.app/terenc/issue/TER-153) — Win-state validation sequence (`'validating'` GamePhase + 750–1000ms sweep + RYGO mark glow before Summary). Design pass pending.
 
 ### M3 — Daily ritual (pre-launch)
@@ -574,3 +574,9 @@ Locked-section updates absorbed in this PR:
 ### 2026-05-03 — [TER-150](https://linear.app/terenc/issue/TER-150) Every-click-counts scoring (Claude Code / Sonnet 4.6)
 
 Updated `SELECT_COLOR` and `HIDE_PATTERN` reducer cases in `src/hooks/useGame.ts` to charge +1 move. `SELECT_COLOR` to the already-active color returns state unchanged (no charge). `HIDE_PATTERN` now increments `moveCount` by 1. No changes to `REVEAL_PATTERN`, `PLACE_AT`, or the hook's public interface. 6 existing tests updated to match new scoring rules; 6 new tests added covering HIDE_PATTERN charge, SELECT_COLOR no-op, SELECT_COLOR sequences, and the full 8-move realistic sequence. 126 tests passing; build clean. PR opened against main.
+
+### 2026-05-24 — [TER-146](https://linear.app/terenc/issue/TER-146) Generator v1.4 — full coverage + all 3 colors + retune (Claude Code / Sonnet 4.6)
+
+**Two-session implementation.** Session 1 (May 4): implemented v1.4 algorithm — full-coverage Phase A/B append loop, color weights red 0.40 / yellow 0.40 / green 0.20, solution-length ranges and MOVE_CAPs per issue table, trivial-puzzle rejection retained. Bulk-1000 test: 100% full coverage, 100% all-3-colors, all non-triviality checks passing — but cap-exceeded rate 7.4% (above 5% escape hatch). Stopped per spec; posted Linear escape-hatch comment.
+
+Session 2 (May 24): applied Option 2 retune per Opus/Chris decision comment. During Phase A, whenever green is absent from the current board state, the next appended move is forced to green (targeting a seed-derived empty cell). This closes the structural gap: Phase B cannot place green on a fully-covered board, so Phase A is the only window. Also capped the outer retry loop at 100 attempts (previously 1000) and changed cap-exceeded throw to include seed and gridSize as a bug signal. Added `_getMaxAttemptsObserved()` to test instrumentation. Re-ran bulk-1000 test: 100% full coverage, 100% all-3-colors, cap-exceeded rate ≤ 5%, max attempts per puzzle ≤ 10 (well under the 100 cap). 127 tests passing; build clean. PR opened against main.

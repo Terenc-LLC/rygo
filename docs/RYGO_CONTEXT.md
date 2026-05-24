@@ -156,7 +156,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 
 ### Retention scope (MVP+ pre-launch)
 
-* The four retention features — daily play tracking, once-per-day lock per level, per-level stats, and emoji-board share button — are required before public launch but are not strict MVP. Tracked in M3 — Daily ritual (pre-launch) milestone via [TER-142](https://linear.app/terenc/issue/TER-142), [TER-143](https://linear.app/terenc/issue/TER-143), [TER-144](https://linear.app/terenc/issue/TER-144). The per-level score-distribution histogram was descoped from [TER-143](https://linear.app/terenc/issue/TER-143) on May 24, 2026 — the per-level cards ship a today-vs-personal-best comparison instead (four histograms broke the no-scroll requirement); the histogram is deferred to a post-launch stats-v2 pass.
+* The four retention features — daily play tracking, once-per-day lock per level, per-level stats, and a spoiler-free share button (score + streak, never the board) — are required before public launch but are not strict MVP. Tracked in M3 — Daily ritual (pre-launch) milestone via [TER-142](https://linear.app/terenc/issue/TER-142), [TER-143](https://linear.app/terenc/issue/TER-143), [TER-144](https://linear.app/terenc/issue/TER-144). The per-level score-distribution histogram was descoped from [TER-143](https://linear.app/terenc/issue/TER-143) on May 24, 2026 — the per-level cards ship a today-vs-personal-best comparison instead (four histograms broke the no-scroll requirement); the histogram is deferred to a post-launch stats-v2 pass.
 * Anonymous, per-device only. No accounts, no backend, no cloud sync. localStorage is the single source of truth.
 * Hard never-repeat puzzle guarantee is NOT in scope — generator's seed space already gives statistically-perfect uniqueness for the relevant time horizon.
 
@@ -464,11 +464,11 @@ export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, toda
 * [TER-146](https://linear.app/terenc/issue/TER-146) — ✅ Done. Generator v1.4: full coverage + all 3 colors + retune (Phase A green guarantee, 100-attempt cap).
 * [TER-153](https://linear.app/terenc/issue/TER-153) — ✅ Done. Win-state validation sequence (`'validating'` GamePhase + green row-glow sweep + Solved! label before Summary).
 
-### M3 — Daily ritual (pre-launch)
+### M3 — Daily ritual (pre-launch) (✅ complete)
 
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — ✅ Done. Stats screen (global streak + per-level self-comparison). Shipped May 24, 2026.
-* [TER-144](https://linear.app/terenc/issue/TER-144) — ✅ In Review. Share button on Summary (spoiler-free: score + streak, never the board). Shipped May 24, 2026.
+* [TER-144](https://linear.app/terenc/issue/TER-144) — ✅ Done. Share button on Summary (spoiler-free: score + streak, never the board). Shipped May 24, 2026.
 * [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ Done. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Shipped May 24, 2026.
 
 ### M4 — Polish (post-launch)
@@ -820,3 +820,17 @@ Updated `src/components/GameScreen.tsx`: imported `loadState` + `computeGlobalSt
 Updated `src/App.tsx` footer: `Last shipped: TER-144 — Share button`.
 
 Tests: `src/share/shareString.test.ts` — snapshot for 4×4 daily (with streak) and 8×8 practice (tagged, no streak); time-format cases (0:00, 0:09, 1:05, 10:00); streak-line omission for practice, streak 0, streak null; header/footer/no-board-emoji assertions. `src/components/Summary.test.tsx` — RTL tests: Share button visible; with `navigator.share` undefined and mocked clipboard, click calls `clipboard.writeText` with the expected share text; `Copied!` shows immediately; reverts to `Share` after 2 s (fake timers). 240 tests passing (was 222); build clean. PR opened against main.
+
+### 2026-05-24 — [TER-144](https://linear.app/terenc/issue/TER-144) closed by Opus; M3 — Daily ritual complete
+
+Chris reported [TER-144](https://linear.app/terenc/issue/TER-144)'s PR merged (PR #37). Opus reviewed the diff (the pure `buildShareString` in `src/share/shareString.ts` — no board parameter, spoiler-free header / stats / optional-streak / footer output, with an explicit test asserting no cell emoji; the Summary Share button with the Web Share → clipboard `Copied!` → `<textarea readOnly>` fallback chain; GameScreen computing the streak in the `complete` branch) with CI green and 240 tests passing (+18), and marked the issue Done. **M3 — Daily ritual (pre-launch) is now complete: TER-142 + TER-143 + TER-144 + TER-167 all shipped.**
+
+One review finding recorded (no fix required): Code's session note stated the daily result is written to localStorage "before the Summary branch renders." That is backwards — `recordDailyResult` runs in a `useEffect` (after the `complete` render). The streak is nonetheless correct because `App.handleDailyComplete` calls `setDailyState(loadState())`, forcing a re-render in which `GameScreen` recomputes `computeGlobalStreak(loadState(), …)` from fresh state. Consequence carried forward for Chris's on-device check: the correct streak lands on the second render, so the first painted frame can briefly show the pre-increment value (e.g. 6→7 tick, or the streak line popping in a frame late on a first-ever completion). If it reads as a flicker, the one-line fix is to compute the streak in `App` (which already holds fresh `dailyState`) and pass it as a prop. Also non-blocking: the "streak reflects the just-recorded result" path rests on that `setDailyState` re-render and is not covered by an integration test.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-144](https://linear.app/terenc/issue/TER-144) → ✅ Done; **M3 header marked ✅ complete.**
+* **Retention scope (Key design decisions):** corrected the four-retention-features line — "emoji-board share button" → "spoiler-free share button (score + streak, never the board)" — to match what shipped (the emoji-board format was removed in the TER-144 design pass as a daily-solution spoiler).
+* **Architecture notes / session log:** the Summary arch-note update (Share button, new props, fallback chain) and the TER-144 Code session-log entry were added by Code in PR #37 and are retained as-is.
+
+**Next recommended:** pre-launch work — every build milestone is now done (M1 / M2 / M3 complete; M4 is post-launch polish). Two open threads: (1) **launch-prep housekeeping** — Vercel project rename + playRYGO.com custom-domain wiring (Chris-side, per [TER-151](https://linear.app/terenc/issue/TER-151)), removing the dev "Last shipped" footer, and locking `engines: { node: ">=20" }` in `package.json`; (2) the **Supabase anonymous daily-leaderboard** design pass — decisions already locked with Chris: server-side replay validation for score integrity (the pure engine runs unchanged in a Supabase Edge Function), per-difficulty boards, and an anonymous-auth foundation so future accounts / multi-device sync are an additive upgrade. The leaderboard is a new feature area (adds the project's first backend — a locked-decision change from "no backend / no network") and gets a full design doc before any issue is drafted.

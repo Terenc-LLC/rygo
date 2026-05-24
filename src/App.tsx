@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { DifficultyPicker } from './components/DifficultyPicker';
 import { GameScreen } from './components/GameScreen';
+import { StatsScreen } from './components/StatsScreen';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
 import { generatePuzzle, dailySeed } from './engine/generator';
@@ -15,7 +16,7 @@ import {
 import { loadInProgress } from './persistence/inProgress';
 import type { InProgressBlob } from './persistence/inProgress';
 
-type AppView = 'difficulty' | 'game';
+type AppView = 'difficulty' | 'game' | 'stats';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -78,9 +79,11 @@ export default function App() {
         {view === 'difficulty' && (
           <DifficultyPicker
             onSelect={handleSelectDifficulty}
+            onShowStats={() => setView('stats')}
             completedToday={completedToday}
           />
         )}
+        {view === 'stats' && <StatsScreen onBack={() => setView('difficulty')} />}
         {view === 'game' && puzzle !== null && (
           <GameScreen
             puzzle={puzzle}
@@ -95,14 +98,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-167"
+          href="https://linear.app/terenc/issue/TER-143"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-167
+          TER-143
         </a>{' '}
-        — Persistent daily-attempt timer
+        — Stats screen
       </footer>
     </>
   );

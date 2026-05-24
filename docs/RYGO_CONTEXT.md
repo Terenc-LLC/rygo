@@ -400,6 +400,29 @@ export function deleteInProgress(): void;
 
 Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. The pause-save handler guards on phase — it persists only in `{idle, pattern-revealed, playing}`, never in `validating`/`complete`, so a solved board is never written (would otherwise strand a resumed session with no continue button). 13 unit tests in `inProgress.test.ts` + 2 GameScreen guard tests. Practice mode never calls any of these.
 
+### Stats module — READY (`src/persistence/stats.ts`, `src/hooks/useStats.ts`, [TER-143](https://linear.app/terenc/issue/TER-143))
+
+Pure compute helpers in `src/persistence/stats.ts` (no React, no localStorage access):
+
+```ts
+export function previousDayKey(key: string): string;      // 'YYYY-MM-DD' → prior UTC day
+export function computeGlobalStreak(state: DailyState, today: string): { current: number; best: number };
+export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, today: string): {
+  played: number;
+  bestScore: number | null;      // min moves; null when played === 0
+  averageScore: number | null;   // mean moves, rounded to 1 dp; null when played === 0
+  today: { moves: number; elapsedMs: number } | null;
+};
+```
+
+`computeGlobalStreak` unions completed day-keys across all four sizes. **Current:** if today is in the union, walks back via `previousDayKey` counting consecutive days; if today is absent, applies the grace rule (starts walk from `previousDayKey(today)` — today-not-done never breaks the streak). **Best:** sorts the union set and finds the longest consecutive run. `computeLevelSummary` scans one size's day-map from `rygo:state`; all values are `null` (not `NaN`) when `played === 0`.
+
+`src/hooks/useStats.ts` — thin wrapper: calls `loadState()` + `todayKey()`, applies both helpers, returns `StatsView` with exactly four `LevelStats` in `[4, 5, 6, 8]` order.
+
+**Screen architecture (TER-143):** App view-state extended to `'difficulty' | 'game' | 'stats'`. Stats button moved to **top-left** of DifficultyPicker (was a no-op stub on the right; moved left to avoid collision with the fixed ThemeToggle at top-right). Stats button → `'stats'`; Back on StatsScreen → `'difficulty'`.
+
+**StatsScreen** (`src/components/StatsScreen.tsx`) — header with Back button + streak banner + four `StatCard` components. Streak banner: `🔥 N-day streak · best M` or "Play today to start a streak" when current === 0. **StatCard** (`src/components/StatCard.tsx`) — three states: empty (`No plays yet — try it!`), played + today (Today: N moves + delta cue + quiet stat line), played + no today (stat line + Not played today). Delta cue: "New best!" when `today.moves <= bestScore`, else `+N from your best`. All fit an iPhone SE viewport (375×667) without scroll.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -444,7 +467,7 @@ Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and appen
 ### M3 — Daily ritual (pre-launch)
 
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
-* [TER-143](https://linear.app/terenc/issue/TER-143) — Stats screen (per-level streaks, history, score distribution). Blocked by [TER-142](https://linear.app/terenc/issue/TER-142).
+* [TER-143](https://linear.app/terenc/issue/TER-143) — ✅ In Review. Stats screen (global streak + per-level self-comparison).
 * [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
 * [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ Done. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Shipped May 24, 2026.
 
@@ -765,5 +788,11 @@ Locked-section updates absorbed in this docs-only PR:
 * **Issue map:** [TER-167](https://linear.app/terenc/issue/TER-167) → ✅ Done (M3).
 * **Architecture notes / session log:** the `useGame` accumulator-timer rewrite (UPDATED note) and the new `In-progress persistence` (`inProgress.ts`) note were added by Code in PR #33 and are retained; the `inProgress.ts` note here gains a line on the phase-guarded pause-save from the fix pass. The TER-167 Code session-log entry (incl. the fix-pass paragraph) was added by Code and is retained.
 * **No GDD / Game-mechanics change needed:** the active-play accumulator timer was already locked (GDD v1.7) and the matching Game-mechanics bullet added in the TER-169 close-out docs PR (PR #32), so the source of truth was already consistent before this issue shipped.
+
+**Next recommended:** [TER-143](https://linear.app/terenc/issue/TER-143) (stats screen) is now In Review. [TER-144](https://linear.app/terenc/issue/TER-144) (share button) is the last remaining M3 issue after TER-143 merges.
+
+### 2026-05-24 — [TER-143](https://linear.app/terenc/issue/TER-143) Stats screen (Claude Code / Sonnet 4.6)
+
+Created `src/persistence/stats.ts` with three pure helpers: `previousDayKey` (UTC day stepping using `Date.UTC` for correct month/year/leap-year boundaries), `computeGlobalStreak` (unions completed day-keys across all four sizes, applies grace rule for today-not-done, computes best via sorted-run scan), and `computeLevelSummary` (scans one size's day-map, returns `null` — never `NaN` — when `played === 0`). Created `src/hooks/useStats.ts` as a thin wrapper returning `StatsView` with exactly four `LevelStats` in `[4, 5, 6, 8]` order. Created `src/components/StatCard.tsx` (three render states: empty, today played, not played today) and `src/components/StatsScreen.tsx` (Back button + streak banner + four level cards). Extended App view-state to `'difficulty' | 'game' | 'stats'`; wired `onShowStats` callback. Moved the DifficultyPicker stats button from top-right to top-left (issue spec, avoids ThemeToggle collision). 222 tests passing (was 185); build clean. PR opened against main.
 
 **Next recommended:** [TER-143](https://linear.app/terenc/issue/TER-143) (stats screen — per-level streaks, history, score distribution) and [TER-144](https://linear.app/terenc/issue/TER-144) (share button — Web Share API + clipboard, emoji-board) are the two remaining M3 issues. Each needs a design pass before Code. TER-143 reads the `rygo:state` history that's now fully in place; TER-144's design pass must revisit the grind-guard question forward-flagged from the TER-167 integrity model (shared scores become a bragging surface). Promotion Backlog→Todo stays Chris's gate.

@@ -7,7 +7,8 @@ import { ColorPicker } from './ColorPicker';
 import { Summary } from './Summary';
 import type { InProgressBlob } from '../persistence/inProgress';
 import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistence/inProgress';
-import { todayKey } from '../persistence/dailyState';
+import { loadState, todayKey } from '../persistence/dailyState';
+import { computeGlobalStreak } from '../persistence/stats';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -156,11 +157,16 @@ export function GameScreen({
   }, [phase, mode, onDailyComplete, game.moveCount, game.elapsedMs]);
 
   if (game.phase === 'complete') {
+    const streak =
+      mode === 'daily' ? computeGlobalStreak(loadState(), todayKey()).current : null;
     return (
       <Summary
         gridSize={game.gridSize}
         moveCount={game.moveCount}
         elapsedMs={game.elapsedMs}
+        date={effectiveDayKey}
+        mode={mode}
+        streak={streak}
         onPlayAgain={game.reset}
         onPickDifficulty={onPickDifficulty}
       />

@@ -321,7 +321,7 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 
 * **LevelButton** (`src/components/LevelButton.tsx`) — large button with `size: 4 | 5 | 6 | 8`, `label`, `onSelect`, `completedToday?: { moves, elapsedMs }`. In completed state ([TER-142](https://linear.app/terenc/issue/TER-142)) shows the recorded result (`{moves} moves · {M:SS}`) plus a live H:MM:SS countdown to the next UTC day and a "Practice" affordance; tapping still calls `onSelect` (which starts practice mode).
 * **ColorPicker** (`src/components/ColorPicker.tsx`) — red/yellow/green buttons showing color bg + shape icon. Active state: `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink` (non-color cue; blue-500 contrasts all three game colors in both themes; shipped in [TER-148](https://linear.app/terenc/issue/TER-148)).
-* **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), `flex gap-3` button row with "Play again" + "Change difficulty". Share-button slot reserved for [TER-144](https://linear.app/terenc/issue/TER-144).
+* **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), Share button (full-width, above the "Play again" + "Change difficulty" row — shipped in [TER-144](https://linear.app/terenc/issue/TER-144)), `flex gap-3` button row with "Play again" + "Change difficulty". Props: `gridSize`, `moveCount`, `elapsedMs`, `date`, `mode`, `streak`. Calls `buildShareString` from `src/share/shareString.ts`; invokes Web Share API (mobile native sheet), else clipboard (`Copied!` label for 2s), else textarea fallback.
 * **ThemeToggle** (`src/components/ThemeToggle.tsx`) — receives `theme` and `toggleTheme` as props from App. Shows `Sun` when dark, `Moon` when light. `aria-label` reflects the action.
 
 **Board interactivity:** Grid cells are disabled (`onCellTap` = undefined) in `idle`, `pattern-revealed`, and `validating` phases; enabled only in `playing`.
@@ -468,7 +468,7 @@ export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, toda
 
 * [TER-142](https://linear.app/terenc/issue/TER-142) — ✅ Done. Daily play tracking + once-per-day lock + localStorage foundation.
 * [TER-143](https://linear.app/terenc/issue/TER-143) — ✅ Done. Stats screen (global streak + per-level self-comparison). Shipped May 24, 2026.
-* [TER-144](https://linear.app/terenc/issue/TER-144) — Share button on Summary (Web Share API + clipboard fallback, emoji-board format). Depends on the Summary screen (shipped) and the daily/score data from [TER-142](https://linear.app/terenc/issue/TER-142).
+* [TER-144](https://linear.app/terenc/issue/TER-144) — ✅ In Review. Share button on Summary (spoiler-free: score + streak, never the board). Shipped May 24, 2026.
 * [TER-167](https://linear.app/terenc/issue/TER-167) — ✅ Done. Persistent daily-attempt timer (accumulator clock, pause/resume across sessions, resume in-progress board). Shipped May 24, 2026.
 
 ### M4 — Polish (post-launch)
@@ -808,3 +808,15 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes / session log:** the Stats module note (`stats.ts` / `useStats.ts` / StatsScreen / StatCard) and the TER-143 Code session-log entry were added by Code in PR #35 and are retained as-is.
 
 **Next recommended:** [TER-144](https://linear.app/terenc/issue/TER-144) (share button) — the last remaining M3 issue. It is now unblocked: its `computeGlobalStreak` dependency is on main as of PR #35. The spec is written and spoiler-free (score-only, never the solved board), and its blocked-by [TER-143](https://linear.app/terenc/issue/TER-143) relation is satisfied. Promotion Backlog→Todo is Chris's gate.
+
+### 2026-05-24 — [TER-144](https://linear.app/terenc/issue/TER-144) Share button on Summary (Claude Code / Sonnet 4.6)
+
+Created `src/share/shareString.ts` — pure function `buildShareString` with signature from the issue spec. No board parameter; output is a spoiler-free 3-or-4-line text string: header (`RYGO · {date} · {Label} ({N}×{N})`; practice appends ` · Practice`), stats line (`{moves} moves · {M:SS}`, minutes uncapped, seconds zero-padded), optional streak line (`🔥 {n}-day streak`, daily + streak > 0 only), footer (`playRYGO.com`).
+
+Updated `src/components/Summary.tsx`: added `date`, `mode`, `streak` props; derives `label` from `gridSize` via a `LEVEL_LABEL` map; adds a full-width Share button (blue-600, inline share SVG glyph, `data-testid="share-button"`) placed above the "Play again" / "Change difficulty" row in the former reserved slot. `handleShare` is an async click handler that invokes Web Share → clipboard → textarea fallback in order. Clipboard success shows `Copied!` for 2 s then reverts; Web Share cancel is silent; last-resort `<textarea readOnly>` rendered below the button when no API is available.
+
+Updated `src/components/GameScreen.tsx`: imported `loadState` + `computeGlobalStreak`; in the `phase === 'complete'` branch, computes `streak = computeGlobalStreak(loadState(), todayKey()).current` for daily mode (`null` for practice) and passes `date={effectiveDayKey}`, `mode`, `streak` through to `Summary`.
+
+Updated `src/App.tsx` footer: `Last shipped: TER-144 — Share button`.
+
+Tests: `src/share/shareString.test.ts` — snapshot for 4×4 daily (with streak) and 8×8 practice (tagged, no streak); time-format cases (0:00, 0:09, 1:05, 10:00); streak-line omission for practice, streak 0, streak null; header/footer/no-board-emoji assertions. `src/components/Summary.test.tsx` — RTL tests: Share button visible; with `navigator.share` undefined and mocked clipboard, click calls `clipboard.writeText` with the expected share text; `Copied!` shows immediately; reverts to `Share` after 2 s (fake timers). 240 tests passing (was 222); build clean. PR opened against main.

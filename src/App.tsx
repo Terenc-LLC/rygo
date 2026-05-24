@@ -98,14 +98,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-143"
+          href="https://linear.app/terenc/issue/TER-144"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-143
+          TER-144
         </a>{' '}
-        — Stats screen
+        — Share button
       </footer>
     </>
   );

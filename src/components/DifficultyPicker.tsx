@@ -18,12 +18,6 @@ export function DifficultyPicker({ onSelect, onShowStats, completedToday }: Diff
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8 w-full max-w-sm mx-auto">
       <div className="flex items-center justify-between w-full">
-        <div className="w-10" />
-        <div className="px-6">
-          <img src="/rygo-lockup-light.svg" alt="RYGO" className="h-16 dark:hidden" />
-          <img src="/rygo-lockup-dark.svg" alt="RYGO" className="h-16 hidden dark:block" />
-        </div>
-        {/* Stats slot reserved for TER-143 */}
         <button
           onClick={() => onShowStats?.()}
           aria-label="Show stats"
@@ -33,6 +27,11 @@ export function DifficultyPicker({ onSelect, onShowStats, completedToday }: Diff
             <path d="M18 20V10M12 20V4M6 20v-6" />
           </svg>
         </button>
+        <div className="px-6">
+          <img src="/rygo-lockup-light.svg" alt="RYGO" className="h-16 dark:hidden" />
+          <img src="/rygo-lockup-dark.svg" alt="RYGO" className="h-16 hidden dark:block" />
+        </div>
+        <div className="w-10" />
       </div>
       <p className="text-gray-500 dark:text-gray-400 text-center">
         Recreate the pattern. Use your memory.

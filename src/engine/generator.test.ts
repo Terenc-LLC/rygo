@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { generatePuzzle, dailySeed } from './generator';
+import {
+  generatePuzzle,
+  dailySeed,
+  MOVE_RANGE,
+  MOVE_CAP,
+  _resetCapStats,
+  _getCapExceededPuzzleCount,
+  _getMaxAttemptsObserved,
+} from './generator';
 import { applyMove } from './placement';
 import type { Board } from './types';
 
@@ -17,7 +25,6 @@ function boardsEqual(a: Board, b: Board): boolean {
 }
 
 const SIZES = [4, 5, 6, 8] as const;
-const MOVE_RANGES: Record<number, [number, number]> = { 4: [4, 7], 5: [5, 9], 6: [6, 10], 8: [8, 14] };
 
 describe('generatePuzzle — determinism', () => {
   it('same seed + gridSize always produces the same puzzle', () => {
@@ -38,6 +45,13 @@ describe('generatePuzzle — determinism', () => {
     }
     expect(seen.size).toBeGreaterThanOrEqual(9);
   });
+
+  it('RYGO-prefixed daily seed is deterministic across calls', () => {
+    const a = generatePuzzle('RYGO-2026-05-03', 5);
+    const b = generatePuzzle('RYGO-2026-05-03', 5);
+    expect(boardsEqual(a.target, b.target)).toBe(true);
+    expect(a.solution).toEqual(b.solution);
+  });
 });
 
 describe('generatePuzzle — solution correctness', () => {
@@ -55,11 +69,10 @@ describe('generatePuzzle — solution correctness', () => {
 
 describe('generatePuzzle — solution length', () => {
   for (const size of SIZES) {
-    it(`${size}×${size}: solution length is within [${MOVE_RANGES[size][0]}, ${MOVE_RANGES[size][1]}]`, () => {
+    it(`${size}×${size}: solution length is >= starting min ${MOVE_RANGE[size][0]} and <= cap ${MOVE_CAP[size]}`, () => {
       const { solution } = generatePuzzle('length-test', size);
-      const [min, max] = MOVE_RANGES[size];
-      expect(solution.length).toBeGreaterThanOrEqual(min);
-      expect(solution.length).toBeLessThanOrEqual(max);
+      expect(solution.length).toBeGreaterThanOrEqual(MOVE_RANGE[size][0]);
+      expect(solution.length).toBeLessThanOrEqual(MOVE_CAP[size]);
     });
   }
 });
@@ -71,26 +84,34 @@ describe('generatePuzzle — 5×5 grid', () => {
     expect(target[0].length).toBe(5);
   });
 
-  it('5×5 solution length is within [5, 9]', () => {
+  it('5×5 solution length is within starting range [8, 12] up to cap 18', () => {
     const { solution } = generatePuzzle('5x5-length', 5);
-    expect(solution.length).toBeGreaterThanOrEqual(5);
-    expect(solution.length).toBeLessThanOrEqual(9);
+    expect(solution.length).toBeGreaterThanOrEqual(MOVE_RANGE[5][0]);
+    expect(solution.length).toBeLessThanOrEqual(MOVE_CAP[5]);
   });
 });
 
-describe('generatePuzzle — non-triviality (1000 puzzles)', () => {
-  it('all 1000 generated puzzles pass non-triviality checks', () => {
+describe('generatePuzzle — full coverage + all 3 colors + non-triviality (1000 puzzles)', () => {
+  it('all 1000 generated puzzles satisfy full coverage, all 3 colors, and non-triviality; cap-exceeded rate ≤ 5%', () => {
+    _resetCapStats();
+
+    const start = Date.now();
     for (let i = 0; i < 1000; i++) {
       const size = SIZES[i % 4];
-      const { target, solution, gridSize } = generatePuzzle(`bulk-${i}`, size);
+      const { target, solution, gridSize } = generatePuzzle(`RYGO-bulk-${i}`, size);
       const total = gridSize * gridSize;
       const counts = { empty: 0, red: 0, yellow: 0, green: 0 };
       for (const row of target) for (const cell of row) counts[cell]++;
 
-      // Not all empty
-      expect(counts.empty).toBeLessThan(total);
+      // Full coverage: no empty cells
+      expect(counts.empty).toBe(0);
 
-      // Not all one color, not > 85% one color
+      // All three colors present
+      expect(counts.red).toBeGreaterThan(0);
+      expect(counts.yellow).toBeGreaterThan(0);
+      expect(counts.green).toBeGreaterThan(0);
+
+      // Not all one color, not > 85% one color (defense-in-depth)
       for (const color of ['red', 'yellow', 'green'] as const) {
         expect(counts[color]).not.toBe(total);
         expect(counts[color]).toBeLessThanOrEqual(total * 0.85);
@@ -100,6 +121,17 @@ describe('generatePuzzle — non-triviality (1000 puzzles)', () => {
       const afterFirst = applyMove(emptyBoard(gridSize), solution[0].color, solution[0].row, solution[0].col);
       expect(boardsEqual(afterFirst, target)).toBe(false);
     }
+
+    // No infinite loops: bulk test must complete in < 30 seconds
+    expect(Date.now() - start).toBeLessThan(30_000);
+
+    // Cap-exceeded rate ≤ 5% of puzzles (escape hatch threshold)
+    const capExceededRate = _getCapExceededPuzzleCount() / 1000;
+    expect(capExceededRate).toBeLessThanOrEqual(0.05);
+
+    // Max attempts per puzzle stays well under the 100-attempt cap (low single digits expected)
+    const maxAttempts = _getMaxAttemptsObserved();
+    expect(maxAttempts).toBeLessThanOrEqual(10);
   });
 });
 

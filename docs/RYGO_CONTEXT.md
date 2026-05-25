@@ -32,7 +32,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 * **Linear project ID:** `7cdc0a29-1925-49dd-a731-b3945fabc149` (project name: RYGO)
 * **Linear team:** Terenc (key TER, ID `b8807d15-3de1-4c5a-b72e-a9a3872a8e82`) — issue identifiers stay TER-NNN
 * **GitHub repo:** `Terenc-LLC/rygo` — [https://github.com/Terenc-LLC/rygo](<https://github.com/Terenc-LLC/rygo>)
-* **Production URL:** [https://playRYGO.com](<https://playRYGO.com>) (target). Vercel project rename + custom-domain wiring is a Chris-side post-merge task following [TER-151](https://linear.app/terenc/issue/TER-151); until that's done, the live deployment remains at the previous Vercel URL. Auto-deploys on push to `main`.
+* **Production URL:** [https://playRYGO.com](<https://playRYGO.com>) — **live** (Vercel project rename + custom-domain wiring completed May 25, 2026, [TER-151](https://linear.app/terenc/issue/TER-151)). Auto-deploys on push to `main`.
 
 ## Tech stack
 
@@ -497,9 +497,9 @@ Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 
-First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered; gated behind launch-prep housekeeping. Dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201); remaining gate: Vercel project rename + playRYGO.com wiring (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus once the M5 backend-flip docs PR merges — TER-NNN numbers slot in here as they're created.
+First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered. Launch-prep housekeeping is complete: dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201), and the Vercel rename + playRYGO.com wiring is done (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus in order; TER-NNN numbers slot in here as they're created.
 
-1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ In Review. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
+1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ Done. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
 2. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
 3. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob; gets its own design pass at draft time.
 4. **Edge function** — full-session replay validator (§5 of the design doc).
@@ -948,3 +948,18 @@ Stood up the Supabase backend foundation for the M5 anonymous daily leaderboard.
 * **Issue map M5:** item 1 updated with TER-199 link and ✅ In Review status.
 * **Architecture notes:** added Supabase backend section (`supabaseClient.ts`, migration, RPC).
 * **Session log:** this entry.
+
+### 2026-05-25 — TER-199 closed by Opus; M5 backend foundation shipped
+
+Chris reported TER-199's PR merged (PR #44) and the Chris-side prerequisites done (Supabase project created, anonymous sign-ins enabled, `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` set, migration applied). Opus reviewed the diff — `supabaseClient.ts` exporting `null` when either env var is absent (no throw, no network call); the best-effort `getSession()` → `signInAnonymously()` anon bootstrap with all errors swallowed; the `scores` migration matching design §4 exactly (unique on `(user_id, day, grid_size)`, RLS enabled with no client INSERT/UPDATE policy); the `get_standing` RPC as `security definer` with `set search_path = ''`, sorting moves ASC then elapsed_ms ASC — with CI `build-and-test` green and 254 tests passing (+7), and marked the issue Done. **M5 issue 1 of 6 shipped — the leaderboard backend foundation is in place.**
+
+Non-blocking decision item carried forward (not filed): `supabaseClient.ts` is not yet imported anywhere, so the anon-auth bootstrap fires lazily on the first M5 caller's import rather than literally on app launch. That is fine for the foundation (there is no caller yet); the call site is settled when M5 issue 5 (client submit) / 6 (client read) land. If app-launch bootstrap is wanted earlier, a one-line side-effect import in `src/main.tsx` does it. Revisit at issue 5/6 draft time.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map M5:** item 1 [TER-199](https://linear.app/terenc/issue/TER-199) → ✅ Done.
+* **Project identity:** Production URL flipped from "(target) … previous Vercel URL" to **live** — the Vercel rename + playRYGO.com custom-domain wiring completed May 25, 2026 (Chris-side, [TER-151](https://linear.app/terenc/issue/TER-151)).
+* **M5 milestone gate note:** rewritten — launch-prep housekeeping is now complete (dev-footer removal + `engines` lock in [TER-201](https://linear.app/terenc/issue/TER-201), plus the Vercel/domain wiring), so the milestone is no longer gated.
+* **Architecture notes / session log:** the Supabase backend arch note and the TER-199 Code session-log entry were added by Code in PR #44 and are retained as-is.
+
+**Next recommended:** M5 issue 2 — shared-engine delivery (sync `src/engine/` + generator into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure). Next in the hard-ordered M5 chain and now unblocked. Opus to file it next; it needs a design/spec pass before Code. Promotion Backlog→Todo stays Chris's gate.

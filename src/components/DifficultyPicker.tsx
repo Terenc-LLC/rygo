@@ -4,6 +4,7 @@ import { LevelButton } from './LevelButton';
 interface DifficultyPickerProps {
   onSelect: (size: 4 | 5 | 6 | 8) => void;
   onShowStats?: () => void;
+  onShowRules?: () => void;
   completedToday?: Partial<Record<4 | 5 | 6 | 8, { moves: number; elapsedMs: number }>>;
 }
 
@@ -14,7 +15,7 @@ const LEVELS: { size: 4 | 5 | 6 | 8; label: string }[] = [
   { size: 8, label: 'Extreme' },
 ];
 
-export function DifficultyPicker({ onSelect, onShowStats, completedToday }: DifficultyPickerProps): JSX.Element {
+export function DifficultyPicker({ onSelect, onShowStats, onShowRules, completedToday }: DifficultyPickerProps): JSX.Element {
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-8 w-full max-w-sm mx-auto">
       <div className="flex items-center justify-between w-full">
@@ -47,6 +48,13 @@ export function DifficultyPicker({ onSelect, onShowStats, completedToday }: Diff
           />
         ))}
       </div>
+      <button
+        onClick={() => onShowRules?.()}
+        aria-label="How to play"
+        className="text-sm text-gray-500 dark:text-gray-400 hover:text-ink dark:hover:text-paper transition-colors py-1"
+      >
+        How to play
+      </button>
     </div>
   );
 }

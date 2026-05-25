@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useGame } from './useGame';
 import type { GeneratedPuzzle } from '../engine/generator';
-import type { Board } from '../engine/types';
+import type { Board, GameEvent } from '../engine/types';
 
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target.
 // Red reach = 1 cell only, so one placement on an empty board
@@ -324,8 +324,9 @@ describe('useGame', () => {
       ['empty', 'empty', 'empty', 'empty'],
     ];
     const puzzle = makeTestPuzzle();
+    const priorLog: GameEvent[] = [{ type: 'reveal' }, { type: 'hide' }, { type: 'select', color: 'red' }];
     const resume = {
-      version: 1 as const,
+      version: 2 as const,
       date: '2026-05-24',
       gridSize: 4 as const,
       board: target,
@@ -335,6 +336,7 @@ describe('useGame', () => {
       patternVisible: false,
       accumulatedMs: 12000,
       savedAt: 0,
+      eventLog: priorLog,
     };
 
     const { result } = renderHook(() => useGame(puzzle, { resume }));
@@ -345,6 +347,8 @@ describe('useGame', () => {
     expect(result.current.phase).toBe('playing');
     expect(result.current.moveCount).toBe(5);
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(12000);
+    // eventLog rehydrated from blob
+    expect(result.current.eventLog).toEqual(priorLog);
 
     // Clock should be running — advancing time increases elapsedMs
     act(() => { vi.advanceTimersByTime(200); });
@@ -381,5 +385,219 @@ describe('useGame', () => {
     act(() => { result.current.placeAt(2, 1); });      // +1 → 8
 
     expect(result.current.moveCount).toBe(8);
+  });
+
+  // ─── eventLog tests ───────────────────────────────────────────────────────
+
+  it('eventLog starts empty', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    expect(result.current.eventLog).toEqual([]);
+  });
+
+  it('REVEAL_PATTERN (first, idle) appends a reveal event; moveCount stays 0', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    expect(result.current.eventLog).toEqual([{ type: 'reveal' }]);
+    expect(result.current.moveCount).toBe(0);
+  });
+
+  it('REVEAL_PATTERN (re-reveal from playing) appends a reveal event and increments moveCount', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); }); // first reveal → event, no move
+    act(() => { result.current.hidePattern(); });   // → event, +1
+    act(() => { result.current.revealPattern(); }); // re-reveal → event, +1
+    expect(result.current.eventLog).toEqual([
+      { type: 'reveal' },
+      { type: 'hide' },
+      { type: 'reveal' },
+    ]);
+    expect(result.current.moveCount).toBe(2);
+  });
+
+  it('HIDE_PATTERN appends a hide event and increments moveCount', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    expect(result.current.eventLog).toEqual([{ type: 'reveal' }, { type: 'hide' }]);
+    expect(result.current.moveCount).toBe(1);
+  });
+
+  it('SELECT_COLOR appends a select event and increments moveCount for a new color', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.selectColor('red'); });
+    expect(result.current.eventLog).toEqual([{ type: 'select', color: 'red' }]);
+    expect(result.current.moveCount).toBe(1);
+  });
+
+  it('SELECT_COLOR to the same color appends a select event but does NOT increment moveCount', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.selectColor('red'); }); // +1, event
+    act(() => { result.current.selectColor('red'); }); // +0, event still appended
+    expect(result.current.eventLog).toEqual([
+      { type: 'select', color: 'red' },
+      { type: 'select', color: 'red' },
+    ]);
+    expect(result.current.moveCount).toBe(1); // no-op select: moveCount unchanged
+  });
+
+  it('PLACE_AT appends a tap event with correct row/col', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(2, 3); });
+    const log = result.current.eventLog;
+    expect(log[log.length - 1]).toEqual({ type: 'tap', row: 2, col: 3 });
+  });
+
+  it('PLACE_AT on a same-color cell (clear path) still appends a tap event', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(1, 1); }); // place
+    act(() => { result.current.placeAt(1, 1); }); // clear (same color)
+    const log = result.current.eventLog;
+    expect(log[log.length - 2]).toEqual({ type: 'tap', row: 1, col: 1 });
+    expect(log[log.length - 1]).toEqual({ type: 'tap', row: 1, col: 1 });
+    expect(result.current.current[1][1]).toBe('empty');
+  });
+
+  it('PLACE_AT while not in playing phase does NOT append a tap event', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.selectColor('red'); }); // still in idle
+    act(() => { result.current.placeAt(0, 0); });      // no-op
+    // Only the select event should be in the log
+    expect(result.current.eventLog).toEqual([{ type: 'select', color: 'red' }]);
+  });
+
+  it('event ordering matches action sequence across a realistic flow', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(1, 0); });
+    act(() => { result.current.selectColor('yellow'); });
+
+    const expected: GameEvent[] = [
+      { type: 'reveal' },
+      { type: 'hide' },
+      { type: 'select', color: 'red' },
+      { type: 'tap', row: 1, col: 0 },
+      { type: 'select', color: 'yellow' },
+    ];
+    expect(result.current.eventLog).toEqual(expected);
+  });
+
+  it('RESET (practice, no keepClock) clears the eventLog', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+    act(() => { result.current.revealPattern(); });
+    act(() => { result.current.hidePattern(); });
+    act(() => { result.current.selectColor('red'); });
+    expect(result.current.eventLog.length).toBe(3);
+
+    act(() => { result.current.reset(); });
+    expect(result.current.eventLog).toEqual([]);
+    expect(result.current.moveCount).toBe(0);
+  });
+
+  it('RESET with keepClock (daily) also clears the eventLog', () => {
+    const { result } = renderHook(() =>
+      useGame(makeTestPuzzle(), { keepClockOnReset: true }),
+    );
+    act(() => { result.current.revealPattern(); });  // event: reveal
+    act(() => { result.current.hidePattern(); });    // event: hide
+    act(() => { result.current.selectColor('red'); }); // event: select
+    expect(result.current.eventLog.length).toBe(3);
+
+    act(() => { result.current.reset(); });
+    expect(result.current.eventLog).toEqual([]);
+    expect(result.current.moveCount).toBe(0);
+    // Timer preserved even though log is cleared
+    expect(result.current.elapsedMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('resume rehydrates eventLog; subsequent actions continue appending', () => {
+    const priorLog: GameEvent[] = [
+      { type: 'reveal' },
+      { type: 'hide' },
+      { type: 'select', color: 'red' },
+    ];
+    const board: Board = [
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+    ];
+    const resume = {
+      version: 2 as const,
+      date: '2026-05-24',
+      gridSize: 4 as const,
+      board,
+      phase: 'playing' as const,
+      activeColor: 'red' as const,
+      moveCount: 3,
+      patternVisible: false,
+      accumulatedMs: 5000,
+      savedAt: 0,
+      eventLog: priorLog,
+    };
+
+    const { result } = renderHook(() => useGame(makeTestPuzzle(), { resume }));
+    act(() => {}); // flush RESUME_TIMER effect
+
+    expect(result.current.eventLog).toEqual(priorLog);
+
+    // Place at a non-completing cell — log extends
+    act(() => { result.current.placeAt(1, 1); });
+    expect(result.current.eventLog).toEqual([
+      ...priorLog,
+      { type: 'tap', row: 1, col: 1 },
+    ]);
+  });
+
+  it('background→resume→complete sequence yields a complete, ordered log', () => {
+    // Start fresh, build some log, then "background" (we simulate by capturing state),
+    // resume via a new hook instance with that state, and verify the log is contiguous.
+    const priorLog: GameEvent[] = [
+      { type: 'reveal' },
+      { type: 'hide' },
+      { type: 'select', color: 'red' },
+    ];
+    const board: Board = [
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+      ['empty', 'empty', 'empty', 'empty'],
+    ];
+    const resume = {
+      version: 2 as const,
+      date: '2026-05-24',
+      gridSize: 4 as const,
+      board,
+      phase: 'playing' as const,
+      activeColor: 'red' as const,
+      moveCount: 3,
+      patternVisible: false,
+      accumulatedMs: 5000,
+      savedAt: 0,
+      eventLog: priorLog,
+    };
+
+    const { result } = renderHook(() => useGame(makeTestPuzzle(), { resume }));
+    act(() => {});
+
+    // Complete the puzzle: target has red at (0,0); active color is already 'red'
+    act(() => { result.current.placeAt(0, 0); }); // → validating
+    expect(result.current.phase).toBe('validating');
+
+    const finalLog = result.current.eventLog;
+    expect(finalLog).toEqual([
+      ...priorLog,
+      { type: 'tap', row: 0, col: 0 },
+    ]);
+    // Log is complete and ordered — moveCount matches log-derived count
+    // (reveal=0, hide=+1, select=+1, tap=+1 → 3 moves pre-resume; +1 for final tap = 4)
+    expect(result.current.moveCount).toBe(4);
   });
 });

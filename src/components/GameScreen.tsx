@@ -84,7 +84,7 @@ export function GameScreen({
     // which is within 100ms of the real banked value (last TICK).
     const accMs = overrideAccumulatedMs ?? g.elapsedMs;
     return {
-      version: 1,
+      version: 2,
       date: effectiveDayKey,
       gridSize: puzzle.gridSize,
       board: g.current,
@@ -96,6 +96,7 @@ export function GameScreen({
       patternVisible: g.phase === 'pattern-revealed',
       accumulatedMs: accMs,
       savedAt: Date.now(),
+      eventLog: g.eventLog,
     };
   };
 
@@ -268,7 +269,7 @@ export function GameScreen({
       // Save in-progress with the cleared board state. The clock is kept by RESET (keepClock=true).
       // We construct the blob manually since the reducer hasn't updated yet.
       saveInProgress({
-        version: 1,
+        version: 2,
         date: effectiveDayKey,
         gridSize: puzzle.gridSize,
         board: emptyBoard(puzzle.gridSize),
@@ -278,6 +279,7 @@ export function GameScreen({
         patternVisible: false,
         accumulatedMs: game.elapsedMs, // within 100ms of real banked value
         savedAt: Date.now(),
+        eventLog: [], // RESET clears the log; post-reset blob starts fresh
       });
     }
     game.reset();

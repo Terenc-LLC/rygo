@@ -430,6 +430,26 @@ Diagrams are visual, not ASCII/prose:
 
 **MiniGrid / MiniCell** — local helpers inside `RulesScreen.tsx`. `MiniCell` is a non-interactive `div` with `role="img"` and `aria-label` matching the live Grid format ("Red cell at row N, column N"). `MiniGrid` uses inline `gridTemplateColumns` style (dynamic column count). Same color tokens (`bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green` / `bg-stone-300 dark:bg-gray-800`) and shape fills (`text-paper` / `text-ink`) as the live Grid. `BLOCKING_BEFORE` and `BLOCKING_AFTER` boards are module-level constants.
 
+### Event-log capture — READY (`src/hooks/useGame.ts`, `src/persistence/inProgress.ts`) [TER-205]
+
+`GameEvent` type added to `src/engine/types.ts` (also synced to `_shared/engine/types.ts`):
+
+```ts
+export type GameEvent =
+  | { type: 'select'; color: Color }
+  | { type: 'reveal' }
+  | { type: 'hide' }
+  | { type: 'tap'; row: number; col: number };
+```
+
+`useGame`'s `GameState` and `GameView` gain `eventLog: GameEvent[]`. The reducer appends one entry in `SELECT_COLOR` (including no-op re-taps — raw action recorded, server applies score rule on replay), `REVEAL_PATTERN` (both first-reveal and re-reveal), `HIDE_PATTERN`, and `PLACE_AT` (placement, clear, and completing). `RESET` empties `eventLog` on both daily-keep-clock and practice paths.
+
+`InProgressBlob` bumped to `version: 2` with `eventLog: GameEvent[]`. `saveInProgress` writes the current log; resume (`useGame` `resume` option) rehydrates it. `loadInProgress` accepts v1 blobs (treats missing `eventLog` as `[]`) and still returns null for `version > 2`. `GameScreen.tsx` updated to pass `eventLog: g.eventLog` in `buildBlob` and `eventLog: []` in the post-reset manual blob.
+
+Nothing reads or submits the log yet — capture + persist + resume only. The first consumer is issue 4 (edge function replay validator).
+
+Shipped in [TER-205](https://linear.app/terenc/issue/TER-205), May 25, 2026.
+
 ### Shared-engine delivery — READY (`scripts/sync-engine.mjs`, `supabase/functions/_shared/engine/`) [TER-203]
 
 `scripts/sync-engine.mjs` (Node, no deps) copies the three pure engine files — `types.ts`, `placement.ts`, `generator.ts` — from `src/engine/` into `supabase/functions/_shared/engine/`, prepending a generated-file banner to each. Run via `npm run sync-engine`. The `.test.ts` files are NOT synced; the shared copy is runtime engine only.
@@ -511,8 +531,8 @@ Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
 First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered. Launch-prep housekeeping is complete: dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201), and the Vercel rename + playRYGO.com wiring is done (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus in order; TER-NNN numbers slot in here as they're created.
 
 1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ Done. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
-2. [TER-203](https://linear.app/terenc/issue/TER-203) — ✅ In Review. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
-3. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob; gets its own design pass at draft time.
+2. [TER-203](https://linear.app/terenc/issue/TER-203) — ✅ Done. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
+3. [TER-205](https://linear.app/terenc/issue/TER-205) — ✅ In Review. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob.
 4. **Edge function** — full-session replay validator (§5 of the design doc).
 5. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
 6. **Client read** — rank-on-Summary via `get_standing`.

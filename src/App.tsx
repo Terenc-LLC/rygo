@@ -98,18 +98,6 @@ export default function App() {
           />
         )}
       </main>
-      <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
-        Last shipped:{' '}
-        <a
-          href="https://linear.app/terenc/issue/TER-192"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-        >
-          TER-192
-        </a>{' '}
-        — How-to-play rules screen
-      </footer>
     </>
   );
 }

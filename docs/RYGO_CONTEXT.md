@@ -47,7 +47,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 * **Backend:** Supabase (paid), introduced for the M5 anonymous daily leaderboard (design doc: `docs/RYGO_Leaderboard-Design.md`). **Best-effort only — gameplay never depends on the network.** Pattern generation stays client-side, daily seed derived from date; leaderboard submission and rank-read are fire-and-forget and must never block, delay, or break a play or the Summary. (Flipped from "None for MVP" in the M5 backend-flip docs PR, May 25, 2026.)
 * **Hosting:** Vercel.
 * **Package manager:** npm
-* **Node:** Developed with Node 25.8.1. Minimum required: Node 20. `engines` field not yet locked in `package.json` (recommended).
+* **Node:** Developed with Node 25.8.1. Minimum required: Node 20. `engines` field locked in `package.json`: `"node": ">=20"` (added in [TER-201](https://linear.app/terenc/issue/TER-201)).
 * **Icon library:** None. Three gameplay shapes (square, triangle, circle) plus theme-toggle icons (sun, moon) implemented inline as React components in `src/components/Shapes.tsx`. Brand mark (vertical stoplight) added to chrome in [TER-151](https://linear.app/terenc/issue/TER-151).
 * **Continuous integration:** GitHub Actions workflow at `.github/workflows/ci.yml`. Runs `npm ci → npm run build → npm run test` on every PR against `main` and on every push to `main`. Pinned to Node 20. Job name: `build-and-test` — this is the required status check for branch protection.
 * **Brand assets:** unzipped pack lives at `public/` (build-served: favicons, OG card, app icons) and `design/` (export SVGs: mark, lockup, wordmark) in the repo. Source files (Figma originals, RYGO Logo.html design canvas) in a Drive folder linked from this doc once provided.
@@ -167,7 +167,6 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * Sound design — design intent locked (percussive wooden tap on placement, three-note R-Y-G ascending chime on completion); implementation deferred to M4.
 * Cascade animations — defer to polish (M4). The win-state validation sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153) (M2); any further cell-fill / completion cascades remain M4.
 * Respect `prefers-color-scheme` on first visit — currently no.
-* Lock Node version in `package.json` engines — recommended `"engines": {"node": ">=20"}`.
 * Shapes opt-out toggle — default shapes ON (color-blind accessibility is MVP and stays the default); add an optional user toggle to hide shapes, paired with future CVD-friendly color schemes as the accessible path for players who turn shapes off. Post-launch — needs a settings surface (none exists yet). Note: aggregate "track which choice users make" is not possible under the current no-backend / per-device-localStorage architecture; only the local preference can be stored. (Reframed May 24, 2026 from "always-on for MVP, revisit if users complain.")
 * Pattern generator solution-length ranges — initial v1.4 ranges set in [TER-146](https://linear.app/terenc/issue/TER-146) (starting L and MOVE_CAP per size; see the Pattern generator architecture note). Still to be retuned with real-play data; the per-size feel — especially whether Easy 4×4 stays easy at the longer lengths — is a Chris manual-verify item.
 * Pattern generator color weights (red 0.40 / yellow 0.40 / green 0.20) are a starting hypothesis from [TER-146](https://linear.app/terenc/issue/TER-146) — retune with real-play data.
@@ -236,12 +235,6 @@ Deterministic, seeded puzzle generator. Zero external dependencies. Implementati
 * **Solution length (v1.4):** Starting L — 4×4: 6–10, 5×5: 8–12, 6×6: 10–16, 8×8: 14–22. MOVE_CAP — 4×4: 14, 5×5: 18, 6×6: 24, 8×8: 36. Actual solution length = starting L + any appended moves (≤ MOVE_CAP).
 * **Full coverage + all-3-colors:** every target cell is red/yellow/green (no empty). All three colors appear at least once. Both conditions verified before accepting a puzzle. Bulk-1000 test confirms 100% compliance and cap-exceeded rate ≤ 5%.
 * **dailySeed prefix:** `'RYGO-'` (switched from `'YERGERS-'` in [TER-151](https://linear.app/terenc/issue/TER-151)).
-
-### App footer — READY (`src/App.tsx`)
-
-Persistent `<footer>` rendered as a sibling of `<main>` (via React fragment), styled `text-xs text-gray-500 dark:text-gray-400 text-center py-4`. Displays `Last shipped: TER-NNN — Short description` with the issue ID linked to its Linear URL. Survives across screens.
-
-**Convention:** every Code session updates the footer text as part of session-end close-out. Format: `Last shipped: TER-NNN — 4-6 word description`. Single-line change in `App.tsx`. Removed before public launch.
 
 ### CI / build pipeline — READY (`.github/workflows/ci.yml`)
 
@@ -490,7 +483,7 @@ Diagrams are visual, not ASCII/prose:
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 
-First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered; gated behind launch-prep housekeeping (Vercel/domain wiring, footer removal, `engines` lock). Issues filed by Opus once the M5 backend-flip docs PR merges — TER-NNN numbers slot in here as they're created.
+First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered; gated behind launch-prep housekeeping. Dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201); remaining gate: Vercel project rename + playRYGO.com wiring (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus once the M5 backend-flip docs PR merges — TER-NNN numbers slot in here as they're created.
 
 1. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
 2. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
@@ -506,6 +499,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 * [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
+* [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ In Review. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
 
 ## Session log
 
@@ -911,3 +905,17 @@ Locked-section updates in this docs-only PR:
 "Unique players" (Chris's earlier ask) is covered by M5 issue 1 — the anonymous-auth foundation gives a persistent per-device id, so a distinct-`user_id` count is a query on `scores`/auth, not a separate feature. Noted in the issue-map stub.
 
 **Next:** once this PR is on `main`, Opus files M5 issues 1–6 in order (each with the v2.4 inline close-out checklist). Promotion Backlog→Todo and launch-prep sequencing stay Chris's gates. No Code session should launch until this PR is merged (concurrency note: land Opus docs PRs before the next Code launch).
+
+### 2026-05-25 — [TER-201](https://linear.app/terenc/issue/TER-201) launch-prep cleanup (Claude Code / Sonnet 4.6)
+
+Removed the dev "Last shipped" `<footer>` from `src/App.tsx` (lines 101–112) and added `"engines": { "node": ">=20" }` to `package.json`. No other changes.
+
+**Tests:** 247 passing (unchanged — no footer tests existed; the `shareString.test.ts` "footer is playRYGO.com" test is unrelated, testing the share-string URL line, not the removed `<footer>` element). Build clean.
+
+**Docs changes (allowlisted sections only):**
+* **Tech stack:** Node line updated — `engines` field now locked.
+* **Open questions:** removed the "Lock Node version in `package.json` engines" bullet (resolved).
+* **Architecture notes:** removed the App footer section (the footer no longer exists).
+* **Issue map:** M5 gate note updated — footer removal and `engines` lock done; Vercel/domain wiring (Chris-side) is the remaining gate. TER-201 added as ✅ In Review (Unscheduled).
+
+**⚠️ Flag for Opus (locked Coding conventions — do NOT edit):** The Coding conventions section contains the bullet "Update the App footer (`src/App.tsx`) at the end of every Code session: `Last shipped: TER-NNN — Short description`." This bullet is now obsolete (the footer no longer exists). Opus should remove it in the close-out docs PR.

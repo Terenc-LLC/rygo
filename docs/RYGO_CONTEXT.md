@@ -43,8 +43,8 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 * **Dark mode:** Class-based. `@custom-variant dark (&:where(.dark, .dark *))` in `index.css`. `class="dark"` set on the html element by default in `index.html`. Toggle UI shipped in [TER-137](https://linear.app/terenc/issue/TER-137).
 * **Testing:** Vitest v4 with jsdom environment
 * **State:** React local state for MVP. No global state library.
-* **Persistence (MVP):** None server-side. localStorage for theme preference (key `rygo:theme`; one-time migration shim from `yergers:theme` shipped in [TER-151](https://linear.app/terenc/issue/TER-151)) and daily play history / streaks (key `rygo:state`; shipped in [TER-142](https://linear.app/terenc/issue/TER-142)).
-* **Backend:** None for MVP. Pattern generation is client-side, daily seed derived from date.
+* **Persistence (MVP):** localStorage is the source of truth for all gameplay/retention state — theme preference (key `rygo:theme`; one-time migration shim from `yergers:theme` shipped in [TER-151](https://linear.app/terenc/issue/TER-151)) and daily play history / streaks (key `rygo:state`; shipped in [TER-142](https://linear.app/terenc/issue/TER-142)). **Server-side (M5):** a write-only Supabase `scores` table holds server-verified leaderboard results, written only by the edge function under the service role (clients never write directly); it never holds gameplay/retention state.
+* **Backend:** Supabase (paid), introduced for the M5 anonymous daily leaderboard (design doc: `docs/RYGO_Leaderboard-Design.md`). **Best-effort only — gameplay never depends on the network.** Pattern generation stays client-side, daily seed derived from date; leaderboard submission and rank-read are fire-and-forget and must never block, delay, or break a play or the Summary. (Flipped from "None for MVP" in the M5 backend-flip docs PR, May 25, 2026.)
 * **Hosting:** Vercel.
 * **Package manager:** npm
 * **Node:** Developed with Node 25.8.1. Minimum required: Node 20. `engines` field not yet locked in `package.json` (recommended).
@@ -54,7 +54,8 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 
 ## Source-of-truth documents
 
-* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.7** (May 24, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
+* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.8** (May 25, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
+* **RYGO Anonymous Daily Leaderboard (Design Doc)** — `Terenc-LLC/rygo/docs/RYGO_Leaderboard-Design.md` on GitHub main. Source of truth for the M5 leaderboard feature. Approved by Chris May 25, 2026; the "no backend" flip it required is in GDD v1.8 and this doc's Tech stack / Retention scope.
 * **Terenc Development Process** — `Terenc-LLC/rygo/docs/Terenc-Development-Process.md` on GitHub main. Currently at **v2.4** (May 3, 2026). Canonical copy per project; org-level synchronization is a manual responsibility until a central terenc-org doc location is established.
 * **This context document** — `Terenc-LLC/rygo/docs/RYGO_CONTEXT.md` on GitHub main. Title is `RYGO_CONTEXT.md` (was `YERGERS_CONTEXT.md`). (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 
@@ -157,7 +158,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 ### Retention scope (MVP+ pre-launch)
 
 * The four retention features — daily play tracking, once-per-day lock per level, per-level stats, and a spoiler-free share button (score + streak, never the board) — are required before public launch but are not strict MVP. Tracked in M3 — Daily ritual (pre-launch) milestone via [TER-142](https://linear.app/terenc/issue/TER-142), [TER-143](https://linear.app/terenc/issue/TER-143), [TER-144](https://linear.app/terenc/issue/TER-144). The per-level score-distribution histogram was descoped from [TER-143](https://linear.app/terenc/issue/TER-143) on May 24, 2026 — the per-level cards ship a today-vs-personal-best comparison instead (four histograms broke the no-scroll requirement); the histogram is deferred to a post-launch stats-v2 pass.
-* Anonymous, per-device only. No accounts, no backend, no cloud sync. localStorage is the single source of truth.
+* Anonymous, per-device only; localStorage is the source of truth for gameplay/retention. **M5 adds an optional, best-effort Supabase backend** (anonymous auth + server-verified daily scores) for the leaderboard — it never gates play, stores no PII (anonymous id only), and is fully degradable (offline/failure → result stays local, rank line silently omitted). Named accounts / multi-device sync stay out of scope; the anon-auth foundation makes them an additive upgrade later. (Flipped from "No accounts, no backend, no cloud sync" in the M5 backend-flip docs PR, May 25, 2026; design: `docs/RYGO_Leaderboard-Design.md`.)
 * Hard never-repeat puzzle guarantee is NOT in scope — generator's seed space already gives statistically-perfect uniqueness for the relevant time horizon.
 
 ## Open questions (do not implement these without Opus + Chris approval)
@@ -449,7 +450,7 @@ Diagrams are visual, not ASCII/prose:
 * Use `dark:` variants only on surfaces that actually change between themes. Game-content colors don't need dark variants.
 * Update the App footer (`src/App.tsx`) at the end of every Code session: `Last shipped: TER-NNN — Short description`.
 
-## Issue map (M1, M2, M3, M4)
+## Issue map (M1, M2, M3, M4, M5)
 
 ### M1 — Foundation (✅ complete)
 
@@ -486,6 +487,19 @@ Diagrams are visual, not ASCII/prose:
 ### M4 — Polish (post-launch)
 
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
+
+### M5 — Anonymous daily leaderboard (pre-launch feature)
+
+First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered; gated behind launch-prep housekeeping (Vercel/domain wiring, footer removal, `engines` lock). Issues filed by Opus once the M5 backend-flip docs PR merges — TER-NNN numbers slot in here as they're created.
+
+1. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
+2. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
+3. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob; gets its own design pass at draft time.
+4. **Edge function** — full-session replay validator (§5 of the design doc).
+5. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
+6. **Client read** — rank-on-Summary via `get_standing`.
+
+*(Deferred: standalone full-leaderboard view; named accounts / multi-device sync; realtime updates.)*
 
 ### Unscheduled (pre-launch bugs / polish, no milestone yet)
 
@@ -880,3 +894,20 @@ Locked-section updates absorbed in this docs-only PR:
 * **No GDD change:** content was sourced from the already-locked GDD v1.7; nothing in the source of truth changed.
 
 **Next recommended:** pre-launch threads are unchanged — (1) launch-prep housekeeping (Vercel rename + playRYGO.com wiring, dev-footer removal, `engines: { node: ">=20" }` lock); (2) the Supabase anonymous daily-leaderboard, whose design doc is drafted and awaiting Chris's approval before the GDD "no backend" flip and issue decomposition. Both remain the open pre-launch work now that M1–M3 and the unscheduled polish items are done.
+
+### 2026-05-25 — Opus docs-only PR: M5 leaderboard backend-flip (no Code session)
+
+Chris approved the Anonymous Daily Leaderboard design doc (`docs/RYGO_Leaderboard-Design.md`, committed in this PR). This is RYGO's first backend and a flip of the locked "no backend / no network" stance, so per the design doc §10 the source-of-truth flip lands **before** any M5 issue is drafted — otherwise Code would read the contradiction at session start and stop-and-ask.
+
+Locked-section updates in this docs-only PR:
+
+* **Tech stack — Backend:** flipped from "None for MVP" to Supabase (paid, best-effort, M5 leaderboard); gameplay never depends on the network, generation stays client-side.
+* **Tech stack — Persistence:** added the write-only `scores` table note (edge-function-written under service role; clients never write directly; holds no gameplay/retention state).
+* **Retention scope:** flipped the "No accounts, no backend, no cloud sync" line to "optional, best-effort Supabase backend (anon auth + server-verified scores), never gates play, no PII"; named accounts / multi-device sync remain out of scope as an additive upgrade.
+* **Source-of-truth documents:** GDD reference bumped v1.7 → v1.8; added the leaderboard design doc as a source-of-truth entry.
+* **Issue map:** added the **M5 — Anonymous daily leaderboard** milestone stub (6 hard-ordered work items; gated behind launch-prep housekeeping). TER-NNN numbers slot in as issues are filed.
+* **GDD (separate file in this PR):** bumped to v1.8 — flipped the matching retention line, added a **Leaderboard (M5)** section capturing design-doc §2–§5, changelog entry.
+
+"Unique players" (Chris's earlier ask) is covered by M5 issue 1 — the anonymous-auth foundation gives a persistent per-device id, so a distinct-`user_id` count is a query on `scores`/auth, not a separate feature. Noted in the issue-map stub.
+
+**Next:** once this PR is on `main`, Opus files M5 issues 1–6 in order (each with the v2.4 inline close-out checklist). Promotion Backlog→Todo and launch-prep sequencing stay Chris's gates. No Code session should launch until this PR is merged (concurrency note: land Opus docs PRs before the next Code launch).

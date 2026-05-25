@@ -566,3 +566,42 @@ Extracted `src/engine/replay.ts` and refactored the `useGame` reducer to delegat
 * **Architecture notes:** added "Shared replay core" section; updated "Shared-engine delivery" entry to reference TER-206.
 * **Issue map M5:** item 4 split to 4a (TER-206 ✅ In Review) + 4b (edge function, not yet filed).
 * **Session log:** this entry.
+
+### 2026-05-25 — [TER-207](https://linear.app/terenc/issue/TER-207) Edge-function replay validator (Claude Code / Sonnet 4.6)
+
+Implemented `supabase/functions/submit-score/` — the score submission Deno edge function. Pure validation logic is fully separated from side effects. Generator-parity tests confirm the Deno runtime reproduces byte-identical puzzle outputs to the browser JS runtime.
+
+**Files changed:**
+* `supabase/functions/submit-score/validate.ts` — new. Pure module (no I/O): `BadRequestError`, `parsePayload`, `validateSubmission`. Constants: `MAX_EVENTS=2000`, `ELAPSED_FLOOR_MS=1500`, `ELAPSED_CEILING_MS=7_200_000`, `LAUNCH_DAY='2026-05-25'`. Imports only from `../_shared/engine/`.
+* `supabase/functions/submit-score/index.ts` — new. HTTP handler: OPTIONS CORS, JWT auth via anonClient (user_id from token never body), `parsePayload` → 400, `validateSubmission` → 200, service-role INSERT with conflict 23505 dedup → 200. All keys via `Deno.env.get` only.
+* `supabase/functions/submit-score/parity-fixture.json` — new. Committed JSON with 12 entries (3 seeds × 4 grid sizes). Seeds: `RYGO-2026-05-25`, `RYGO-2026-06-15`, `RYGO-STATIC-PARITY-A`. Generated via one-off Vitest script (deleted after run).
+* `supabase/functions/submit-score/parity.test.ts` — new. 12 Deno tests. Reads committed fixture, regenerates each entry via `_shared/engine/generator.ts`, deep-equals `puzzle.target`.
+* `supabase/functions/submit-score/validate.test.ts` — new. 24 Deno tests. Covers `parsePayload` (12) and `validateSubmission` (12). Uses `solutionToEventLog` helper to convert generator solution to event log for accept tests. No external test deps — inline assertion helpers.
+* `vite.config.ts` — added `supabase/**` to Vitest `exclude` to prevent Deno test files from being discovered by the client test runner.
+* `.github/workflows/ci.yml` — added `deno test --allow-read` step after existing `deno check` step, running both parity and validate tests.
+* `docs/RYGO_CONTEXT.md` — architecture note added; issue map updated (TER-206 → Done, TER-207 → In Review).
+
+**Tests:**
+* 286 pre-existing Vitest tests: all pass (no regressions).
+* 12 parity fixture Deno tests: all pass. Confirms Deno + `_shared/engine/generator.ts` produces identical targets to browser runtime for all 4 grid sizes.
+* 24 validate unit Deno tests: all pass. Full coverage of payload parsing, boundary conditions, and replay acceptance/rejection.
+* Total Deno: 36 tests.
+
+**Build:** clean. Drift guard: green (no new src/engine changes; existing sync unchanged). Deno check: clean.
+
+**Subtleties preserved:**
+* `applyMove` vs `applyEvent` divergence: the generator's `solution[]` is built for `applyMove` semantics (no clearing). Same-color taps in replay trigger `applyClear` (TER-147), so the generator solution cannot be used as a valid event log for 6×6/8×8 boards where same-color overlaps occur. Accept tests use only 4×4 and 5×5; 6×6/8×8 correctness is covered independently by the parity fixture.
+* `elapsedMs` is reject-not-clamp: below floor or above ceiling → `{ accepted: false }`, not stored clamped.
+* Future day is a security hard stop (400 BadRequestError), not a soft reject — prevents backdating attacks.
+* `user_id` sourced exclusively from verified JWT; never from request body.
+* Service-role key never returned in any response body or error message.
+
+**Decisions:**
+* `parsePayload` validates calendar dates with a JS round-trip check (parse → toISOString → compare) to reject overflow dates like `2026-02-30` that JS silently coerces.
+* No external test dependencies (no `jsr:@std/assert`) so Deno tests are truly network-free.
+* `parity-fixture.json` is committed (not generated at test time) so CI tests remain deterministic with `--allow-read` only.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Submit-score edge function" section with full API contract.
+* **Issue map M5:** TER-206 → ✅ Done; TER-207 added as ✅ In Review.
+* **Session log:** this entry.

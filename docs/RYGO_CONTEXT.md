@@ -162,7 +162,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 
 ## Open questions (do not implement these without Opus + Chris approval)
 
-* Tutorial / first-run experience — defer to polish (M4).
+* Tutorial / first-run experience (interactive walkthrough) — defer to polish (M4). A *static* "How to play" reference screen shipped in [TER-192](https://linear.app/terenc/issue/TER-192) (picker-only, on-demand) — that is reference only, not the interactive first-run tutorial, which remains M4.
 * Sound design — design intent locked (percussive wooden tap on placement, three-note R-Y-G ascending chime on completion); implementation deferred to M4.
 * Cascade animations — defer to polish (M4). The win-state validation sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153) (M2); any further cell-fill / completion cascades remain M4.
 * Respect `prefers-color-scheme` on first visit — currently no.
@@ -491,7 +491,7 @@ Diagrams are visual, not ASCII/prose:
 
 * [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
-* [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ In Review. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
+* [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 
 ## Session log
 
@@ -865,3 +865,18 @@ Diagrams rendered visually:
 `MiniCell` uses `role="img"` with `aria-label="Color cell at row N, column N"` matching the live Grid's format. Colors and shape fills use the same tokens as `Grid.tsx`. No business logic in the component.
 
 **Tests** (`src/components/RulesScreen.test.tsx`): 7 tests — `RulesScreen` suite: all six sections render; blocking diagram (before + after boards) renders; diagram cells carry `role="img"` aria-labels; overwrite table renders; `onBack` fires. `Rules routing` suite: "How to play" button navigates picker → rules; Back returns rules → difficulty. 247 tests passing (was 240); build clean. PR opened against main.
+
+### 2026-05-24 — [TER-192](https://linear.app/terenc/issue/TER-192) closed by Opus
+
+Chris reported [TER-192](https://linear.app/terenc/issue/TER-192)'s PR merged (PR #39). Opus reviewed the diff (the new `RulesScreen.tsx` with six GDD-sourced sections; `MiniGrid`/`MiniCell` visual diagrams for green blocking + the overwrite `<table>`; the `'rules'` AppView route and the picker-only "How to play" entry; `role="img"` cells matching the live-grid aria-label format) with CI green and 247 tests passing, and marked the issue Done. Rule accuracy was verified against GDD v1.7 — the green-blocking worked example, the overwrite table, the scoring list, and the clearing description all match the locked mechanics.
+
+Three non-blocking on-device items carried forward for Chris: discoverability of the quiet `text-gray-500` "How to play" entry below the level buttons; light/dark rendering of the `MiniGrid` cells and overwrite-table borders (the warm-Paper wash-out flagged on TER-168 touches sibling gray surfaces); and whether the before→after blocking diagram reads to a first-timer.
+
+Locked-section updates absorbed in this docs-only PR:
+
+* **Issue map:** [TER-192](https://linear.app/terenc/issue/TER-192) → ✅ Done (Unscheduled subsection).
+* **Open questions:** the Tutorial / first-run entry now notes that a *static* "How to play" reference screen shipped in TER-192 (picker-only, on-demand), distinct from the interactive first-run tutorial that remains M4 — so a future reader doesn't read "tutorial deferred" and miss that a rules reference already exists.
+* **Architecture notes / session log:** the How-to-play arch note and the TER-192 Code session-log entry were added by Code in PR #39 and are retained as-is.
+* **No GDD change:** content was sourced from the already-locked GDD v1.7; nothing in the source of truth changed.
+
+**Next recommended:** pre-launch threads are unchanged — (1) launch-prep housekeeping (Vercel rename + playRYGO.com wiring, dev-footer removal, `engines: { node: ">=20" }` lock); (2) the Supabase anonymous daily-leaderboard, whose design doc is drafted and awaiting Chris's approval before the GDD "no backend" flip and issue decomposition. Both remain the open pre-launch work now that M1–M3 and the unscheduled polish items are done.

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { DifficultyPicker } from './components/DifficultyPicker';
 import { GameScreen } from './components/GameScreen';
+import { RulesScreen } from './components/RulesScreen';
 import { StatsScreen } from './components/StatsScreen';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
@@ -16,7 +17,7 @@ import {
 import { loadInProgress } from './persistence/inProgress';
 import type { InProgressBlob } from './persistence/inProgress';
 
-type AppView = 'difficulty' | 'game' | 'stats';
+type AppView = 'difficulty' | 'game' | 'stats' | 'rules';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -80,10 +81,12 @@ export default function App() {
           <DifficultyPicker
             onSelect={handleSelectDifficulty}
             onShowStats={() => setView('stats')}
+            onShowRules={() => setView('rules')}
             completedToday={completedToday}
           />
         )}
         {view === 'stats' && <StatsScreen onBack={() => setView('difficulty')} />}
+        {view === 'rules' && <RulesScreen onBack={() => setView('difficulty')} />}
         {view === 'game' && puzzle !== null && (
           <GameScreen
             puzzle={puzzle}
@@ -98,14 +101,14 @@ export default function App() {
       <footer className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
         Last shipped:{' '}
         <a
-          href="https://linear.app/terenc/issue/TER-144"
+          href="https://linear.app/terenc/issue/TER-192"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
         >
-          TER-144
+          TER-192
         </a>{' '}
-        — Share button
+        — How-to-play rules screen
       </footer>
     </>
   );

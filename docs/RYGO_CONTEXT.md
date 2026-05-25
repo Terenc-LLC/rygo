@@ -423,6 +423,18 @@ export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, toda
 
 **StatsScreen** (`src/components/StatsScreen.tsx`) — header with Back button + streak banner + four `StatCard` components. Streak banner: `🔥 N-day streak · best M` or "Play today to start a streak" when current === 0. **StatCard** (`src/components/StatCard.tsx`) — three states: empty (`No plays yet — try it!`), played + today (Today: N moves + delta cue + quiet stat line), played + no today (stat line + Not played today). Delta cue: "New best!" when `today.moves <= bestScore`, else `+N from your best`. All fit an iPhone SE viewport (375×667) without scroll.
 
+### How-to-play screen — READY (`src/components/RulesScreen.tsx`, [TER-192](https://linear.app/terenc/issue/TER-192))
+
+**App view-state (TER-192):** extended to `'difficulty' | 'game' | 'stats' | 'rules'`. `'rules'` → `RulesScreen`; Back returns to `'difficulty'`. Entry point: DifficultyPicker only (not Summary, not GameScreen). DifficultyPicker gains `onShowRules?: () => void` prop; a centered secondary-styled text button (`aria-label="How to play"`) rendered below the four LevelButtons.
+
+**RulesScreen** (`src/components/RulesScreen.tsx`) — static reference screen. Header mirrors StatsScreen (Back button + centered title). Content is sourced directly from GDD v1.7; no rule may be invented or altered. Scrollable. Sections (with `data-testid`s): `rules-goal`, `rules-colors`, `rules-blocking`, `rules-overwrite`, `rules-clearing`, `rules-scoring`.
+
+Diagrams are visual, not ASCII/prose:
+- **Green blocking example:** two 4×4 `MiniGrid` components side-by-side (before: red only; after: green placed adjacent to red, showing column fill + eastern block). `data-testid="blocking-diagram"`, `"blocking-diagram-before"`, `"blocking-diagram-after"`.
+- **Overwrite hierarchy:** accessible HTML `<table>` (Red / Yellow / Green rows vs Empty / Green / Yellow / Red columns). `data-testid="overwrite-table"`.
+
+**MiniGrid / MiniCell** — local helpers inside `RulesScreen.tsx`. `MiniCell` is a non-interactive `div` with `role="img"` and `aria-label` matching the live Grid format ("Red cell at row N, column N"). `MiniGrid` uses inline `gridTemplateColumns` style (dynamic column count). Same color tokens (`bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green` / `bg-stone-300 dark:bg-gray-800`) and shape fills (`text-paper` / `text-ink`) as the live Grid. `BLOCKING_BEFORE` and `BLOCKING_AFTER` boards are module-level constants.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -479,6 +491,7 @@ export function computeLevelSummary(state: DailyState, size: 4 | 5 | 6 | 8, toda
 
 * [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
+* [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ In Review. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 
 ## Session log
 
@@ -834,3 +847,21 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes / session log:** the Summary arch-note update (Share button, new props, fallback chain) and the TER-144 Code session-log entry were added by Code in PR #37 and are retained as-is.
 
 **Next recommended:** pre-launch work — every build milestone is now done (M1 / M2 / M3 complete; M4 is post-launch polish). Two open threads: (1) **launch-prep housekeeping** — Vercel project rename + playRYGO.com custom-domain wiring (Chris-side, per [TER-151](https://linear.app/terenc/issue/TER-151)), removing the dev "Last shipped" footer, and locking `engines: { node: ">=20" }` in `package.json`; (2) the **Supabase anonymous daily-leaderboard** design pass — decisions already locked with Chris: server-side replay validation for score integrity (the pure engine runs unchanged in a Supabase Edge Function), per-difficulty boards, and an anonymous-auth foundation so future accounts / multi-device sync are an additive upgrade. The leaderboard is a new feature area (adds the project's first backend — a locked-decision change from "no backend / no network") and gets a full design doc before any issue is drafted.
+
+### 2026-05-24 — [TER-192](https://linear.app/terenc/issue/TER-192) How-to-play rules screen (Claude Code / Sonnet 4.6)
+
+Created `src/components/RulesScreen.tsx` — a static "How to play" reference screen sourced entirely from GDD v1.7. No rules invented or reworded beyond faithful paraphrase.
+
+**App:** extended `AppView` to `'difficulty' | 'game' | 'stats' | 'rules'`. Wired `view === 'rules'` → `<RulesScreen onBack={() => setView('difficulty')} />`. DifficultyPicker receives new `onShowRules={() => setView('rules')}` prop.
+
+**DifficultyPicker:** added `onShowRules?: () => void` prop and a centered secondary-styled text button (`aria-label="How to play"`) rendered below the four LevelButtons. Does not collide with the top-left Stats button or the fixed top-right ThemeToggle.
+
+**RulesScreen:** six content sections (`rules-goal`, `rules-colors`, `rules-blocking`, `rules-overwrite`, `rules-clearing`, `rules-scoring` — all `data-testid`'d). Header mirrors StatsScreen (Back button + centered h1, `aria-label="Back to difficulty picker"`). Scrollable — content-heavy reference screen. Themed with brand tokens throughout.
+
+Diagrams rendered visually:
+- **Green blocking example** (`data-testid="blocking-diagram"`, `"blocking-diagram-before"`, `"blocking-diagram-after"`): two 4×4 `MiniGrid` boards side-by-side — before (red only at row 2, col 2) and after (green placed at row 2, col 1 showing column fill and eastern block).
+- **Overwrite hierarchy** (`data-testid="overwrite-table"`): accessible HTML `<table>` with `scope` headers; ✅ / ❌ cells each carry an `aria-label` ("fills or overwrites" / "no effect").
+
+`MiniCell` uses `role="img"` with `aria-label="Color cell at row N, column N"` matching the live Grid's format. Colors and shape fills use the same tokens as `Grid.tsx`. No business logic in the component.
+
+**Tests** (`src/components/RulesScreen.test.tsx`): 7 tests — `RulesScreen` suite: all six sections render; blocking diagram (before + after boards) renders; diagram cells carry `role="img"` aria-labels; overwrite table renders; `onBack` fires. `Rules routing` suite: "How to play" button navigates picker → rules; Back returns rules → difficulty. 247 tests passing (was 240); build clean. PR opened against main.

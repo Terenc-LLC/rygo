@@ -1,7 +1,7 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
 import type { Board, Color, GameEvent } from '../engine/types';
 import type { GeneratedPuzzle } from '../engine/generator';
-import { applyMove, applyClear } from '../engine/placement';
+import { applyEvent } from '../engine/replay';
 import type { InProgressBlob } from '../persistence/inProgress';
 
 export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
@@ -107,69 +107,58 @@ function makeInitialState({ gridSize, resume }: InitArgs): GameState {
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'REVEAL_PATTERN': {
+      if (state.phase !== 'idle' && state.phase !== 'playing') return state;
+      const { moveCount } = applyEvent(
+        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: state.phase !== 'idle' },
+        { type: 'reveal' },
+      );
+      const newEventLog = [...state.eventLog, { type: 'reveal' as const }];
       if (state.phase === 'idle') {
         return {
           ...state,
           phase: 'pattern-revealed',
           // Only set runStartedAt if not already running (e.g., post-reset in daily mode)
           runStartedAt: state.runStartedAt ?? action.now,
-          eventLog: [...state.eventLog, { type: 'reveal' }],
+          moveCount,
+          eventLog: newEventLog,
         };
       }
-      if (state.phase === 'playing') {
-        return {
-          ...state,
-          phase: 'pattern-revealed',
-          moveCount: state.moveCount + 1,
-          eventLog: [...state.eventLog, { type: 'reveal' }],
-        };
-      }
-      return state;
+      return { ...state, phase: 'pattern-revealed', moveCount, eventLog: newEventLog };
     }
     case 'HIDE_PATTERN': {
-      if (state.phase === 'pattern-revealed') {
-        return {
-          ...state,
-          phase: 'playing',
-          moveCount: state.moveCount + 1,
-          eventLog: [...state.eventLog, { type: 'hide' }],
-        };
-      }
-      return state;
+      if (state.phase !== 'pattern-revealed') return state;
+      const { moveCount } = applyEvent(
+        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: true },
+        { type: 'hide' },
+      );
+      return { ...state, phase: 'playing', moveCount, eventLog: [...state.eventLog, { type: 'hide' as const }] };
     }
     case 'SELECT_COLOR': {
       // Always append the event — the server applies +0 for no-op selects on replay.
-      const newEventLog = [...state.eventLog, { type: 'select' as const, color: action.color }];
-      if (state.activeColor === action.color) {
-        return { ...state, eventLog: newEventLog };
-      }
-      return { ...state, activeColor: action.color, moveCount: state.moveCount + 1, eventLog: newEventLog };
+      const rs = applyEvent(
+        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: true },
+        { type: 'select', color: action.color },
+      );
+      return { ...state, activeColor: rs.activeColor, moveCount: rs.moveCount, eventLog: [...state.eventLog, { type: 'select' as const, color: action.color }] };
     }
     case 'PLACE_AT': {
       if (state.phase !== 'playing' || state.activeColor === null) return state;
       const newEventLog = [...state.eventLog, { type: 'tap' as const, row: action.row, col: action.col }];
-      if (state.current[action.row][action.col] === state.activeColor) {
-        // Same-color tap: clear via this color's reach. Clearing cannot complete the puzzle:
-        // all targets are fully covered (TER-146), and a clear produces empty cells — so
-        // this path deliberately skips the completion check.
-        return {
-          ...state,
-          current: applyClear(state.current, state.activeColor, action.row, action.col),
-          moveCount: state.moveCount + 1,
-          eventLog: newEventLog,
-        };
-      }
-      const newBoard = applyMove(state.current, state.activeColor, action.row, action.col);
-      const isComplete = boardsMatch(newBoard, action.target);
-      if (isComplete) {
+      const rs = applyEvent(
+        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: true },
+        { type: 'tap', row: action.row, col: action.col },
+      );
+      // Targets are fully covered (TER-146) so a clear (empty cells) can never match.
+      // Running boardsMatch on both paths is safe and removes the branch.
+      if (boardsMatch(rs.board, action.target)) {
         // Freeze the clock atomically with the completion
         const frozen =
           state.accumulatedMs +
           (state.runStartedAt !== null ? clampDelta(action.now, state.runStartedAt) : 0);
         return {
           ...state,
-          current: newBoard,
-          moveCount: state.moveCount + 1,
+          current: rs.board,
+          moveCount: rs.moveCount,
           phase: 'validating',
           elapsedMs: frozen,
           accumulatedMs: frozen,
@@ -177,12 +166,7 @@ function reducer(state: GameState, action: Action): GameState {
           eventLog: newEventLog,
         };
       }
-      return {
-        ...state,
-        current: newBoard,
-        moveCount: state.moveCount + 1,
-        eventLog: newEventLog,
-      };
+      return { ...state, current: rs.board, moveCount: rs.moveCount, eventLog: newEventLog };
     }
     case 'COMPLETE_VALIDATION': {
       if (state.phase === 'validating') {

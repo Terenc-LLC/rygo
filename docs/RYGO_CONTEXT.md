@@ -429,6 +429,21 @@ Diagrams are visual, not ASCII/prose:
 
 **MiniGrid / MiniCell** — local helpers inside `RulesScreen.tsx`. `MiniCell` is a non-interactive `div` with `role="img"` and `aria-label` matching the live Grid format ("Red cell at row N, column N"). `MiniGrid` uses inline `gridTemplateColumns` style (dynamic column count). Same color tokens (`bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green` / `bg-stone-300 dark:bg-gray-800`) and shape fills (`text-paper` / `text-ink`) as the live Grid. `BLOCKING_BEFORE` and `BLOCKING_AFTER` boards are module-level constants.
 
+### Supabase backend — READY (`src/backend/supabaseClient.ts`) [TER-199]
+
+```ts
+export const supabase: SupabaseClient | null   // null when env vars absent
+export const userIdPromise: Promise<string | null>  // resolves to anon user_id (or null)
+```
+
+Initializes the Supabase client from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. If either env var is absent (CI, local dev without `.env`), the module exports `null` and `userIdPromise` resolves to `null` — no throw, no network call, no console spam. This is the hard non-negotiable: gameplay never depends on the network; callers must guard on `supabase !== null`.
+
+**Anonymous auth bootstrap:** on module load (if client is live), best-effort: `getSession()` reuses an existing localStorage-persisted session; otherwise `signInAnonymously()` creates a new one. Any error is swallowed; `userIdPromise` resolves to `null` on failure. The anon `user_id` is the dedup key for one-result-per-player-per-day-per-level.
+
+**SQL migration:** `supabase/migrations/20260525000000_scores_schema.sql` — `scores` table (`id`, `user_id`, `day`, `grid_size`, `moves`, `elapsed_ms`, `created_at`; unique on `(user_id, day, grid_size)`), RLS enabled with no client INSERT/UPDATE policy, and the read-only `get_standing(day, grid_size, moves, elapsed_ms) → { rank, total }` RPC (`security definer`, `set search_path = ''`). Sort key: moves ASC, elapsed_ms ASC.
+
+Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -484,7 +499,7 @@ Diagrams are visual, not ASCII/prose:
 
 First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered; gated behind launch-prep housekeeping. Dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201); remaining gate: Vercel project rename + playRYGO.com wiring (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus once the M5 backend-flip docs PR merges — TER-NNN numbers slot in here as they're created.
 
-1. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
+1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ In Review. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
 2. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
 3. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob; gets its own design pass at draft time.
 4. **Edge function** — full-session replay validator (§5 of the design doc).
@@ -918,3 +933,18 @@ Removed the dev "Last shipped" `<footer>` from `src/App.tsx` (lines 101–112) a
 * **Issue map:** M5 gate note updated — footer removal and `engines` lock done; Vercel/domain wiring (Chris-side) is the remaining gate. TER-201 added as ✅ In Review (Unscheduled).
 
 **⚠️ Flag for Opus (locked Coding conventions — do NOT edit):** The Coding conventions section contains the bullet "Update the App footer (`src/App.tsx`) at the end of every Code session: `Last shipped: TER-NNN — Short description`." This bullet is now obsolete (the footer no longer exists). Opus should remove it in the close-out docs PR.
+
+### 2026-05-25 — [TER-199](https://linear.app/terenc/issue/TER-199) M5-1: Leaderboard backend foundation (Claude Code / Sonnet 4.6)
+
+Stood up the Supabase backend foundation for the M5 anonymous daily leaderboard.
+
+* **`src/backend/supabaseClient.ts`** — Supabase client initialized from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. Exports `null` (and `userIdPromise` resolves to `null`) if either env var is absent — no throw, no network call. On first load (when live), bootstraps the anonymous session via `getSession()` (reuse) then `signInAnonymously()` (create); all failures are swallowed.
+* **`supabase/migrations/20260525000000_scores_schema.sql`** — `scores` table with columns and unique constraint exactly as specified in the design doc §4. RLS enabled; no client INSERT/UPDATE policy. `get_standing(day, grid_size, moves, elapsed_ms) → { rank, total }` RPC as a `security definer` function with `set search_path = ''`.
+* **`@supabase/supabase-js`** added as the project's first runtime dependency (design §12).
+
+**Tests:** 254 passing (247 prior + 7 new `supabaseClient` tests covering: null client when env absent, no throw, live client when both vars set, null client when only URL set, existing-session user id, new anon sign-in user id, error swallowed). Build clean. With env vars unset the game plays end-to-end with zero backend calls.
+
+**Docs changes (allowlisted sections only):**
+* **Issue map M5:** item 1 updated with TER-199 link and ✅ In Review status.
+* **Architecture notes:** added Supabase backend section (`supabaseClient.ts`, migration, RPC).
+* **Session log:** this entry.

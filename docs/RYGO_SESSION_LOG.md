@@ -452,3 +452,37 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes / session log:** the Supabase backend arch note and the TER-199 Code session-log entry were added by Code in PR #44 and are retained as-is.
 
 **Next recommended:** M5 issue 2 — shared-engine delivery (sync `src/engine/` + generator into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure). Next in the hard-ordered M5 chain and now unblocked. Opus to file it next; it needs a design/spec pass before Code. Promotion Backlog→Todo stays Chris's gate.
+
+### 2026-05-25 — [TER-203](https://linear.app/terenc/issue/TER-203) shared-engine delivery (Claude Code / Sonnet 4.6)
+
+**Goal:** Deliver `src/engine/` as a single source of truth to the Supabase Edge Function runtime (Deno) by syncing three pure engine files into `supabase/functions/_shared/engine/`, with a CI drift guard and Deno typecheck.
+
+**What shipped:**
+
+* **`.ts` import extensions** — added explicit `.ts` extensions to every relative import in `placement.ts` (`from './types.ts'`) and `generator.ts` (`from './types.ts'`, `from './placement.ts'`). `types.ts` has no imports — unchanged. Vite and Vitest tolerate explicit `.ts` extensions; build and 254 tests remain green.
+
+* **`scripts/sync-engine.mjs`** — Node ESM script (no deps). Copies `types.ts`, `placement.ts`, `generator.ts` from `src/engine/` into `supabase/functions/_shared/engine/`, prepending the generated-file banner to each. Idempotent (running twice produces no diff). Test files NOT synced.
+
+* **`npm run sync-engine`** — added to `package.json` scripts.
+
+* **`supabase/functions/_shared/engine/{types,placement,generator}.ts`** — committed with banners. Import bodies match source exactly (no transform).
+
+* **CI additions** (in `build-and-test` job, after `npm run test`):
+  1. **Engine drift guard** — runs `npm run sync-engine` then `git diff --exit-code -- supabase/functions/_shared/` with explicit "Engine drift — run `npm run sync-engine` and commit" failure message.
+  2. **Deno setup** — `denoland/setup-deno@v2` with `deno-version: v2.x`.
+  3. **Deno check** — `deno check supabase/functions/_shared/engine/*.ts` (globbing all three; `generator.ts` transitively covers the others).
+
+**Tests:** 254 passing (all pre-existing; no new test files required — the sync script is trivial file I/O, and the drift guard is proven by the CI step itself).
+
+**Build:** clean (`tsc -b && vite build`).
+
+**Drift guard verified locally:** staged the committed baseline, appended `// drift-test` to `src/engine/types.ts`, ran `npm run sync-engine`, and confirmed `git diff --exit-code -- supabase/functions/_shared/` exits 1 with a visible diff. Reverted and re-synced back to clean.
+
+**Idempotency verified:** running `npm run sync-engine` twice in a row produces `git diff --exit-code` exit 0.
+
+**No runtime behavior changes.** No edits to `useGame`, `GameScreen`, `App`, or any file outside `src/engine/`, `scripts/`, `supabase/functions/_shared/engine/`, `package.json`, `.github/workflows/ci.yml`, and `docs/`.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Shared-engine delivery" section.
+* **Issue map M5:** item 2 updated with TER-203 link and ✅ In Review status.
+* **Session log:** this entry.

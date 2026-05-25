@@ -430,6 +430,16 @@ Diagrams are visual, not ASCII/prose:
 
 **MiniGrid / MiniCell** — local helpers inside `RulesScreen.tsx`. `MiniCell` is a non-interactive `div` with `role="img"` and `aria-label` matching the live Grid format ("Red cell at row N, column N"). `MiniGrid` uses inline `gridTemplateColumns` style (dynamic column count). Same color tokens (`bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green` / `bg-stone-300 dark:bg-gray-800`) and shape fills (`text-paper` / `text-ink`) as the live Grid. `BLOCKING_BEFORE` and `BLOCKING_AFTER` boards are module-level constants.
 
+### Shared-engine delivery — READY (`scripts/sync-engine.mjs`, `supabase/functions/_shared/engine/`) [TER-203]
+
+`scripts/sync-engine.mjs` (Node, no deps) copies the three pure engine files — `types.ts`, `placement.ts`, `generator.ts` — from `src/engine/` into `supabase/functions/_shared/engine/`, prepending a generated-file banner to each. Run via `npm run sync-engine`. The `.test.ts` files are NOT synced; the shared copy is runtime engine only.
+
+**Deno compat:** relative imports in `placement.ts` and `generator.ts` now use explicit `.ts` extensions (e.g. `from './types.ts'`). Vite and Vitest tolerate these extensions; the client build is unaffected. The extension change makes the sync a pure byte-copy — no import rewriting required.
+
+**Drift guard in CI:** the `build-and-test` job runs `npm run sync-engine` then `git diff --exit-code -- supabase/functions/_shared/` after tests. Any stale committed copy causes CI to fail with "Engine drift — run `npm run sync-engine` and commit". `denoland/setup-deno@v2` + `deno check supabase/functions/_shared/engine/*.ts` follows, proving the Deno runtime can load and typecheck the engine before the edge function (issue 4) is built on it.
+
+Shipped in [TER-203](https://linear.app/terenc/issue/TER-203), May 25, 2026.
+
 ### Supabase backend — READY (`src/backend/supabaseClient.ts`) [TER-199]
 
 ```ts
@@ -501,7 +511,7 @@ Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
 First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 25, 2026). Hard-ordered. Launch-prep housekeeping is complete: dev-footer removal and `engines` lock shipped in [TER-201](https://linear.app/terenc/issue/TER-201), and the Vercel rename + playRYGO.com wiring is done (Chris-side ops, [TER-151](https://linear.app/terenc/issue/TER-151)). Issues filed by Opus in order; TER-NNN numbers slot in here as they're created.
 
 1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ Done. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
-2. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
+2. [TER-203](https://linear.app/terenc/issue/TER-203) — ✅ In Review. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
 3. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob; gets its own design pass at draft time.
 4. **Edge function** — full-session replay validator (§5 of the design doc).
 5. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.

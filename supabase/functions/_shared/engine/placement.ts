@@ -1,3 +1,4 @@
+// GENERATED — do not edit. Source: src/engine/placement.ts. Regenerate: npm run sync-engine
 /*
  * Overwrite hierarchy — what a placed color can fill:
  *

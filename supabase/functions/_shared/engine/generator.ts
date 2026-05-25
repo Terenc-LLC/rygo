@@ -1,3 +1,4 @@
+// GENERATED — do not edit. Source: src/engine/generator.ts. Regenerate: npm run sync-engine
 import type { Board, Color, Move } from './types.ts';
 import { applyMove } from './placement.ts';
 

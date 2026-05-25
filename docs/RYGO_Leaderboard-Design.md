@@ -1,7 +1,7 @@
 # RYGO — Anonymous Daily Leaderboard (Design Doc)
 
-> **Status:** v0.1 draft — May 24, 2026. Not yet a GDD lock. Source of truth for the feature once approved by Chris.
-> **Feature area:** First backend for RYGO. Changes the locked "no backend / no network" stance — requires a GDD revision (see §10) before any issue is drafted.
+> **Status:** Approved (locked) — May 25, 2026 by Chris. Source of truth for the M5 leaderboard feature. The "no backend / no network" flip it required (§10) shipped in GDD v1.8 and `RYGO_CONTEXT.md` (M5 backend-flip docs PR, May 25, 2026).
+> **Feature area:** First backend for RYGO. Changed the locked "no backend / no network" stance; the GDD revision (§10) landed in v1.8 ahead of M5 issue drafting.
 > **Owner:** Opus (design) + Chris (decisions).
 
 ## 1. Scope

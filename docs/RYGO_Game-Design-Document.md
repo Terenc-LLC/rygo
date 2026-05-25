@@ -2,8 +2,8 @@
 
 > **Brand:** RYGO (locked May 2, 2026 — was codename "Yergers")
 > **Tagline:** Minimalist daily logic-constraints puzzle at [playRYGO.com](<http://playRYGO.com>)
-> **Status:** v1.7 — MVP scope (May 24, 2026: timer redefined as an active-play accumulator with pause/resume)
-> **Last updated:** May 24, 2026
+> **Status:** v1.8 — MVP scope + first backend (May 25, 2026: anonymous daily leaderboard; the "no backend / no network" stance is flipped to an optional, best-effort backend that never gates play)
+> **Last updated:** May 25, 2026
 
 ## Concept
 
@@ -252,6 +252,21 @@ The game ships with **two themes: dark (default) and light**. Users can toggle b
 * **Screen reader labels.** Each cell has an `aria-label` describing its state (e.g., "Red cell at row 2, column 3" or "Empty cell at row 1, column 1"). The color picker buttons have labels like "Select red" / "Select yellow" / "Select green." The theme toggle has a label like "Switch to light theme" / "Switch to dark theme" reflecting the action it would take.
 * **No reliance on color alone for any state indicator** anywhere in the UI (active color, completion state, etc.).
 
+## Leaderboard (M5 — pre-launch feature)
+
+> Added v1.8 (May 25, 2026). This is RYGO's first backend and flips the original "no backend / no network" stance. Full design: `docs/RYGO_Leaderboard-Design.md`. **Non-negotiable: gameplay never depends on the network** — generation stays client-side; submission and rank-read are best-effort and must never block, delay, or break a play or the Summary.
+
+An anonymous, per-difficulty daily leaderboard. After a player completes the **daily** puzzle for a level (practice never records), their result is submitted, server-verified, and they see their standing for that level on the Summary.
+
+* **Backend:** Supabase (paid). A single write-only `scores` table, written only by an edge function under the service role — clients never write directly. The daily solution / move log is **not** stored server-side.
+* **Identity:** Supabase **anonymous auth** — a persistent per-device anonymous id, issued on first launch. It is the dedupe key for one-result-per-player-per-day-per-level and for "your rank." Upgradeable to a real account later with no schema change. Accepted limitation: clearing storage or a new device reads as a new player.
+* **Boards:** per-difficulty (Easy / Normal / Hard / Extreme are separate ladders). Sort key is **moves ASC, then elapsed_ms ASC** — matching the locked scoring (moves are the score, time is the tiebreaker).
+* **Integrity (full-session replay):** the client submits the ordered meaningful-click log (selects, reveals, hides, taps), not just the final board, because board-neutral clicks count toward the score. The edge function regenerates the daily puzzle from the seed, replays the log through a server-side mirror of the game rules, and accepts only if the final board equals the target **and** the recomputed move count equals the claim. **The move score is cheat-proof; elapsed time is only sanity-bounded** (rejected below an anti-instant floor and above the 2 h clamp), since elapsed time can't be server-verified — an accepted tradeoff for an anonymous vanity board.
+* **Submit path:** fire-and-forget on daily completion. On failure (offline / error / reject), the payload is enqueued locally and retried on next launch and next completion. First-write-wins per (player, day, level); duplicate submits are a no-op.
+* **Read / display:** on the Summary (daily only), a best-effort rank read shows "#R of N today" for that level. If the read fails or the player is offline, the rank line is silently omitted — the Summary always renders fully without it. A standalone full-leaderboard view is deferred.
+* **Privacy:** RYGO's first network call tied to a persistent anonymous id. No PII collected (anonymous id only). A short pre-launch disclosure line is required.
+* **Out of scope (deferred):** standalone leaderboard view, named handles / accounts / multi-device sync (the anon-auth foundation makes these an additive upgrade), realtime updates.
+
 ## Open questions (deferred from this doc)
 
 These are flagged but not blocking. We'll address each before the relevant feature ships.
@@ -265,6 +280,7 @@ These are flagged but not blocking. We'll address each before the relevant featu
 
 ## Changelog
 
+* **v1.8 (May 25, 2026):** Added the **Leaderboard (M5)** section — RYGO's first backend (anonymous, per-difficulty daily leaderboard on Supabase). Flipped the original "no backend / no network" stance to an **optional, best-effort backend that never gates play**: anonymous auth, full-session server replay for move-score integrity (time sanity-bounded only), per-difficulty boards, fire-and-forget submit with offline retry, rank-on-Summary read that degrades silently. No PII (anonymous id only). Design doc: `docs/RYGO_Leaderboard-Design.md`. Matching Tech-stack / Retention-scope flips made in `RYGO_CONTEXT.md`.
 * **v1.7 (May 24, 2026):** Timer redefined as an **active-play accumulator** — it banks and pauses when the attempt is set aside (background, refresh, quit-to-picker) and resumes on return, never resets on Restart, and discards a stale attempt at UTC rollover; the in-progress board is restored on return. Replaces the v1.0 "runs continuously, cannot be paused" wall-clock. Spec in [TER-167](https://linear.app/terenc/issue/TER-167).
 * **v1.6 (May 24, 2026):** Win-state advance changed from a timed auto-advance to **tap-to-continue** — after the validation sweep, the solved board holds until the player taps to open the Summary (reduced-motion shows the solved board immediately and still requires the tap). Spec in [TER-169](https://linear.app/terenc/issue/TER-169).
 * **v1.5 (May 2, 2026):** Brand integration. Codename "Yergers" → final brand "RYGO." Added Brand identity section. Adopted brand color palette as game-content colors (RYGO Red `#D8463A`, RYGO Yellow `#E6B73B`, RYGO Green `#2E9D5C`); shape fills changed to Paper / Ink. Page surface palette adopts Ink (dark) / Paper (light) instead of Tailwind gray-950 / white. Locked validation sequence between completion and summary — abrupt-cut bug. localStorage key `yergers:theme` → `rygo:theme` (migration in [TER-151](https://linear.app/terenc/issue/TER-151/yergers-rygo-rebrand-rename-brand-asset-wiring-lockup-localstorage)).

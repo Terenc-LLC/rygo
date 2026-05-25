@@ -441,7 +441,6 @@ Diagrams are visual, not ASCII/prose:
 * Tailwind v4 for all styling. CSS-based config (no `tailwind.config.js`). Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`) defined via `@theme` block in `index.css` ([TER-152](https://linear.app/terenc/issue/TER-152)). No CSS modules.
 * Mobile-first: design at portrait phone width first, adapt up.
 * Use `dark:` variants only on surfaces that actually change between themes. Game-content colors don't need dark variants.
-* Update the App footer (`src/App.tsx`) at the end of every Code session: `Last shipped: TER-NNN — Short description`.
 
 ## Issue map (M1, M2, M3, M4, M5)
 
@@ -499,7 +498,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 * [TER-168](https://linear.app/terenc/issue/TER-168) — ✅ Done. Light-mode grid contrast — empty cells now `bg-stone-300` (~1.35:1 vs Paper). Shipped May 24, 2026.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
-* [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ In Review. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
+* [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
 
 ## Session log
 

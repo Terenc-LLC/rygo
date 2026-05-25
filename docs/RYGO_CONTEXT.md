@@ -450,7 +450,31 @@ Nothing reads or submits the log yet — capture + persist + resume only. The fi
 
 Shipped in [TER-205](https://linear.app/terenc/issue/TER-205), May 25, 2026.
 
-### Shared-engine delivery — READY (`scripts/sync-engine.mjs`, `supabase/functions/_shared/engine/`) [TER-203]
+### Shared replay core — READY (`src/engine/replay.ts`) [TER-206]
+
+```ts
+export interface ReplayResult { board: Board; moveCount: number; }
+export interface EventReplayState { board: Board; activeColor: Color | null; moveCount: number; hasRevealed: boolean; }
+export function applyEvent(state: EventReplayState, event: GameEvent): EventReplayState;
+export function replayEventLog(puzzle: GeneratedPuzzle, events: GameEvent[]): ReplayResult;
+```
+
+Pure, dependency-free (no React, no localStorage). `applyEvent` is the single rule set for board + move-count transitions; it is used by both `replayEventLog` and the `useGame` reducer so no logic is duplicated. `hasRevealed` tracks whether the first reveal has occurred — first reveal is free (+0); every subsequent reveal costs +1. `applyEvent` deliberately does NOT detect completion; callers compare the returned board to the target themselves.
+
+**Subtleties preserved exactly:**
+- First reveal → `hasRevealed: false` → +0, board unchanged.
+- Re-reveal → `hasRevealed: true` → +1.
+- `select` to already-active color → +0 (event still recorded by the reducer).
+- `tap` on a same-color cell → `applyClear`, +1.
+- `tap` that is a board no-op under the overwrite hierarchy (e.g. yellow on red) → +1.
+
+`replay.ts` synced into `supabase/functions/_shared/engine/` alongside `types.ts`, `placement.ts`, and `generator.ts`. The drift guard in CI covers it.
+
+**useGame refactor (TER-206):** the reducer's `REVEAL_PATTERN`, `HIDE_PATTERN`, `SELECT_COLOR`, and `PLACE_AT` cases now import and call `applyEvent`; the inline `moveCount + 1` arithmetic and `applyMove` / `applyClear` calls in the reducer are removed. Completion detection remains in the reducer (after the `PLACE_AT` branch). `boardsMatch` is safe to run on both placement and clear results — targets are fully covered (TER-146) so a clear (which produces empty cells) can never match.
+
+Shipped in [TER-206](https://linear.app/terenc/issue/TER-206), May 25, 2026.
+
+### Shared-engine delivery — UPDATED (`scripts/sync-engine.mjs`, `supabase/functions/_shared/engine/`) [TER-203, TER-206]
 
 `scripts/sync-engine.mjs` (Node, no deps) copies the three pure engine files — `types.ts`, `placement.ts`, `generator.ts` — from `src/engine/` into `supabase/functions/_shared/engine/`, prepending a generated-file banner to each. Run via `npm run sync-engine`. The `.test.ts` files are NOT synced; the shared copy is runtime engine only.
 
@@ -458,7 +482,7 @@ Shipped in [TER-205](https://linear.app/terenc/issue/TER-205), May 25, 2026.
 
 **Drift guard in CI:** the `build-and-test` job runs `npm run sync-engine` then `git diff --exit-code -- supabase/functions/_shared/` after tests. Any stale committed copy causes CI to fail with "Engine drift — run `npm run sync-engine` and commit". `denoland/setup-deno@v2` + `deno check supabase/functions/_shared/engine/*.ts` follows, proving the Deno runtime can load and typecheck the engine before the edge function (issue 4) is built on it.
 
-Shipped in [TER-203](https://linear.app/terenc/issue/TER-203), May 25, 2026.
+Shipped in [TER-203](https://linear.app/terenc/issue/TER-203), May 25, 2026. `replay.ts` added to FILES in [TER-206](https://linear.app/terenc/issue/TER-206), May 25, 2026.
 
 ### Supabase backend — READY (`src/backend/supabaseClient.ts`) [TER-199]
 
@@ -533,7 +557,8 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ Done. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
 2. [TER-203](https://linear.app/terenc/issue/TER-203) — ✅ Done. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
 3. [TER-205](https://linear.app/terenc/issue/TER-205) — ✅ In Review. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob.
-4. **Edge function** — full-session replay validator (§5 of the design doc).
+4a. [TER-206](https://linear.app/terenc/issue/TER-206) — ✅ In Review. **Shared replay core** — pure `src/engine/replay.ts` (`applyEvent` + `replayEventLog`); `useGame` reducer delegates board+score transitions to it; synced to `_shared/engine/`. 270 existing tests stay green; 16 direct `replayEventLog` tests added (286 total).
+4b. **Edge function** — full-session replay validator (§5 of the design doc). Filed after TER-206 lands.
 5. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
 6. **Client read** — rank-on-Summary via `get_standing`.
 

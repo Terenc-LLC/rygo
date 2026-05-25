@@ -486,3 +486,47 @@ Locked-section updates absorbed in this docs-only PR:
 * **Architecture notes:** added "Shared-engine delivery" section.
 * **Issue map M5:** item 2 updated with TER-203 link and ✅ In Review status.
 * **Session log:** this entry.
+
+### 2026-05-25 — [TER-205](https://linear.app/terenc/issue/TER-205) useGame event-log capture (Claude Code / Sonnet 4.6)
+
+**Goal:** Capture the ordered meaningful-click log inside `useGame` and persist it through the `rygo:inprogress` resume blob (v2). Capture + persist + resume only — nothing reads or submits the log yet.
+
+**What shipped:**
+
+* **`GameEvent` type** added to `src/engine/types.ts`:
+  `select { color }` | `reveal` | `hide` | `tap { row, col }`. Also synced into `supabase/functions/_shared/engine/types.ts` via `npm run sync-engine` (banner updated; drift guard will confirm).
+
+* **`useGame` reducer** — `eventLog: GameEvent[]` added to `GameState` and `GameView`. Reducer appends one entry per action in:
+  - `SELECT_COLOR`: appended for both new-color (+1 move) AND no-op re-tap (+0 move, raw action recorded, server applies score rule on replay).
+  - `REVEAL_PATTERN`: appended in both idle (first-reveal, 0 moves) and playing (re-reveal, +1 move) branches.
+  - `HIDE_PATTERN`: appended (+1 move).
+  - `PLACE_AT`: appended for placement, clear, and completing tap; skipped on no-op early returns.
+  - `RESET`: `eventLog` cleared via `makeInitialState` on both daily-keep-clock and practice paths.
+  - `COMPLETE_VALIDATION`, `TICK`, `BANK_TIME`, `RESUME_TIMER`: no event appended (correct — not player actions).
+
+* **`InProgressBlob` bumped to version 2** — adds `eventLog: GameEvent[]`. `CURRENT_VERSION` = 2. `loadInProgress` normalizes v1 blobs (missing `eventLog` → `[]`); `version > 2` still returns null. `saveInProgress` writes v2 blobs.
+
+* **`GameScreen.tsx`** — `buildBlob` updated to `version: 2` + `eventLog: g.eventLog`; manual post-Restart blob updated to `version: 2` + `eventLog: []`.
+
+**Tests:** 270 passing (254 prior + 16 new). New tests cover:
+- All four event types (including no-op `select`)
+- First-reveal vs. re-reveal (both append `reveal`; moveCount correct for each)
+- `PLACE_AT` on same-color cell (clear path) still appends `tap`
+- `PLACE_AT` outside playing phase: no event
+- Event ordering across a realistic sequence
+- `RESET` (practice) clears `eventLog`
+- `RESET` with keepClock (daily) clears `eventLog` while preserving timer
+- Resume rehydrates `eventLog`; subsequent actions continue appending
+- Background→resume→complete yields a complete, ordered log
+- `InProgressBlob`: v2 round-trip with non-empty log; v1 blob loads with `eventLog = []`; future version (> 2) returns null
+
+**Build:** clean (`tsc -b && vite build`). `selectColor('red')` no-op branch: existing "no move charged" test still passes, now with added event in the log.
+
+**Folded-in close-out housekeeping (Opus-authorized):**
+* Issue map M5 item 2: [TER-203](https://linear.app/terenc/issue/TER-203) ✅ In Review → ✅ Done.
+* Issue map M5 item 3: set to [TER-205](https://linear.app/terenc/issue/TER-205) ✅ In Review.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Event-log capture" section.
+* **Issue map M5:** items 2 (TER-203 → Done) and 3 (TER-205 → In Review) updated.
+* **Session log:** this entry.

@@ -1,5 +1,5 @@
 import { useReducer, useEffect, useRef, useCallback } from 'react';
-import type { Board, Color } from '../engine/types';
+import type { Board, Color, GameEvent } from '../engine/types';
 import type { GeneratedPuzzle } from '../engine/generator';
 import { applyMove, applyClear } from '../engine/placement';
 import type { InProgressBlob } from '../persistence/inProgress';
@@ -15,6 +15,7 @@ export interface GameView {
   elapsedMs: number;
   moveCount: number;
   activeColor: Color | null;
+  eventLog: GameEvent[];
 }
 
 export interface GameActions {
@@ -36,6 +37,7 @@ interface GameState {
   moveCount: number;
   accumulatedMs: number;
   runStartedAt: number | null;
+  eventLog: GameEvent[];
 }
 
 // Max elapsed time per continuous run — caps foreground-sleep deltas that didn't
@@ -87,6 +89,7 @@ function makeInitialState({ gridSize, resume }: InitArgs): GameState {
       moveCount: resume.moveCount,
       accumulatedMs: resume.accumulatedMs,
       runStartedAt: null, // set via RESUME_TIMER on mount
+      eventLog: resume.eventLog,
     };
   }
   return {
@@ -97,6 +100,7 @@ function makeInitialState({ gridSize, resume }: InitArgs): GameState {
     moveCount: 0,
     accumulatedMs: 0,
     runStartedAt: null,
+    eventLog: [],
   };
 }
 
@@ -109,25 +113,41 @@ function reducer(state: GameState, action: Action): GameState {
           phase: 'pattern-revealed',
           // Only set runStartedAt if not already running (e.g., post-reset in daily mode)
           runStartedAt: state.runStartedAt ?? action.now,
+          eventLog: [...state.eventLog, { type: 'reveal' }],
         };
       }
       if (state.phase === 'playing') {
-        return { ...state, phase: 'pattern-revealed', moveCount: state.moveCount + 1 };
+        return {
+          ...state,
+          phase: 'pattern-revealed',
+          moveCount: state.moveCount + 1,
+          eventLog: [...state.eventLog, { type: 'reveal' }],
+        };
       }
       return state;
     }
     case 'HIDE_PATTERN': {
       if (state.phase === 'pattern-revealed') {
-        return { ...state, phase: 'playing', moveCount: state.moveCount + 1 };
+        return {
+          ...state,
+          phase: 'playing',
+          moveCount: state.moveCount + 1,
+          eventLog: [...state.eventLog, { type: 'hide' }],
+        };
       }
       return state;
     }
     case 'SELECT_COLOR': {
-      if (state.activeColor === action.color) return state;
-      return { ...state, activeColor: action.color, moveCount: state.moveCount + 1 };
+      // Always append the event — the server applies +0 for no-op selects on replay.
+      const newEventLog = [...state.eventLog, { type: 'select' as const, color: action.color }];
+      if (state.activeColor === action.color) {
+        return { ...state, eventLog: newEventLog };
+      }
+      return { ...state, activeColor: action.color, moveCount: state.moveCount + 1, eventLog: newEventLog };
     }
     case 'PLACE_AT': {
       if (state.phase !== 'playing' || state.activeColor === null) return state;
+      const newEventLog = [...state.eventLog, { type: 'tap' as const, row: action.row, col: action.col }];
       if (state.current[action.row][action.col] === state.activeColor) {
         // Same-color tap: clear via this color's reach. Clearing cannot complete the puzzle:
         // all targets are fully covered (TER-146), and a clear produces empty cells — so
@@ -136,6 +156,7 @@ function reducer(state: GameState, action: Action): GameState {
           ...state,
           current: applyClear(state.current, state.activeColor, action.row, action.col),
           moveCount: state.moveCount + 1,
+          eventLog: newEventLog,
         };
       }
       const newBoard = applyMove(state.current, state.activeColor, action.row, action.col);
@@ -153,12 +174,14 @@ function reducer(state: GameState, action: Action): GameState {
           elapsedMs: frozen,
           accumulatedMs: frozen,
           runStartedAt: null,
+          eventLog: newEventLog,
         };
       }
       return {
         ...state,
         current: newBoard,
         moveCount: state.moveCount + 1,
+        eventLog: newEventLog,
       };
     }
     case 'COMPLETE_VALIDATION': {
@@ -168,6 +191,7 @@ function reducer(state: GameState, action: Action): GameState {
       return state;
     }
     case 'RESET': {
+      // makeInitialState always produces eventLog: [] for a fresh state.
       const base = makeInitialState({ gridSize: action.gridSize });
       if (action.keepClock) {
         return {
@@ -286,6 +310,7 @@ export function useGame(
     elapsedMs: state.elapsedMs,
     moveCount: state.moveCount,
     activeColor: state.activeColor,
+    eventLog: state.eventLog,
     revealPattern,
     hidePattern,
     selectColor,

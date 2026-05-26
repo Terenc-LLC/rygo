@@ -41,3 +41,6 @@ jobs:
 
       - name: Deno check shared engine
         run: deno check supabase/functions/_shared/engine/*.ts
+
+      - name: Deno tests (parity fixture + validate unit tests)
+        run: deno test --allow-read supabase/functions/submit-score/parity.test.ts supabase/functions/submit-score/validate.test.ts

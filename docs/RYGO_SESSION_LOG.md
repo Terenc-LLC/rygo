@@ -605,3 +605,5 @@ Implemented `supabase/functions/submit-score/` — the score submission Deno edg
 * **Architecture notes:** added "Submit-score edge function" section with full API contract.
 * **Issue map M5:** TER-206 → ✅ Done; TER-207 added as ✅ In Review.
 * **Session log:** this entry.
+
+**Fix-pass (Opus review, same PR):** Out-of-bounds tap events (row or col ≥ grid_size) previously passed `parsePayload` (which only checked non-negative integers) and threw `RangeError` inside `replayEventLog` → `applyMove`/`applyClear`, surfacing as a 500 (retryable). Added a bounds check in `parsePayload` after `grid_size` is known: any tap with row or col ≥ grid_size now throws `BadRequestError` → 400 (terminal). Two new Deno tests added (row too large, col too large). Total Deno: 38 tests.

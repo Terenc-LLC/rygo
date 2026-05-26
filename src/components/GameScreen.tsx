@@ -9,6 +9,7 @@ import type { InProgressBlob } from '../persistence/inProgress';
 import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistence/inProgress';
 import { loadState, todayKey } from '../persistence/dailyState';
 import { computeGlobalStreak } from '../persistence/stats';
+import { enqueueAndSubmit } from '../persistence/submitScore';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -147,15 +148,22 @@ export function GameScreen({
     };
   }, []);
 
-  // Report daily completion exactly once when phase first becomes 'complete'.
+  // Report and submit daily completion exactly once when phase first becomes 'complete'.
   const { phase } = game;
   useEffect(() => {
     if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
       hasReportedCompletion.current = true;
       deleteInProgress();
       onDailyComplete?.({ moves: game.moveCount, elapsedMs: game.elapsedMs });
+      void enqueueAndSubmit({
+        grid_size: puzzle.gridSize,
+        day: effectiveDayKey,
+        eventLog: game.eventLog,
+        moveCount: game.moveCount,
+        elapsedMs: game.elapsedMs,
+      });
     }
-  }, [phase, mode, onDailyComplete, game.moveCount, game.elapsedMs]);
+  }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
 
   if (game.phase === 'complete') {
     const streak =

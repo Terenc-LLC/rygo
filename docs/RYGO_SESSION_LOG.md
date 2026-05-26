@@ -607,3 +607,21 @@ Implemented `supabase/functions/submit-score/` — the score submission Deno edg
 * **Session log:** this entry.
 
 **Fix-pass (Opus review, same PR):** Out-of-bounds tap events (row or col ≥ grid_size) previously passed `parsePayload` (which only checked non-negative integers) and threw `RangeError` inside `replayEventLog` → `applyMove`/`applyClear`, surfacing as a 500 (retryable). Added a bounds check in `parsePayload` after `grid_size` is known: any tap with row or col ≥ grid_size now throws `BadRequestError` → 400 (terminal). Two new Deno tests added (row too large, col too large). Total Deno: 38 tests.
+
+### 2026-05-25 — [TER-213](https://linear.app/terenc/issue/TER-213) M5-5: Client score submission (Claude Code / Sonnet 4.6)
+
+Implemented fire-and-forget score submission from the client + localStorage retry queue.
+
+**Files changed:**
+* `src/persistence/submitScore.ts` — new module: `enqueueAndSubmit`, `PENDING_SUBMIT_KEY`, `SubmitPayload` interface; dedupe by `${day}:${grid_size}`, cap at 50, flush on launch + online event, re-entrancy guard (`flushing` boolean), lazy URL resolution so `vi.stubEnv` works in tests.
+* `src/components/GameScreen.tsx` — added `enqueueAndSubmit` import and a `useEffect` that fires exactly once (ref latch) on `phase === 'complete'` and `mode === 'daily'`.
+* `src/persistence/submitScore.test.ts` — new file: 12 queue-behavior Vitest tests (accepted/rejected/4xx/5xx/network/re-entrancy/online-flush/cap/dedupe/no-session/no-URL/auth-header) + 4 per-grid-size real-log replay tests using `puzzle.solution` replayed through `useGame` with a double-tap approach.
+* `src/components/GameScreen.test.tsx` — added mock for `submitScore`, plus 3 new tests: fire-once, no-re-render, practice-no-submit.
+* `docs/RYGO_CONTEXT.md` — TER-205 → ✅ Done; TER-207 → ✅ Done; item 5 → TER-213 ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Non-obvious decisions:**
+* `getSubmitUrl()` reads `import.meta.env.VITE_SUPABASE_URL` at call time, not at module load. Module-level env reads happen before `vi.stubEnv` takes effect in Vitest's module isolation; lazy read avoids this.
+* Response contract: both `accepted:true` and `accepted:false` are terminal (dequeue). Only 5xx and network errors are retryable. `accepted:false` means the server replayed the log and found it invalid — retrying the same log will never change the outcome.
+* Per-grid-size replay tests use a "double-tap" driving algorithm: when the generator solution has a move that would trigger a same-color clear in `useGame` (tap cell already holds that color), we dispatch the tap TWICE — once to clear, once to place. This is algebraically equivalent to a direct `applyMove` because `clearCells` only removes cells that are already that color, and the re-apply fills them back from empty. Avoids tracking a parallel simulated board or computing delta cells individually.
+* 305 tests passing (up from 286 pre-TER-213).

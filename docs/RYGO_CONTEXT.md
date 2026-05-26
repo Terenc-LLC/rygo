@@ -588,10 +588,10 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 
 1. [TER-199](https://linear.app/terenc/issue/TER-199) — ✅ Done. **Backend foundation** — Supabase wiring, `scores` schema + RLS, `get_standing` RPC, anonymous-auth bootstrap on first launch. (Also the source for the "unique players" count: distinct `user_id`.)
 2. [TER-203](https://linear.app/terenc/issue/TER-203) — ✅ Done. **Shared-engine delivery** — sync `src/engine/` (+ generator) into `supabase/functions/_shared/` with a CI hash-guard; drift = CI failure.
-3. [TER-205](https://linear.app/terenc/issue/TER-205) — ✅ In Review. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob.
+3. [TER-205](https://linear.app/terenc/issue/TER-205) — ✅ Done. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob.
 4a. [TER-206](https://linear.app/terenc/issue/TER-206) — ✅ Done. **Shared replay core** — pure `src/engine/replay.ts` (`applyEvent` + `replayEventLog`); `useGame` reducer delegates board+score transitions to it; synced to `_shared/engine/`. 270 existing tests stay green; 16 direct `replayEventLog` tests added (286 total).
-4b. [TER-207](https://linear.app/terenc/issue/TER-207) — ✅ In Review. **Edge function** — `supabase/functions/submit-score/` replay validator: pure `validate.ts` (parse → day bounds → eventLog cap → replay → elapsed bounds) + `index.ts` (CORS/auth/DB). Generator-parity fixture (12 entries, 3 seeds × 4 sizes) + 36 Deno tests (24 validate unit + 12 parity). CI extended with `deno test` step.
-5. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
+4b. [TER-207](https://linear.app/terenc/issue/TER-207) — ✅ Done. **Edge function** — `supabase/functions/submit-score/` replay validator: pure `validate.ts` (parse → day bounds → eventLog cap → replay → elapsed bounds) + `index.ts` (CORS/auth/DB). Generator-parity fixture (12 entries, 3 seeds × 4 sizes) + 36 Deno tests (24 validate unit + 12 parity). CI extended with `deno test` step.
+5. [TER-213](https://linear.app/terenc/issue/TER-213) — ✅ In Review. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
 6. **Client read** — rank-on-Summary via `get_standing`.
 
 *(Deferred: standalone full-leaderboard view; named accounts / multi-device sync; realtime updates.)*

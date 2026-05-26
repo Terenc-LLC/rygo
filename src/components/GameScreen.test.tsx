@@ -4,6 +4,15 @@ import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
+const { mockEnqueueAndSubmit } = vi.hoisted(() => ({
+  mockEnqueueAndSubmit: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../persistence/submitScore', () => ({
+  enqueueAndSubmit: mockEnqueueAndSubmit,
+  PENDING_SUBMIT_KEY: 'rygo:pending-submit',
+}));
+
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target in one move.
 function makeTestPuzzle(): GeneratedPuzzle {
   const target: Board = [
@@ -34,6 +43,7 @@ describe('GameScreen', () => {
     vi.setSystemTime(0);
     mockMatchMedia(false); // default: no reduced-motion preference
     localStorage.clear();
+    mockEnqueueAndSubmit.mockClear();
   });
 
   afterEach(() => {
@@ -275,6 +285,90 @@ describe('GameScreen', () => {
     expect(onPickDifficulty).toHaveBeenCalledOnce();
 
     confirmSpy.mockRestore();
+  });
+
+  it('daily complete fires enqueueAndSubmit exactly once', async () => {
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-25"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    // Drive to complete phase
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1')); // validating
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' })); // complete
+
+    // Allow the useEffect microtasks to flush
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockEnqueueAndSubmit).toHaveBeenCalledOnce();
+    expect(mockEnqueueAndSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ day: '2026-05-25', grid_size: 4 }),
+    );
+  });
+
+  it('daily complete does not fire enqueueAndSubmit a second time on re-render', async () => {
+    const { rerender } = render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-25"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockEnqueueAndSubmit).toHaveBeenCalledOnce();
+
+    // Force a re-render — latch must prevent a second call
+    rerender(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-25"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockEnqueueAndSubmit).toHaveBeenCalledOnce();
+  });
+
+  it('practice mode complete does NOT call enqueueAndSubmit', async () => {
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="practice"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockEnqueueAndSubmit).not.toHaveBeenCalled();
   });
 
   it('Restarting during a transition clears it immediately with no stale update after the timer', () => {

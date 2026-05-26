@@ -531,6 +531,25 @@ Initializes the Supabase client from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_K
 
 Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
 
+### Client rank read — READY (`src/backend/getStanding.ts`) [TER-215]
+
+```ts
+export async function getStanding(
+  day: string,
+  gridSize: 4 | 5 | 6 | 8,
+  moves: number,
+  elapsedMs: number,
+): Promise<{ rank: number; total: number } | null>
+```
+
+Calls `supabase.rpc('get_standing', { p_day, p_grid_size, p_moves, p_elapsed_ms })`. Returns the `{ rank, total }` object directly from `data`; returns `null` on any error, unexpected shape, or when `supabase === null` (no network call). Never throws. Passes both `moves` and `elapsedMs` so the moves-ASC-then-elapsedMs-ASC tiebreak resolves correctly.
+
+`GameScreen` calls it once in its fire-once completion `useEffect` (daily only, independent of `enqueueAndSubmit`). Stores the result in `useState<{ rank: number; total: number } | null>` and passes it to `Summary` as the `standing` prop.
+
+`Summary` renders `#R of N today` when `standing` is non-null, where N = `max(rank, total)`. The clamp prevents a briefly low `total` (own row not yet counted by the time the RPC fires) from showing a nonsensical denominator. Omits the line silently on `null`. No spinner and no reserved slot.
+
+Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -591,8 +610,8 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 3. [TER-205](https://linear.app/terenc/issue/TER-205) — ✅ Done. **`useGame` event-log capture** — ordered meaningful-click log in the reducer + plumbed into the `rygo:inprogress` blob and resume path. ⚠️ Highest-risk item: touches the load-bearing hook and the TER-167 resume blob.
 4a. [TER-206](https://linear.app/terenc/issue/TER-206) — ✅ Done. **Shared replay core** — pure `src/engine/replay.ts` (`applyEvent` + `replayEventLog`); `useGame` reducer delegates board+score transitions to it; synced to `_shared/engine/`. 270 existing tests stay green; 16 direct `replayEventLog` tests added (286 total).
 4b. [TER-207](https://linear.app/terenc/issue/TER-207) — ✅ Done. **Edge function** — `supabase/functions/submit-score/` replay validator: pure `validate.ts` (parse → day bounds → eventLog cap → replay → elapsed bounds) + `index.ts` (CORS/auth/DB). Generator-parity fixture (12 entries, 3 seeds × 4 sizes) + 36 Deno tests (24 validate unit + 12 parity). CI extended with `deno test` step.
-5. [TER-213](https://linear.app/terenc/issue/TER-213) — ✅ In Review. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
-6. **Client read** — rank-on-Summary via `get_standing`.
+5. [TER-213](https://linear.app/terenc/issue/TER-213) — ✅ Done. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
+6. [TER-215](https://linear.app/terenc/issue/TER-215) — ✅ In Review. **Client read** — rank-on-Summary via `get_standing`.
 
 *(Deferred: standalone full-leaderboard view; named accounts / multi-device sync; realtime updates.)*
 

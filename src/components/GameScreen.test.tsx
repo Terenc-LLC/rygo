@@ -4,13 +4,18 @@ import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
-const { mockEnqueueAndSubmit } = vi.hoisted(() => ({
+const { mockEnqueueAndSubmit, mockGetStanding } = vi.hoisted(() => ({
   mockEnqueueAndSubmit: vi.fn().mockResolvedValue(undefined),
+  mockGetStanding: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../persistence/submitScore', () => ({
   enqueueAndSubmit: mockEnqueueAndSubmit,
   PENDING_SUBMIT_KEY: 'rygo:pending-submit',
+}));
+
+vi.mock('../backend/getStanding', () => ({
+  getStanding: mockGetStanding,
 }));
 
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target in one move.
@@ -44,6 +49,8 @@ describe('GameScreen', () => {
     mockMatchMedia(false); // default: no reduced-motion preference
     localStorage.clear();
     mockEnqueueAndSubmit.mockClear();
+    mockGetStanding.mockClear();
+    mockGetStanding.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -387,5 +394,159 @@ describe('GameScreen', () => {
     // Advancing past the original timer should produce no stale state
     act(() => vi.advanceTimersByTime(1000));
     expect(screen.queryByTestId('transition-blank')).toBeNull();
+  });
+
+  it('daily complete calls getStanding exactly once with correct args', async () => {
+    mockGetStanding.mockResolvedValue({ rank: 2, total: 10 });
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockGetStanding).toHaveBeenCalledOnce();
+    expect(mockGetStanding).toHaveBeenCalledWith('2026-05-26', 4, expect.any(Number), expect.any(Number));
+  });
+
+  it('standing line appears in Summary when getStanding resolves with a value', async () => {
+    mockGetStanding.mockResolvedValue({ rank: 3, total: 20 });
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByTestId('standing-line')).toHaveTextContent('#3 of 20 today');
+  });
+
+  it('standing line is absent when getStanding resolves null', async () => {
+    mockGetStanding.mockResolvedValue(null);
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.queryByTestId('standing-line')).toBeNull();
+  });
+
+  it('getStanding fires exactly once — not on re-render', async () => {
+    mockGetStanding.mockResolvedValue({ rank: 1, total: 5 });
+    const { rerender } = render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockGetStanding).toHaveBeenCalledOnce();
+
+    rerender(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockGetStanding).toHaveBeenCalledOnce();
+  });
+
+  it('practice mode complete does NOT call getStanding', async () => {
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="practice"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(mockGetStanding).not.toHaveBeenCalled();
+  });
+
+  it('clamped denominator: rank > total renders max(rank, total) correctly', async () => {
+    // rank=5, total=3 → denominator should be 5 (max)
+    mockGetStanding.mockResolvedValue({ rank: 5, total: 3 });
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        mode="daily"
+        dayKey="2026-05-26"
+        onPickDifficulty={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Reveal Pattern'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByText('Hide / Start Solving'));
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+    await act(async () => { await Promise.resolve(); });
+
+    expect(screen.getByTestId('standing-line')).toHaveTextContent('#5 of 5 today');
   });
 });

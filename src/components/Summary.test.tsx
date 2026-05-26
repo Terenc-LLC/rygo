@@ -13,10 +13,60 @@ const defaultProps = {
   onPickDifficulty: vi.fn(),
 };
 
+// Standing prop helpers
+const withStanding = (standing: { rank: number; total: number } | null | undefined) => ({
+  ...defaultProps,
+  standing,
+});
+
 describe('Summary', () => {
   it('renders Share button', () => {
     render(<Summary {...defaultProps} />);
     expect(screen.getByTestId('share-button')).toBeInTheDocument();
+  });
+
+  describe('standing line', () => {
+    it('renders "#R of N today" when standing is provided with rank < total', () => {
+      render(<Summary {...withStanding({ rank: 3, total: 20 })} />);
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#3 of 20 today');
+    });
+
+    it('clamps denominator to rank when rank > total (own row not yet counted)', () => {
+      render(<Summary {...withStanding({ rank: 5, total: 3 })} />);
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#5 of 5 today');
+    });
+
+    it('renders correctly when rank === total', () => {
+      render(<Summary {...withStanding({ rank: 7, total: 7 })} />);
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#7 of 7 today');
+    });
+
+    it('renders rank 1 of 1 (first submission in the day)', () => {
+      render(<Summary {...withStanding({ rank: 1, total: 1 })} />);
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#1 of 1 today');
+    });
+
+    it('omits the line when standing is null', () => {
+      render(<Summary {...withStanding(null)} />);
+      expect(screen.queryByTestId('standing-line')).toBeNull();
+    });
+
+    it('omits the line when standing prop is not provided', () => {
+      render(<Summary {...defaultProps} />);
+      expect(screen.queryByTestId('standing-line')).toBeNull();
+    });
+
+    it('omits the line when standing is undefined', () => {
+      render(<Summary {...withStanding(undefined)} />);
+      expect(screen.queryByTestId('standing-line')).toBeNull();
+    });
+
+    it('does not show a spinner or reserved slot when omitted', () => {
+      render(<Summary {...defaultProps} />);
+      // No placeholder, no loading text — the rest of Summary renders fully
+      expect(screen.getByTestId('share-button')).toBeInTheDocument();
+      expect(screen.queryByTestId('standing-line')).toBeNull();
+    });
   });
 
   describe('clipboard fallback (navigator.share undefined)', () => {

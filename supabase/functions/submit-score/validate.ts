@@ -92,6 +92,18 @@ export function parsePayload(body: unknown): SubmitPayload {
     if (!isValidGameEvent(event)) {
       throw new BadRequestError('eventLog contains an invalid event');
     }
+    // Bounds-check tap coordinates against the parsed grid_size.
+    // isValidGameEvent only checks non-negative integers; an out-of-bounds tap
+    // would reach applyMove/applyClear and throw a RangeError (→ 500), which is
+    // retryable. It must be a terminal 400 instead.
+    const ev = event as Record<string, unknown>;
+    if (ev.type === 'tap') {
+      if ((ev.row as number) >= grid_size || (ev.col as number) >= grid_size) {
+        throw new BadRequestError(
+          `tap event out of bounds for grid_size ${grid_size}`,
+        );
+      }
+    }
   }
 
   // moveCount

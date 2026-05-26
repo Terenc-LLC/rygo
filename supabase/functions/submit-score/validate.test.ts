@@ -156,6 +156,24 @@ Deno.test('parsePayload: rejects eventLog with malformed select (bad color)', ()
   );
 });
 
+Deno.test('parsePayload: rejects tap with row >= grid_size', () => {
+  // grid_size=4, so row=4 is out of bounds (valid rows: 0–3)
+  const raw = goodPayload('RYGO-2026-05-25', 4) as Record<string, unknown>;
+  assertThrowsBadRequest(
+    () => parsePayload({ ...raw, eventLog: [{ type: 'tap', row: 4, col: 0 }] }),
+    'out of bounds',
+  );
+});
+
+Deno.test('parsePayload: rejects tap with col >= grid_size', () => {
+  // grid_size=4, so col=4 is out of bounds (valid cols: 0–3)
+  const raw = goodPayload('RYGO-2026-05-25', 4) as Record<string, unknown>;
+  assertThrowsBadRequest(
+    () => parsePayload({ ...raw, eventLog: [{ type: 'tap', row: 0, col: 4 }] }),
+    'out of bounds',
+  );
+});
+
 // ── validateSubmission tests ─────────────────────────────────────────────────
 
 // Accept tests use 4×4 and 5×5 where the generator's solution can be used directly

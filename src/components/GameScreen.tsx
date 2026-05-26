@@ -10,6 +10,7 @@ import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistenc
 import { loadState, todayKey } from '../persistence/dailyState';
 import { computeGlobalStreak } from '../persistence/stats';
 import { enqueueAndSubmit } from '../persistence/submitScore';
+import { getStanding } from '../backend/getStanding';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -64,6 +65,7 @@ export function GameScreen({
     keepClockOnReset: mode === 'daily',
   });
   const [transitioning, setTransitioning] = useState(false);
+  const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
   const timerRef = useRef<number | null>(null);
   const prefersReducedMotion = useRef(
     typeof window !== 'undefined' &&
@@ -148,7 +150,7 @@ export function GameScreen({
     };
   }, []);
 
-  // Report and submit daily completion exactly once when phase first becomes 'complete'.
+  // Report, submit, and read standing on daily completion exactly once when phase first becomes 'complete'.
   const { phase } = game;
   useEffect(() => {
     if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
@@ -162,6 +164,9 @@ export function GameScreen({
         moveCount: game.moveCount,
         elapsedMs: game.elapsedMs,
       });
+      void getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs).then(
+        result => setStanding(result),
+      );
     }
   }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
 
@@ -176,6 +181,7 @@ export function GameScreen({
         date={effectiveDayKey}
         mode={mode}
         streak={streak}
+        standing={standing}
         onPlayAgain={game.reset}
         onPickDifficulty={onPickDifficulty}
       />

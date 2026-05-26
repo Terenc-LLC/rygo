@@ -9,6 +9,7 @@ interface SummaryProps {
   date: string;
   mode: 'daily' | 'practice';
   streak: number | null;
+  standing?: { rank: number; total: number } | null;
   onPlayAgain: () => void;
   onPickDifficulty: () => void;
 }
@@ -41,6 +42,7 @@ export function Summary({
   date,
   mode,
   streak,
+  standing,
   onPlayAgain,
   onPickDifficulty,
 }: SummaryProps): JSX.Element {
@@ -93,6 +95,11 @@ export function Summary({
           </div>
         </div>
       </div>
+      {standing != null && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center" data-testid="standing-line">
+          #{standing.rank} of {Math.max(standing.rank, standing.total)} today
+        </p>
+      )}
       <button
         onClick={handleShare}
         className="w-full py-3 px-4 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center gap-2"

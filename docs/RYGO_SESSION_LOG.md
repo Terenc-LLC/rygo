@@ -625,3 +625,24 @@ Implemented fire-and-forget score submission from the client + localStorage retr
 * Response contract: both `accepted:true` and `accepted:false` are terminal (dequeue). Only 5xx and network errors are retryable. `accepted:false` means the server replayed the log and found it invalid — retrying the same log will never change the outcome.
 * Per-grid-size replay tests use a "double-tap" driving algorithm: when the generator solution has a move that would trigger a same-color clear in `useGame` (tap cell already holds that color), we dispatch the tap TWICE — once to clear, once to place. This is algebraically equivalent to a direct `applyMove` because `clearCells` only removes cells that are already that color, and the re-apply fills them back from empty. Avoids tracking a parallel simulated board or computing delta cells individually.
 * 305 tests passing (up from 286 pre-TER-213).
+
+### 2026-05-26 — [TER-215](https://linear.app/terenc/issue/TER-215) M5-6: Client rank read (Claude Code / Sonnet 4.6)
+
+Implemented the client rank read — the final build issue in the M5 leaderboard chain.
+
+**Files changed:**
+* `src/backend/getStanding.ts` — new. `getStanding(day, gridSize, moves, elapsedMs)` calls `supabase.rpc('get_standing', { p_day, p_grid_size, p_moves, p_elapsed_ms })`. Returns `{ rank, total }` directly from `data`; returns `null` on any error, unexpected shape, or when `supabase === null` (no network call, never throws). Shape validation checks both `rank` and `total` are numbers.
+* `src/components/GameScreen.tsx` — in the existing fire-once completion `useEffect` (daily branch), added a `getStanding(...)` call fired independently of `enqueueAndSubmit`. Result stored in `useState<{ rank: number; total: number } | null>` (initial `null`); passed to `Summary` as the new `standing` prop. The ref latch prevents the effect re-firing.
+* `src/components/Summary.tsx` — added optional `standing?: { rank: number; total: number } | null` prop. When non-null, renders `#R of N today` (where N = `max(rank, total)`) below the Score/Time card. Omits the line silently when null/absent. No spinner and no reserved slot.
+* `src/backend/getStanding.test.ts` — new. 10 tests: successful call, p_-prefixed args, moves+elapsedMs both passed, RPC error → null, null data → null, missing rank → null, missing total → null, non-numeric types → null, network rejection → null (never throws), null supabase → null immediately.
+* `src/components/GameScreen.test.tsx` — added `mockGetStanding` to hoisted mocks; 6 new tests: fire-once with correct args, standing line renders value, standing line absent on null, fire-once not re-fired on re-render, practice no call, clamped denominator (rank > total).
+* `src/components/Summary.test.tsx` — 8 new tests in a `standing line` describe block: normal render, clamped denominator (rank > total), rank === total, rank 1 of 1, null → omit, prop absent → omit, undefined → omit, no spinner/reserved-slot when omitted.
+* `docs/RYGO_CONTEXT.md` — architecture note added for `getStanding`; issue map M5: item 5 (TER-213) → ✅ Done; item 6 → TER-215 ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 329 passing (was 305); build clean; drift guard clean.
+
+**Non-obvious decisions:**
+* `max(rank, total)` denominator clamp: the rank RPC is called before the player's own submit lands, so `total` is often 1 low for a few seconds. The clamp guarantees no "#5 of 3" display. Self-heals on next view.
+* `getStanding` fires inside the same `hasReportedCompletion` latch as `enqueueAndSubmit` — no second effect, no second latch, exactly the spec requirement.
+* `vi.hoisted` with a getter on the mock object lets the null-supabase tests switch `state.supabase = null` between tests without needing separate mock files.

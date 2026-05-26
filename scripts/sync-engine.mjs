@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
-const FILES = ['types.ts', 'placement.ts', 'generator.ts', 'replay.ts'];
+const FILES = ['types.ts', 'placement.ts', 'generator.ts', 'replay.ts', 'parSolver.ts'];
 const SRC_DIR = join(root, 'src', 'engine');
 const DST_DIR = join(root, 'supabase', 'functions', '_shared', 'engine');
 

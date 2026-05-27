@@ -719,3 +719,18 @@ Implemented the compact header cluster on the game screen: RefThumbnail (`w-28`,
 * `theme` and `toggleTheme` made **optional** (with sensible defaults) rather than required. This keeps all pre-existing GameScreen tests valid without modification — they don't pass theme props and the defaults (`'dark'` / noop) are inert. The App always passes live values.
 * For **validating and complete phases**, the ThemeToggle is rendered in a fixed top-right overlay (same position as the global overlay, but owned by GameScreen). An alternative was to leave the toggle absent during the ~850ms validating transient and add it to Summary's component surface — but the overlay approach is cleaner, doesn't touch Summary's interface, and ensures the toggle is never temporarily inaccessible.
 * The par slot retains `min-w-[4rem]` (64px) to **prevent reflow** when TER-223 fills it. At 219px available info-column width on iPhone SE, this reserves space for a two-character number label pair without crowding Score.
+
+### 2026-05-27 — [TER-235](https://linear.app/terenc/issue/TER-235) patch: revert theme-toggle relocation (Claude Code / Sonnet 4.6)
+
+Scope-adjustment patch on the same branch/PR per Linear comment "Scope adjustment: revert the theme-toggle relocation." The cluster layout (RefThumbnail + Score/Par-slot/Time) is unchanged.
+
+**Reverted:**
+* `src/components/GameScreen.tsx` — removed `ThemeToggle` import, `Theme` type import, `theme?`/`toggleTheme?` props, ThemeToggle element from the playing-phase header cluster, and ThemeToggle fixed-overlay from both the `validating` and `complete` phase returns. `validating` returns a single `<div>` again; `complete` returns `<Summary>` directly.
+* `src/App.tsx` — restored the global ThemeToggle overlay to unconditional render (no `view !== 'game'` gate, no `data-testid`). Removed `theme`/`toggleTheme` props from the `<GameScreen>` call.
+* `src/components/GameScreen.test.tsx` — removed 3 toggle-in-cluster tests.
+* `src/App.test.tsx` — removed 3 global-toggle-suppression tests.
+* `docs/RYGO_CONTEXT.md` — updated GameScreen arch note and TER-235 issue-map entry to remove toggle-relocation references.
+
+**Kept intact:** header cluster layout, par-slot reservation, no-reflow guarantee, RefThumbnail tap-to-zoom.
+
+**Tests:** 352 passing (was 358; −6 toggle tests removed); build clean.

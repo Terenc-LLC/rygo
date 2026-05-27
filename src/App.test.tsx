@@ -42,27 +42,4 @@ describe('App', () => {
     expect(cells).toHaveLength(25);
   });
 
-  it('global theme toggle overlay is present on the difficulty screen', () => {
-    render(<App />);
-    expect(screen.getByTestId('global-theme-toggle')).toBeInTheDocument();
-  });
-
-  it('global theme toggle overlay is suppressed on the game screen; toggle is in the game header instead', () => {
-    render(<App />);
-    fireEvent.click(screen.getByText('Easy'));
-    expect(screen.queryByTestId('global-theme-toggle')).toBeNull();
-    // Toggle is still accessible — GameScreen renders it in the header cluster
-    expect(screen.getByLabelText(/switch to .* theme/i)).toBeInTheDocument();
-    // Reference thumbnail and toggle coexist in the game header
-    expect(screen.getByTestId('ref-thumbnail')).toBeInTheDocument();
-  });
-
-  it('global theme toggle returns when navigating back from game to difficulty', () => {
-    render(<App />);
-    fireEvent.click(screen.getByText('Easy'));
-    expect(screen.queryByTestId('global-theme-toggle')).toBeNull();
-
-    fireEvent.click(screen.getByText('Quit'));
-    expect(screen.getByTestId('global-theme-toggle')).toBeInTheDocument();
-  });
 });

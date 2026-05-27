@@ -73,15 +73,9 @@ export default function App() {
 
   return (
     <>
-      {/* Global theme toggle — suppressed on game screen; GameScreen owns it there */}
-      {view !== 'game' && (
-        <div
-          data-testid="global-theme-toggle"
-          className="fixed top-0 right-0 z-50 p-3 pt-[env(safe-area-inset-top,12px)] pr-[env(safe-area-inset-right,12px)]"
-        >
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-        </div>
-      )}
+      <div className="fixed top-0 right-0 z-50 p-3 pt-[env(safe-area-inset-top,12px)] pr-[env(safe-area-inset-right,12px)]">
+        <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+      </div>
       <main className="min-h-screen bg-paper dark:bg-ink pt-14 pb-8">
         {view === 'difficulty' && (
           <DifficultyPicker
@@ -101,8 +95,6 @@ export default function App() {
             resume={resumeBlob}
             onPickDifficulty={() => setView('difficulty')}
             onDailyComplete={handleDailyComplete}
-            theme={theme}
-            toggleTheme={toggleTheme}
           />
         )}
       </main>

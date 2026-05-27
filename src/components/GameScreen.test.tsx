@@ -46,7 +46,7 @@ describe('GameScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
-    mockMatchMedia(false); // default: no reduced-motion preference
+    mockMatchMedia(false);
     localStorage.clear();
     mockEnqueueAndSubmit.mockClear();
     mockGetStanding.mockClear();
@@ -57,81 +57,43 @@ describe('GameScreen', () => {
     vi.useRealTimers();
   });
 
-  it('initial render shows board (not pattern), timer 00:00, score 0', () => {
+  it('initial render shows reference thumbnail, play grid, color picker, score 0', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
-    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
-    expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
+    expect(screen.getByTestId('ref-thumbnail')).toBeInTheDocument();
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
-    // Board cells are disabled in idle state (not interactive)
+    expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
+    // Color picker is always visible
+    expect(screen.getByLabelText('Select red')).toBeInTheDocument();
+    // No reveal toggle
+    expect(screen.queryByText('Reveal Pattern')).toBeNull();
+    expect(screen.queryByTestId('transition-blank')).toBeNull();
+  });
+
+  it('play grid cells are interactive immediately (no reveal step required)', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+    // Grid cells are not disabled — onCellTap is always wired in playing phase
     screen.getAllByRole('button', { name: /cell at row/i }).forEach(btn => {
-      expect(btn).toBeDisabled();
+      expect(btn).not.toBeDisabled();
     });
   });
 
-  it('first reveal shows "Get ready..." then displays the pattern after 1 second', () => {
+  it('selecting a color and tapping a cell updates the board', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-
-    // During transition: blank screen visible, pattern not yet shown
-    expect(screen.getByTestId('transition-blank')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Red cell at row 1, column 1')).toBeNull();
-
-    // After 1 second: pattern is visible
-    act(() => vi.advanceTimersByTime(1000));
-    expect(screen.queryByTestId('transition-blank')).toBeNull();
-    expect(screen.getByText('Hide / Start Solving')).toBeInTheDocument();
-    expect(screen.getByLabelText('Red cell at row 1, column 1')).toBeInTheDocument();
-    // First reveal is free
-    expect(screen.getByTestId('score-value')).toHaveTextContent('0');
-  });
-
-  it('Hide / Start Solving shows "Get ready..." then displays the board after 1 second', () => {
-    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
-
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-
-    // During transition: blank screen visible
-    expect(screen.getByTestId('transition-blank')).toBeInTheDocument();
-
-    // After 1 second: board is visible
-    act(() => vi.advanceTimersByTime(1000));
-    expect(screen.queryByTestId('transition-blank')).toBeNull();
-    // Board cells visible
-    expect(screen.getAllByRole('button', { name: /cell at row/i }).length).toBeGreaterThan(0);
-  });
-
-  it('after hide → select color → tap cell, the board updates', () => {
-    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
-
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
-
-    // Now in playing state — select red and tap (row 2, col 2) to avoid completing the puzzle
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
 
     expect(screen.getByLabelText('Red cell at row 2, column 2')).toBeInTheDocument();
   });
 
-  it('winning placement enters validating phase (Solved! shown) with tap-to-continue affordance', () => {
+  it('winning placement enters validating phase (Solved! shown) with tap-to-continue', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
-    // Tap (row 1, col 1) = index (0,0) — matches target
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // Now in validating — Solved! shown, tap-to-continue affordance present
+    // Now in validating
     expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
     expect(screen.getByText('Solved!')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Continue to summary' })).toBeInTheDocument();
@@ -148,16 +110,11 @@ describe('GameScreen', () => {
   it('game controls are suppressed during validating phase; tap-to-continue is present', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // In validating: gameplay controls suppressed; tap-to-continue present
+    // In validating: gameplay controls suppressed
     expect(screen.queryByText('Reveal Pattern')).toBeNull();
-    expect(screen.queryByText('Hide / Start Solving')).toBeNull();
     expect(screen.queryByText('Restart')).toBeNull();
     expect(screen.queryByText('Quit')).toBeNull();
     expect(screen.queryByLabelText('Select red')).toBeNull();
@@ -165,25 +122,18 @@ describe('GameScreen', () => {
   });
 
   it('under prefers-reduced-motion, shows solved board + tap-to-continue with no auto-advance', () => {
-    mockMatchMedia(true); // override: reduced-motion active
+    mockMatchMedia(true);
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
 
-    // In validating — tap-to-continue present, no auto-advance
     expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
     expect(screen.getByRole('button', { name: 'Continue to summary' })).toBeInTheDocument();
 
-    // Advance well past any former timeout — still no auto-advance
     act(() => vi.advanceTimersByTime(2000));
     expect(screen.queryByText('Puzzle Complete! 🎉')).toBeNull();
 
-    // Player taps to continue → summary appears
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
     expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
   });
@@ -191,10 +141,9 @@ describe('GameScreen', () => {
   it('Restart in daily mode resets score to 0 but keeps the timer running', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {}); // flush RESUME_TIMER
+    act(() => vi.advanceTimersByTime(500));
+
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
 
@@ -206,16 +155,16 @@ describe('GameScreen', () => {
     // Score resets to 0; timer continues from where it was (not 00:00)
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
     expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
-    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+    // Color picker and grid are still visible
+    expect(screen.getByLabelText('Select red')).toBeInTheDocument();
   });
 
   it('Restart in practice mode resets score and timer to zero', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} mode="practice" onPickDifficulty={vi.fn()} />);
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {}); // flush RESUME_TIMER
+    act(() => vi.advanceTimersByTime(500));
+
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
 
@@ -225,22 +174,16 @@ describe('GameScreen', () => {
 
     expect(screen.getByTestId('score-value')).toHaveTextContent('0');
     expect(screen.getByTestId('timer-value')).toHaveTextContent('00:00');
-    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+    expect(screen.getByLabelText('Select red')).toBeInTheDocument();
   });
 
   it('visibilitychange→hidden in validating phase does NOT write a blob to rygo:inprogress', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} mode="daily" dayKey="2026-05-24" onPickDifficulty={vi.fn()} />);
 
-    // Reach validating phase (solve the puzzle)
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     expect(screen.getByText('Solved!')).toBeInTheDocument(); // validating
 
-    // Simulate backgrounding while in validating
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     fireEvent(document, new Event('visibilitychange'));
 
@@ -259,25 +202,17 @@ describe('GameScreen', () => {
       />
     );
 
-    // Reach complete phase
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
-    expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument(); // complete
+    expect(screen.getByText('Puzzle Complete! 🎉')).toBeInTheDocument();
     expect(onDailyComplete).toHaveBeenCalledOnce();
 
-    // No blob should be present after completion
     expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
 
-    // Simulate backgrounding while on Summary
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
     fireEvent(document, new Event('visibilitychange'));
 
-    // Blob must still be absent — completion delete not undone
     expect(localStorage.getItem(IN_PROGRESS_KEY)).toBeNull();
   });
 
@@ -304,16 +239,10 @@ describe('GameScreen', () => {
       />
     );
 
-    // Drive to complete phase
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1')); // validating
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' })); // complete
 
-    // Allow the useEffect microtasks to flush
     await act(async () => { await Promise.resolve(); });
 
     expect(mockEnqueueAndSubmit).toHaveBeenCalledOnce();
@@ -332,10 +261,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -343,7 +268,6 @@ describe('GameScreen', () => {
 
     expect(mockEnqueueAndSubmit).toHaveBeenCalledOnce();
 
-    // Force a re-render — latch must prevent a second call
     rerender(
       <GameScreen
         puzzle={makeTestPuzzle()}
@@ -366,34 +290,12 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
     await act(async () => { await Promise.resolve(); });
 
     expect(mockEnqueueAndSubmit).not.toHaveBeenCalled();
-  });
-
-  it('Restarting during a transition clears it immediately with no stale update after the timer', () => {
-    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
-
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    // In transition
-    expect(screen.getByTestId('transition-blank')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Restart'));
-
-    // Transition cleared immediately
-    expect(screen.queryByTestId('transition-blank')).toBeNull();
-    expect(screen.getByTestId('score-value')).toHaveTextContent('0');
-
-    // Advancing past the original timer should produce no stale state
-    act(() => vi.advanceTimersByTime(1000));
-    expect(screen.queryByTestId('transition-blank')).toBeNull();
   });
 
   it('daily complete calls getStanding exactly once with correct args', async () => {
@@ -407,10 +309,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -432,10 +330,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -456,10 +350,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -480,10 +370,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -513,10 +399,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -526,7 +408,6 @@ describe('GameScreen', () => {
   });
 
   it('clamped denominator: rank > total renders max(rank, total) correctly', async () => {
-    // rank=5, total=3 → denominator should be 5 (max)
     mockGetStanding.mockResolvedValue({ rank: 5, total: 3 });
     render(
       <GameScreen
@@ -537,10 +418,6 @@ describe('GameScreen', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
-    fireEvent.click(screen.getByText('Hide / Start Solving'));
-    act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText('Select red'));
     fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
@@ -548,5 +425,42 @@ describe('GameScreen', () => {
     await act(async () => { await Promise.resolve(); });
 
     expect(screen.getByTestId('standing-line')).toHaveTextContent('#5 of 5 today');
+  });
+
+  it('par slot is present in the status bar', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+    expect(screen.getByTestId('par-slot')).toBeInTheDocument();
+  });
+
+  it('opening and closing the ref thumbnail overlay does not change moveCount', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
+
+    const scoreBefore = screen.getByTestId('score-value').textContent;
+    expect(Number(scoreBefore)).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge target pattern' }));
+    expect(screen.getByTestId('score-value').textContent).toBe(scoreBefore);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByTestId('score-value').textContent).toBe(scoreBefore);
+  });
+
+  it('opening and closing the ref thumbnail overlay does not affect the timer', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="practice" onPickDifficulty={vi.fn()} />);
+
+    act(() => {}); // flush RESUME_TIMER
+    act(() => vi.advanceTimersByTime(1000));
+
+    const timerBefore = screen.getByTestId('timer-value').textContent;
+    expect(timerBefore).not.toBe('00:00');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge target pattern' }));
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
   });
 });

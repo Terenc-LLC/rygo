@@ -248,7 +248,7 @@ type CellState = 'empty' | 'red' | 'yellow' | 'green';
 type Board = CellState[][];
 type Color = 'red' | 'yellow' | 'green';
 type Move = { color: Color; row: number; col: number };
-type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
+type GamePhase = 'playing' | 'validating' | 'complete';
 type Theme = 'dark' | 'light';
 ```
 
@@ -256,25 +256,24 @@ The first four types live in `src/engine/types.ts`. `GamePhase` is exported from
 
 **Note (May 2, 2026):** `'validating'` GamePhase added in [TER-153](https://linear.app/terenc/issue/TER-153) — sits between `'playing'` and `'complete'` for the win-state validation sweep. [TER-148](https://linear.app/terenc/issue/TER-148) models the pattern↔board transition at the UI layer with a local boolean (not a hook phase) — different architectural choice from [TER-153](https://linear.app/terenc/issue/TER-153) because the transition affects only the visual, not the game state.
 
-### useGame hook — UPDATED (`src/hooks/useGame.ts`, [TER-167](https://linear.app/terenc/issue/TER-167))
+**Note (May 26, 2026):** `'idle'` and `'pattern-revealed'` phases removed in [TER-221](https://linear.app/terenc/issue/TER-221). Game starts in `'playing'` immediately; old blobs with the removed phases are silently remapped to `'playing'` on resume.
+
+### useGame hook — UPDATED (`src/hooks/useGame.ts`, [TER-221](https://linear.app/terenc/issue/TER-221))
 
 ```ts
-export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
+export type GamePhase = 'playing' | 'validating' | 'complete';
 
 export interface GameView {
   phase: GamePhase;
   gridSize: 4 | 5 | 6 | 8;
   current: Board;
   target: Board;
-  patternVisible: boolean;
   elapsedMs: number;
   moveCount: number;
   activeColor: Color | null;
 }
 
 export interface GameActions {
-  revealPattern: () => void;
-  hidePattern: () => void;
   selectColor: (c: Color) => void;
   placeAt: (row: number, col: number) => void;
   reset: () => void;
@@ -291,13 +290,14 @@ export function useGame(
 
 **Timer model updated in [TER-167](https://linear.app/terenc/issue/TER-167):** accumulator-based. Internal state: `accumulatedMs` (banked time) + `runStartedAt` (epoch ms when current run started, null when paused). `elapsedMs` = `accumulatedMs + clampDelta(now, runStartedAt)` on each TICK; frozen at completion (`runStartedAt = null`, `accumulatedMs = frozen`). Replaces the old single-`timerStartedAt` wall-clock. New actions: `BANK_TIME` (pause: `accumulatedMs += clampDelta(now, runStartedAt); runStartedAt = null`), `RESUME_TIMER` (set `runStartedAt = now`). `RESET` accepts `keepClock: boolean` — when true (daily mode), preserves `accumulatedMs`/`runStartedAt`/`elapsedMs`; when false (practice), zeros the timer. `REVEAL_PATTERN` in idle uses `runStartedAt ?? now` so it doesn't restart a clock that's already running (post-reset daily). Pathological deltas clamped: negative → 0, max per run = 7,200,000ms (2 h). Completion check atomically sets `phase = validating`, freezes `elapsedMs`, and clears `runStartedAt`.
 
-`useGame` options: `resume?: InProgressBlob` — initializes state from the blob (board, phase, activeColor, moveCount, accumulatedMs); a one-shot `useEffect` dispatches `RESUME_TIMER` on mount. `keepClockOnReset?: boolean` — wires the RESET keepClock flag. `boardsMatch` is a local unexported helper.
+`useGame` options: `resume?: InProgressBlob` — initializes state from the blob (board, phase, activeColor, moveCount, accumulatedMs); a `useEffect` dispatches `RESUME_TIMER` unconditionally on every mount (timer starts on game-screen entry — no reveal gate). `keepClockOnReset?: boolean` — wires the RESET keepClock flag. `boardsMatch` is a local unexported helper.
 
-**Notes (May 2, 2026):**
+**Notes:**
 
 * **[TER-150](https://linear.app/terenc/issue/TER-150) shipped (May 3, 2026):** Every-click-counts scoring now fully implemented. `SELECT_COLOR` to a different color → +1; re-selecting the same color → 0 (no-op, returns state unchanged). `HIDE_PATTERN` → +1 (added here). `REVEAL_PATTERN` after first → +1 (already there). `PLACE_AT` → +1 (already there). Same-color clearing ([TER-147](https://linear.app/terenc/issue/TER-147)) → +1. 15 unit tests (was 9); 126 total passing.
 * [TER-147](https://linear.app/terenc/issue/TER-147) adds clearing semantics (shipped May 2, 2026): `PLACE_AT` branches on `state.current[row][col] === state.activeColor` — true calls `applyClear`, increments `moveCount` by 1, no completion check; false follows existing placement path unchanged.
 * **[TER-153](https://linear.app/terenc/issue/TER-153) shipped (May 24, 2026):** the `'validating'` phase and `completeValidation` action are live. When the boards match, `PLACE_AT` sets phase `'validating'` (timer frozen atomically); GameScreen runs the 850ms row-glow sweep, then dispatches `COMPLETE_VALIDATION` to flip phase to `'complete'`. `COMPLETE_VALIDATION` is a no-op outside `'validating'`.
+* **[TER-221](https://linear.app/terenc/issue/TER-221) shipped (May 26, 2026):** `REVEAL_PATTERN`/`HIDE_PATTERN` actions and `patternVisible` field removed. `revealPattern`/`hidePattern` removed from `GameActions`. TER-150 scoring **reversed** (authorized by RYGO Logic Pivot Design Doc §4): `SELECT_COLOR` to a different color → +0 (placements-only scoring). `PLACE_AT` and same-color clear remain +1. `RESUME_TIMER` dispatched unconditionally on mount — timer starts at game-screen entry without a reveal gate.
 
 ### Completion check
 
@@ -310,11 +310,12 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 **Screens:**
 
 * **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)). Now also accepts a `completedToday` map and passes each level's recorded result through to its `LevelButton` ([TER-142](https://linear.app/terenc/issue/TER-142)).
-* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, phase text), Grid (board when !patternVisible, target when patternVisible; replaced by "Get ready..." during a 1-second transition blank), reveal/hide toggle button, `ColorPicker` (hidden during pattern-revealed), Restart button (calls `reset()`, stays on game screen, clears pending transition timer), Quit button (calls `onPickDifficulty` directly — no `window.confirm`). Transition blank: local `transitioning: boolean` state + `timerRef: useRef<number | null>` cleared via `useEffect` cleanup; `revealPattern()`/`hidePattern()` called at click time so game timer starts immediately through the blank. `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. (Validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169); the rest shipped in [TER-148](https://linear.app/terenc/issue/TER-148).)
+* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, par slot reserved for TER-223), fixed game area (RefThumbnail above play Grid — both always visible, no reflow), `ColorPicker` (always shown during play), Restart button (calls `reset()` then `resumeTimer()`), Quit button (calls `onPickDifficulty` directly). `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. (Layout rework shipped in [TER-221](https://linear.app/terenc/issue/TER-221); validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169).)
 
 **Sub-components:**
 
 * **LevelButton** (`src/components/LevelButton.tsx`) — large button with `size: 4 | 5 | 6 | 8`, `label`, `onSelect`, `completedToday?: { moves, elapsedMs }`. In completed state ([TER-142](https://linear.app/terenc/issue/TER-142)) shows the recorded result (`{moves} moves · {M:SS}`) plus a live H:MM:SS countdown to the next UTC day and a "Practice" affordance; tapping still calls `onSelect` (which starts practice mode).
+* **RefThumbnail** (`src/components/RefThumbnail.tsx`) — read-only minimap of the target board. `w-28` (112px), same color tokens as Grid, non-interactive divs. Always visible alongside the play Grid. Shipped in [TER-221](https://linear.app/terenc/issue/TER-221). Note: 8×8 at 112px → cells ≈12px — below the 15px shape-legibility threshold from design doc §8; flagged in TER-221 Linear comment for design decision.
 * **ColorPicker** (`src/components/ColorPicker.tsx`) — red/yellow/green buttons showing color bg + shape icon. Active state: `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink` (non-color cue; blue-500 contrasts all three game colors in both themes; shipped in [TER-148](https://linear.app/terenc/issue/TER-148)).
 * **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), Share button (full-width, above the "Play again" + "Change difficulty" row — shipped in [TER-144](https://linear.app/terenc/issue/TER-144)), `flex gap-3` button row with "Play again" + "Change difficulty". Props: `gridSize`, `moveCount`, `elapsedMs`, `date`, `mode`, `streak`. Calls `buildShareString` from `src/share/shareString.ts`; invokes Web Share API (mobile native sheet), else clipboard (`Copied!` label for 2s), else textarea fallback.
 * **ThemeToggle** (`src/components/ThemeToggle.tsx`) — receives `theme` and `toggleTheme` as props from App. Shows `Sun` when dark, `Moon` when light. `aria-label` reflects the action.
@@ -393,7 +394,7 @@ export function saveInProgress(blob: InProgressBlob): void;
 export function deleteInProgress(): void;
 ```
 
-Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. The pause-save handler guards on phase — it persists only in `{idle, pattern-revealed, playing}`, never in `validating`/`complete`, so a solved board is never written (would otherwise strand a resumed session with no continue button). 13 unit tests in `inProgress.test.ts` + 2 GameScreen guard tests. Practice mode never calls any of these.
+Separate `rygo:inprogress` key keeps `rygo:state` results schema clean and append-only. `runStartedAt` is NOT persisted — on resume, `runStartedAt = now`. `loadInProgress` validates `date === todayKey()` (stale → null) and `version <= 1` (future → null); all I/O wrapped in try/catch. `saveInProgress` is called on pause (`visibilitychange` hidden / `pagehide`), on Restart (with cleared board state), and on Quit; `deleteInProgress` is called on completion. The pause-save handler guards on phase — it persists only in `{playing}`, never in `validating`/`complete`, so a solved board is never written (would otherwise strand a resumed session with no continue button). 13 unit tests in `inProgress.test.ts` + 2 GameScreen guard tests. Practice mode never calls any of these.
 
 ### Stats module — READY (`src/persistence/stats.ts`, `src/hooks/useStats.ts`, [TER-143](https://linear.app/terenc/issue/TER-143))
 
@@ -442,7 +443,7 @@ export type GameEvent =
   | { type: 'tap'; row: number; col: number };
 ```
 
-`useGame`'s `GameState` and `GameView` gain `eventLog: GameEvent[]`. The reducer appends one entry in `SELECT_COLOR` (including no-op re-taps — raw action recorded, server applies score rule on replay), `REVEAL_PATTERN` (both first-reveal and re-reveal), `HIDE_PATTERN`, and `PLACE_AT` (placement, clear, and completing). `RESET` empties `eventLog` on both daily-keep-clock and practice paths.
+`useGame`'s `GameState` and `GameView` gain `eventLog: GameEvent[]`. The reducer appends one entry in `SELECT_COLOR` (including no-op re-taps — raw action recorded, server applies score rule on replay) and `PLACE_AT` (placement, clear, and completing). `RESET` empties `eventLog` on both daily-keep-clock and practice paths. (`REVEAL_PATTERN`/`HIDE_PATTERN` no longer appended after [TER-221](https://linear.app/terenc/issue/TER-221); `applyEvent` still handles `reveal`/`hide` events for backward-compat with pre-TER-221 blobs.)
 
 `InProgressBlob` bumped to `version: 2` with `eventLog: GameEvent[]`. `saveInProgress` writes the current log; resume (`useGame` `resume` option) rehydrates it. `loadInProgress` accepts v1 blobs (treats missing `eventLog` as `[]`) and still returns null for `version > 2`. `GameScreen.tsx` updated to pass `eventLog: g.eventLog` in `buildBlob` and `eventLog: []` in the post-reset manual blob.
 
@@ -459,14 +460,16 @@ export function applyEvent(state: EventReplayState, event: GameEvent): EventRepl
 export function replayEventLog(puzzle: GeneratedPuzzle, events: GameEvent[]): ReplayResult;
 ```
 
-Pure, dependency-free (no React, no localStorage). `applyEvent` is the single rule set for board + move-count transitions; it is used by both `replayEventLog` and the `useGame` reducer so no logic is duplicated. `hasRevealed` tracks whether the first reveal has occurred — first reveal is free (+0); every subsequent reveal costs +1. `applyEvent` deliberately does NOT detect completion; callers compare the returned board to the target themselves.
+Pure, dependency-free (no React, no localStorage). `applyEvent` is the single rule set for board + move-count transitions; it is used by both `replayEventLog` and the `useGame` reducer so no logic is duplicated. `hasRevealed` tracks whether the first reveal has occurred (backward-compat with pre-TER-221 blobs). `applyEvent` deliberately does NOT detect completion; callers compare the returned board to the target themselves.
 
-**Subtleties preserved exactly:**
-- First reveal → `hasRevealed: false` → +0, board unchanged.
-- Re-reveal → `hasRevealed: true` → +1.
-- `select` to already-active color → +0 (event still recorded by the reducer).
-- `tap` on a same-color cell → `applyClear`, +1.
-- `tap` that is a board no-op under the overwrite hierarchy (e.g. yellow on red) → +1.
+**Scoring rules (placements-only, [TER-221](https://linear.app/terenc/issue/TER-221)):**
+- `select` (any, including no-op re-tap) → +0.
+- `reveal`/`hide` → +0 (always; backward-compat for old event logs).
+- `tap` placement → +1.
+- `tap` same-color clear → `applyClear`, +1.
+- `tap` board no-op under overwrite hierarchy (e.g. yellow on red) → +1.
+
+**Prior scoring (TER-150, reversed by TER-221):** `select` to a different color was +1; re-reveal was +1; `hide` was +1.
 
 `replay.ts` synced into `supabase/functions/_shared/engine/` alongside `types.ts`, `placement.ts`, and `generator.ts`. The drift guard in CI covers it.
 
@@ -654,7 +657,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 ### M6 — Logic pivot (in progress)
 
 1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ Done. Production par solver (A* + memoization, placements-only, proven flag, yellow min-cover DP).
-2. TER-221 — Backlog. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
+2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ In Review. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
 3. TER-222 — Backlog. Offline daily-par pipeline. Unblocked (TER-220 done).
 4. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222.
 5. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.

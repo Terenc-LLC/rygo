@@ -95,6 +95,8 @@ export function Summary({
           </div>
         </div>
       </div>
+      {/* Par display slot — wired up in TER-223 */}
+      <div data-testid="par-slot" />
       {standing != null && (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center" data-testid="standing-line">
           #{standing.rank} of {Math.max(standing.rank, standing.total)} today

@@ -5,8 +5,6 @@ import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board, GameEvent } from '../engine/types';
 
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target.
-// Red reach = 1 cell only, so one placement on an empty board
-// produces exactly this target.
 function makeTestPuzzle(): GeneratedPuzzle {
   const target: Board = [
     ['red', 'empty', 'empty', 'empty'],
@@ -32,140 +30,76 @@ describe('useGame', () => {
     vi.useRealTimers();
   });
 
-  it('starts in idle phase with moveCount 0 and elapsedMs 0', () => {
+  it('starts in playing phase with moveCount 0 and elapsedMs 0', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    expect(result.current.phase).toBe('idle');
+    expect(result.current.phase).toBe('playing');
     expect(result.current.moveCount).toBe(0);
     expect(result.current.elapsedMs).toBe(0);
-    expect(result.current.patternVisible).toBe(false);
     expect(result.current.activeColor).toBeNull();
   });
 
-  it('first revealPattern transitions to pattern-revealed, does not increment moves, starts timer', () => {
+  it('timer starts immediately on mount (no reveal needed)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => {
-      result.current.revealPattern();
-    });
+    // Flush the RESUME_TIMER useEffect
+    act(() => {});
 
-    expect(result.current.phase).toBe('pattern-revealed');
-    expect(result.current.patternVisible).toBe(true);
-    expect(result.current.moveCount).toBe(0);
-
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
+    act(() => { vi.advanceTimersByTime(200); });
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(100);
   });
 
-  it('HIDE_PATTERN increments moveCount by 1', () => {
+  it('SELECT_COLOR to a different color does NOT increment moveCount (TER-221 scoring)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); }); // free
-    act(() => { result.current.hidePattern(); });   // +1
+    act(() => { result.current.selectColor('red'); });
 
-    expect(result.current.moveCount).toBe(1);
-    expect(result.current.phase).toBe('playing');
-  });
-
-  it('second revealPattern (after hidePattern) increments moves', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-
-    act(() => { result.current.revealPattern(); }); // free → 0
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-    act(() => { result.current.revealPattern(); }); // +1 → 2
-
-    expect(result.current.phase).toBe('pattern-revealed');
-    expect(result.current.moveCount).toBe(2);
-  });
-
-  it('SELECT_COLOR to a different color increments moveCount by 1', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-
-    act(() => { result.current.selectColor('red'); }); // +1
-
-    expect(result.current.moveCount).toBe(1);
+    expect(result.current.moveCount).toBe(0);
     expect(result.current.activeColor).toBe('red');
   });
 
   it('SELECT_COLOR to the same color is a no-op (no move charged)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.selectColor('red'); }); // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // no-op → 1
+    act(() => { result.current.selectColor('red'); }); // +0
+    act(() => { result.current.selectColor('red'); }); // no-op
 
-    expect(result.current.moveCount).toBe(1);
+    expect(result.current.moveCount).toBe(0);
   });
 
-  it('SELECT_COLOR to two different colors charges 2 moves', () => {
+  it('SELECT_COLOR to two different colors charges 0 moves total', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.selectColor('red'); });    // +1 → 1
-    act(() => { result.current.selectColor('yellow'); }); // +1 → 2
+    act(() => { result.current.selectColor('red'); });    // +0
+    act(() => { result.current.selectColor('yellow'); }); // +0
 
-    expect(result.current.moveCount).toBe(2);
+    expect(result.current.moveCount).toBe(0);
   });
 
-  it('selectColor plus placeAt each charge 1 move in playing phase', () => {
+  it('placeAt requires activeColor set; no-op without it', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); }); // free
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    act(() => { result.current.placeAt(1, 1); });       // +1 → 3 (not (0,0) — puzzle stays incomplete)
-
-    expect(result.current.moveCount).toBe(3);
-  });
-
-  it('placeAt while idle is a no-op (board and phase unchanged; selectColor still charges)', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-
-    act(() => {
-      result.current.selectColor('red'); // +1
-      result.current.placeAt(0, 0);     // no-op in idle
-    });
-
-    expect(result.current.phase).toBe('idle');
-    expect(result.current.moveCount).toBe(1);
-    expect(result.current.current[0][0]).toBe('empty');
-  });
-
-  it('placeAt while pattern-revealed is a no-op', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-
-    act(() => { result.current.revealPattern(); }); // free
-    act(() => {
-      result.current.selectColor('red'); // +1
-      result.current.placeAt(0, 0);     // no-op in pattern-revealed
-    });
-
-    expect(result.current.phase).toBe('pattern-revealed');
-    expect(result.current.moveCount).toBe(1);
-    expect(result.current.current[0][0]).toBe('empty');
-  });
-
-  it('placeAt after selectColor and hidePattern updates the board and increments moves', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-
-    act(() => { result.current.revealPattern(); }); // free → 0
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    act(() => { result.current.placeAt(1, 1); });       // +1 → 3
+    act(() => { result.current.placeAt(0, 0); }); // no activeColor → no-op
 
     expect(result.current.phase).toBe('playing');
-    expect(result.current.moveCount).toBe(3);
+    expect(result.current.moveCount).toBe(0);
+    expect(result.current.current[0][0]).toBe('empty');
+  });
+
+  it('placeAt with activeColor updates the board and increments moves by 1', () => {
+    const { result } = renderHook(() => useGame(makeTestPuzzle()));
+
+    act(() => { result.current.selectColor('red'); }); // +0
+    act(() => { result.current.placeAt(1, 1); });      // +1
+
+    expect(result.current.phase).toBe('playing');
+    expect(result.current.moveCount).toBe(1);
     expect(result.current.current[1][1]).toBe('red');
   });
 
   it('when placement makes board match target, phase becomes validating (not complete)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
-
-    // Place red at (0,0) — matches the one-cell target
     act(() => { result.current.placeAt(0, 0); });
 
     expect(result.current.phase).toBe('validating');
@@ -174,8 +108,6 @@ describe('useGame', () => {
   it('completeValidation transitions from validating to complete', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
     act(() => { result.current.placeAt(0, 0); });
 
@@ -189,17 +121,15 @@ describe('useGame', () => {
   it('completeValidation is a no-op outside validating', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.completeValidation(); }); // idle phase — no-op
-    expect(result.current.phase).toBe('idle');
+    act(() => { result.current.completeValidation(); }); // playing phase — no-op
+    expect(result.current.phase).toBe('playing');
   });
 
   it('timer stops and elapsedMs is preserved through validating → complete', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
+    act(() => {}); // flush RESUME_TIMER
     act(() => { result.current.selectColor('red'); });
-
     act(() => { vi.advanceTimersByTime(300); });
 
     act(() => { result.current.placeAt(0, 0); }); // → validating, elapsedMs frozen
@@ -218,46 +148,37 @@ describe('useGame', () => {
   it('tapping a same-color cell clears it and increments moveCount', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); }); // free → 0
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    // Place red at (1,1)
-    act(() => { result.current.placeAt(1, 1); }); // +1 → 3
+    act(() => { result.current.selectColor('red'); }); // +0
+    act(() => { result.current.placeAt(1, 1); });       // +1 → 1
     expect(result.current.current[1][1]).toBe('red');
-    expect(result.current.moveCount).toBe(3);
+    expect(result.current.moveCount).toBe(1);
 
-    // Tap (1,1) again with red active → clearing branch
-    act(() => { result.current.placeAt(1, 1); }); // +1 → 4
+    act(() => { result.current.placeAt(1, 1); }); // clear → +1 → 2
     expect(result.current.current[1][1]).toBe('empty');
-    expect(result.current.moveCount).toBe(4);
+    expect(result.current.moveCount).toBe(2);
     expect(result.current.phase).toBe('playing');
   });
 
   it('tapping a different-color cell still places (regression)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); }); // free → 0
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    // Tap (2,2) which is empty — not same color as active (empty !== red) → placement path
-    act(() => { result.current.placeAt(2, 2); }); // +1 → 3
+    act(() => { result.current.selectColor('red'); }); // +0
+    act(() => { result.current.placeAt(2, 2); });       // +1
     expect(result.current.current[2][2]).toBe('red');
-    expect(result.current.moveCount).toBe(3);
+    expect(result.current.moveCount).toBe(1);
     expect(result.current.phase).toBe('playing');
   });
 
-  it('reset returns to idle with cleared counters and empty board', () => {
+  it('reset returns to playing with cleared counters and empty board', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); }); // free → 0
-    act(() => { result.current.hidePattern(); });   // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    act(() => { result.current.placeAt(1, 1); });       // +1 → 3
-    expect(result.current.moveCount).toBe(3);
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(1, 1); });
+    expect(result.current.moveCount).toBe(1);
 
     act(() => { result.current.reset(); });
 
-    expect(result.current.phase).toBe('idle');
+    expect(result.current.phase).toBe('playing');
     expect(result.current.moveCount).toBe(0);
     expect(result.current.elapsedMs).toBe(0);
     expect(result.current.current[1][1]).toBe('empty');
@@ -267,13 +188,13 @@ describe('useGame', () => {
   it('reset without keepClock zeros the timer (practice behavior)', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
+    act(() => {}); // flush RESUME_TIMER
     act(() => { vi.advanceTimersByTime(500); });
     expect(result.current.elapsedMs).toBeGreaterThan(0);
 
     act(() => { result.current.reset(); });
 
-    expect(result.current.phase).toBe('idle');
+    expect(result.current.phase).toBe('playing');
     expect(result.current.elapsedMs).toBe(0);
     expect(result.current.moveCount).toBe(0);
   });
@@ -283,14 +204,14 @@ describe('useGame', () => {
       useGame(makeTestPuzzle(), { keepClockOnReset: true }),
     );
 
-    act(() => { result.current.revealPattern(); });
+    act(() => {}); // flush RESUME_TIMER
     act(() => { vi.advanceTimersByTime(500); });
     const elapsedBeforeReset = result.current.elapsedMs;
     expect(elapsedBeforeReset).toBeGreaterThan(0);
 
     act(() => { result.current.reset(); });
 
-    expect(result.current.phase).toBe('idle');
+    expect(result.current.phase).toBe('playing');
     expect(result.current.moveCount).toBe(0);
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(elapsedBeforeReset);
   });
@@ -298,7 +219,7 @@ describe('useGame', () => {
   it('bankTime stops the timer and accumulates; resumeTimer restarts it', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
+    act(() => {}); // flush RESUME_TIMER
     act(() => { vi.advanceTimersByTime(300); });
     const beforeBank = result.current.elapsedMs;
     expect(beforeBank).toBeGreaterThan(0);
@@ -306,11 +227,9 @@ describe('useGame', () => {
     act(() => { result.current.bankTime(); });
     const bankedValue = result.current.elapsedMs;
 
-    // Timer should be frozen — advancing time does NOT change elapsedMs
     act(() => { vi.advanceTimersByTime(500); });
     expect(result.current.elapsedMs).toBe(bankedValue);
 
-    // Resume: clock restarts from the banked value
     act(() => { result.current.resumeTimer(); });
     act(() => { vi.advanceTimersByTime(200); });
     expect(result.current.elapsedMs).toBeGreaterThan(bankedValue);
@@ -324,7 +243,7 @@ describe('useGame', () => {
       ['empty', 'empty', 'empty', 'empty'],
     ];
     const puzzle = makeTestPuzzle();
-    const priorLog: GameEvent[] = [{ type: 'reveal' }, { type: 'hide' }, { type: 'select', color: 'red' }];
+    const priorLog: GameEvent[] = [{ type: 'select', color: 'red' }];
     const resume = {
       version: 2 as const,
       date: '2026-05-24',
@@ -332,7 +251,7 @@ describe('useGame', () => {
       board: target,
       phase: 'playing' as const,
       activeColor: 'red' as const,
-      moveCount: 5,
+      moveCount: 1,
       patternVisible: false,
       accumulatedMs: 12000,
       savedAt: 0,
@@ -341,16 +260,13 @@ describe('useGame', () => {
 
     const { result } = renderHook(() => useGame(puzzle, { resume }));
 
-    // On mount, RESUME_TIMER fires (in useEffect) after render
-    act(() => {});
+    act(() => {}); // flush RESUME_TIMER
 
     expect(result.current.phase).toBe('playing');
-    expect(result.current.moveCount).toBe(5);
+    expect(result.current.moveCount).toBe(1);
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(12000);
-    // eventLog rehydrated from blob
     expect(result.current.eventLog).toEqual(priorLog);
 
-    // Clock should be running — advancing time increases elapsedMs
     act(() => { vi.advanceTimersByTime(200); });
     expect(result.current.elapsedMs).toBeGreaterThan(12000);
   });
@@ -358,33 +274,29 @@ describe('useGame', () => {
   it('pathological negative delta (clock set back) is treated as zero', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });
+    act(() => {}); // flush RESUME_TIMER
     act(() => { vi.advanceTimersByTime(200); });
     const before = result.current.elapsedMs;
 
-    // Set system time backwards
     act(() => { vi.setSystemTime(0); });
-    act(() => { vi.advanceTimersByTime(100); }); // tick with now=100 < runStartedAt
+    act(() => { vi.advanceTimersByTime(100); });
 
-    // elapsedMs should not go negative — stays at the banked value (0 added)
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(0);
     expect(result.current.elapsedMs).toBeLessThanOrEqual(before);
   });
 
-  it('realistic 8-move sequence: Reveal(0) → Hide(+1) → SelectRed(+1) → Place×3(+3) → SelectYellow(+1) → Place×2(+2) = 8', () => {
+  it('realistic placement-only sequence: 3 placements + 2 color switches = 3 moves', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
 
-    act(() => { result.current.revealPattern(); });    // 0
-    act(() => { result.current.hidePattern(); });      // +1 → 1
-    act(() => { result.current.selectColor('red'); }); // +1 → 2
-    act(() => { result.current.placeAt(1, 1); });      // +1 → 3
-    act(() => { result.current.placeAt(1, 2); });      // +1 → 4
-    act(() => { result.current.placeAt(1, 3); });      // +1 → 5
-    act(() => { result.current.selectColor('yellow'); }); // +1 → 6
-    act(() => { result.current.placeAt(2, 0); });      // +1 → 7
-    act(() => { result.current.placeAt(2, 1); });      // +1 → 8
+    act(() => { result.current.selectColor('red'); });    // +0
+    act(() => { result.current.placeAt(1, 1); });         // +1 → 1
+    act(() => { result.current.placeAt(1, 2); });         // +1 → 2
+    act(() => { result.current.placeAt(1, 3); });         // +1 → 3
+    act(() => { result.current.selectColor('yellow'); }); // +0
+    act(() => { result.current.placeAt(2, 0); });         // +1 → 4
+    act(() => { result.current.placeAt(2, 1); });         // +1 → 5
 
-    expect(result.current.moveCount).toBe(8);
+    expect(result.current.moveCount).toBe(5);
   });
 
   // ─── eventLog tests ───────────────────────────────────────────────────────
@@ -394,56 +306,26 @@ describe('useGame', () => {
     expect(result.current.eventLog).toEqual([]);
   });
 
-  it('REVEAL_PATTERN (first, idle) appends a reveal event; moveCount stays 0', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    expect(result.current.eventLog).toEqual([{ type: 'reveal' }]);
-    expect(result.current.moveCount).toBe(0);
-  });
-
-  it('REVEAL_PATTERN (re-reveal from playing) appends a reveal event and increments moveCount', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); }); // first reveal → event, no move
-    act(() => { result.current.hidePattern(); });   // → event, +1
-    act(() => { result.current.revealPattern(); }); // re-reveal → event, +1
-    expect(result.current.eventLog).toEqual([
-      { type: 'reveal' },
-      { type: 'hide' },
-      { type: 'reveal' },
-    ]);
-    expect(result.current.moveCount).toBe(2);
-  });
-
-  it('HIDE_PATTERN appends a hide event and increments moveCount', () => {
-    const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
-    expect(result.current.eventLog).toEqual([{ type: 'reveal' }, { type: 'hide' }]);
-    expect(result.current.moveCount).toBe(1);
-  });
-
-  it('SELECT_COLOR appends a select event and increments moveCount for a new color', () => {
+  it('SELECT_COLOR appends a select event; moveCount stays 0', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
     act(() => { result.current.selectColor('red'); });
     expect(result.current.eventLog).toEqual([{ type: 'select', color: 'red' }]);
-    expect(result.current.moveCount).toBe(1);
+    expect(result.current.moveCount).toBe(0);
   });
 
   it('SELECT_COLOR to the same color appends a select event but does NOT increment moveCount', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.selectColor('red'); }); // +1, event
-    act(() => { result.current.selectColor('red'); }); // +0, event still appended
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.selectColor('red'); }); // no-op, still appended
     expect(result.current.eventLog).toEqual([
       { type: 'select', color: 'red' },
       { type: 'select', color: 'red' },
     ]);
-    expect(result.current.moveCount).toBe(1); // no-op select: moveCount unchanged
+    expect(result.current.moveCount).toBe(0);
   });
 
   it('PLACE_AT appends a tap event with correct row/col', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
     act(() => { result.current.placeAt(2, 3); });
     const log = result.current.eventLog;
@@ -452,8 +334,6 @@ describe('useGame', () => {
 
   it('PLACE_AT on a same-color cell (clear path) still appends a tap event', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
     act(() => { result.current.placeAt(1, 1); }); // place
     act(() => { result.current.placeAt(1, 1); }); // clear (same color)
@@ -463,25 +343,19 @@ describe('useGame', () => {
     expect(result.current.current[1][1]).toBe('empty');
   });
 
-  it('PLACE_AT while not in playing phase does NOT append a tap event', () => {
+  it('PLACE_AT without activeColor does NOT append a tap event', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.selectColor('red'); }); // still in idle
-    act(() => { result.current.placeAt(0, 0); });      // no-op
-    // Only the select event should be in the log
-    expect(result.current.eventLog).toEqual([{ type: 'select', color: 'red' }]);
+    act(() => { result.current.placeAt(0, 0); }); // no activeColor → no-op
+    expect(result.current.eventLog).toEqual([]);
   });
 
   it('event ordering matches action sequence across a realistic flow', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
     act(() => { result.current.placeAt(1, 0); });
     act(() => { result.current.selectColor('yellow'); });
 
     const expected: GameEvent[] = [
-      { type: 'reveal' },
-      { type: 'hide' },
       { type: 'select', color: 'red' },
       { type: 'tap', row: 1, col: 0 },
       { type: 'select', color: 'yellow' },
@@ -491,10 +365,9 @@ describe('useGame', () => {
 
   it('RESET (practice, no keepClock) clears the eventLog', () => {
     const { result } = renderHook(() => useGame(makeTestPuzzle()));
-    act(() => { result.current.revealPattern(); });
-    act(() => { result.current.hidePattern(); });
     act(() => { result.current.selectColor('red'); });
-    expect(result.current.eventLog.length).toBe(3);
+    act(() => { result.current.placeAt(1, 0); });
+    expect(result.current.eventLog.length).toBe(2);
 
     act(() => { result.current.reset(); });
     expect(result.current.eventLog).toEqual([]);
@@ -505,22 +378,18 @@ describe('useGame', () => {
     const { result } = renderHook(() =>
       useGame(makeTestPuzzle(), { keepClockOnReset: true }),
     );
-    act(() => { result.current.revealPattern(); });  // event: reveal
-    act(() => { result.current.hidePattern(); });    // event: hide
-    act(() => { result.current.selectColor('red'); }); // event: select
-    expect(result.current.eventLog.length).toBe(3);
+    act(() => { result.current.selectColor('red'); });
+    act(() => { result.current.placeAt(1, 0); });
+    expect(result.current.eventLog.length).toBe(2);
 
     act(() => { result.current.reset(); });
     expect(result.current.eventLog).toEqual([]);
     expect(result.current.moveCount).toBe(0);
-    // Timer preserved even though log is cleared
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(0);
   });
 
   it('resume rehydrates eventLog; subsequent actions continue appending', () => {
     const priorLog: GameEvent[] = [
-      { type: 'reveal' },
-      { type: 'hide' },
       { type: 'select', color: 'red' },
     ];
     const board: Board = [
@@ -536,7 +405,7 @@ describe('useGame', () => {
       board,
       phase: 'playing' as const,
       activeColor: 'red' as const,
-      moveCount: 3,
+      moveCount: 0,
       patternVisible: false,
       accumulatedMs: 5000,
       savedAt: 0,
@@ -544,11 +413,10 @@ describe('useGame', () => {
     };
 
     const { result } = renderHook(() => useGame(makeTestPuzzle(), { resume }));
-    act(() => {}); // flush RESUME_TIMER effect
+    act(() => {}); // flush RESUME_TIMER
 
     expect(result.current.eventLog).toEqual(priorLog);
 
-    // Place at a non-completing cell — log extends
     act(() => { result.current.placeAt(1, 1); });
     expect(result.current.eventLog).toEqual([
       ...priorLog,
@@ -557,11 +425,7 @@ describe('useGame', () => {
   });
 
   it('background→resume→complete sequence yields a complete, ordered log', () => {
-    // Start fresh, build some log, then "background" (we simulate by capturing state),
-    // resume via a new hook instance with that state, and verify the log is contiguous.
     const priorLog: GameEvent[] = [
-      { type: 'reveal' },
-      { type: 'hide' },
       { type: 'select', color: 'red' },
     ];
     const board: Board = [
@@ -577,7 +441,7 @@ describe('useGame', () => {
       board,
       phase: 'playing' as const,
       activeColor: 'red' as const,
-      moveCount: 3,
+      moveCount: 0,
       patternVisible: false,
       accumulatedMs: 5000,
       savedAt: 0,
@@ -596,8 +460,7 @@ describe('useGame', () => {
       ...priorLog,
       { type: 'tap', row: 0, col: 0 },
     ]);
-    // Log is complete and ordered — moveCount matches log-derived count
-    // (reveal=0, hide=+1, select=+1, tap=+1 → 3 moves pre-resume; +1 for final tap = 4)
-    expect(result.current.moveCount).toBe(4);
+    // select(+0) + tap(+1) = 1
+    expect(result.current.moveCount).toBe(1);
   });
 });

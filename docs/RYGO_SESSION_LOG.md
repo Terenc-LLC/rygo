@@ -669,3 +669,7 @@ Promoted the TER-217 spike prototype to a production A* par solver module.
 * `budgetMs ≤ 0` check before the heap is initialised ensures immediate `proven:false` for zero budgets rather than solving one node before the periodic check fires.
 * Closed-set cap at 4M entries: calibrated for offline use (Node.js par pipeline). 4×4 and 5×5 solve well within this cap; 6×6 and 8×8 hit the time budget first in practice.
 * Move scoring (sort yellow/green candidates by net-target-gain) is a performance optimisation only — it does not affect correctness since A* explores by f = g + h, but it tends to push high-f nodes onto the heap early, reducing heap churn in practice.
+
+### 2026-05-26 — TER-220 Opus close-out (docs only)
+
+Issue map M6 section updated to full backlog (TER-220 ✅ Done, TER-221–226 filed); parSolver architecture note wording corrected: `proven` flag now documented as "optimal among placements" not "provably global optimal," with TER-225 tracking the formal close.

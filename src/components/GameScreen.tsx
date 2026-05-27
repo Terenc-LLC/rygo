@@ -12,6 +12,7 @@ import { loadState, todayKey } from '../persistence/dailyState';
 import { computeGlobalStreak } from '../persistence/stats';
 import { enqueueAndSubmit } from '../persistence/submitScore';
 import { getStanding } from '../backend/getStanding';
+import { getDailyPar } from '../backend/getDailyPar';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -58,6 +59,7 @@ export function GameScreen({
     keepClockOnReset: mode === 'daily',
   });
   const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
+  const [dailyPar, setDailyPar] = useState<{ par: number; proven: boolean } | null>(null);
   const prefersReducedMotion = useRef(
     typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
@@ -141,6 +143,9 @@ export function GameScreen({
       void getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs).then(
         result => setStanding(result),
       );
+      void getDailyPar(effectiveDayKey, puzzle.gridSize).then(
+        result => setDailyPar(result),
+      );
     }
   }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
 
@@ -156,6 +161,7 @@ export function GameScreen({
         mode={mode}
         streak={streak}
         standing={standing}
+        dailyPar={dailyPar}
         onPlayAgain={() => {
           game.reset();
           game.resumeTimer();

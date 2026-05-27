@@ -570,6 +570,29 @@ Benchmark script: `scripts/par-solver-benchmark.ts` — run with `npx tsx script
 
 Shipped in [TER-220](https://linear.app/terenc/issue/TER-220), May 26, 2026.
 
+### Daily par pipeline — READY (`scripts/compute-par.ts`, `src/backend/getDailyPar.ts`) [TER-222]
+
+Offline par computation job + client read path. Clients never run the solver; par is a pre-computed number they read from Supabase.
+
+**`daily_par` table** (`supabase/migrations/20260527000000_daily_par_schema.sql`): columns `id`, `date` (date), `grid_size` (smallint), `par` (int), `proven` (bool), `generation_hash` (text), `created_at`/`updated_at` (timestamptz). Unique on `(date, grid_size)`. RLS: public SELECT (`anon_select` policy); no client INSERT/UPDATE (service-role only).
+
+**Compute job** (`.github/workflows/compute-par.yml`): GitHub Actions cron, weekly Monday 02:00 UTC + `workflow_dispatch`. Precomputes 14 days ahead (rolling buffer — a single missed run never strands a game-day). Runs `npx tsx scripts/compute-par.ts` with `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` secrets. For each upcoming date × size {4,5,6,8}: derives the puzzle via the shared engine (`RYGO-{date}` seed), runs `solveOptimalPar` with a 30s budget, upserts to `daily_par`. Proven result → `{par, proven: true}`; timeout → `{par: generator-solution-length, proven: false}`. Idempotent: rows with a matching `generation_hash` are skipped.
+
+**Generation hash** (`src/engine/boardHash.ts`): compact fingerprint — one char per cell in row-major order (`e`/`r`/`y`/`g`). Both the compute job and the client compute it independently from `generatePuzzle().target`. If they diverge (engine drift), the client silently degrades to no-par.
+
+**Client read** (`src/backend/getDailyPar.ts`):
+```ts
+export interface DailyPar { par: number; proven: boolean; }
+export async function getDailyPar(dateStr: string, gridSize: 4 | 5 | 6 | 8): Promise<DailyPar | null>
+```
+Queries `daily_par` by `(date, grid_size)`, verifies the `generation_hash` against the client's own puzzle, and returns `{par, proven}` or `null`. Never throws. Called in `GameScreen`'s daily-completion `useEffect` alongside `getStanding`; result stored in `dailyPar` state and passed to `Summary` as an optional `dailyPar` prop (accepted, not yet displayed — display is TER-223).
+
+**Graceful degradation**: any failure path (supabase null, DB error, missing row, hash mismatch, type error, network throw) returns null. `Summary` receives `null` and silently omits par — play is never blocked.
+
+**Runner rationale**: GitHub Actions chosen over Supabase scheduled function (design doc §8 open question, resolved in TER-222 Linear comment). 8×8 burns the full 30s budget, which is wrong for a CPU-capped Supabase edge function; a GH Actions runner has no CPU cap and keeps both schedule and job code in version control. Only the `daily_par` table and client read stay in Supabase.
+
+Shipped in [TER-222](https://linear.app/terenc/issue/TER-222), May 27, 2026.
+
 ### Client rank read — READY (`src/backend/getStanding.ts`) [TER-215]
 
 ```ts
@@ -659,7 +682,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ Done. Production par solver (A* + memoization, placements-only, proven flag, yellow min-cover DP).
 2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ In Review. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
 3. [TER-235](https://linear.app/terenc/issue/TER-235) — ✅ In Review. Game-screen header cluster (RefThumbnail + Score/Time/Par-slot side by side; global ThemeToggle overlay unchanged).
-4. TER-222 — Backlog. Offline daily-par pipeline. Unblocked (TER-220 done).
+4. TER-222 — ✅ In Review. Offline daily-par pipeline.
 5. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222 + TER-235.
 6. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
 7. TER-226 — Backlog (Low). Solver/engine parity test.

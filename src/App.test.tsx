@@ -41,4 +41,5 @@ describe('App', () => {
     const cells = screen.getAllByRole('button', { name: /cell at row/i });
     expect(cells).toHaveLength(25);
   });
+
 });

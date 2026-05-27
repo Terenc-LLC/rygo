@@ -427,7 +427,7 @@ describe('GameScreen', () => {
     expect(screen.getByTestId('standing-line')).toHaveTextContent('#5 of 5 today');
   });
 
-  it('par slot is present in the status bar', () => {
+  it('par slot is present in the header cluster', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
     expect(screen.getByTestId('par-slot')).toBeInTheDocument();
   });

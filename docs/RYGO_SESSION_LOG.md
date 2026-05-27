@@ -700,3 +700,37 @@ Removed the reveal/hide toggle and 1-second transition blank. Target pattern is 
 * `RESUME_TIMER` unconditional mount: previously only fired when `hasResume` was set. Removed the condition so the timer starts on every game-screen mount — fresh, resumed, or restarted. Minimal change to replace the old reveal gate.
 * Old blob phases remapped silently: `InProgressBlob` v2 may have `phase: 'idle'` or `phase: 'pattern-revealed'` from pre-TER-221 sessions. `makeInitialState` always returns `phase: 'playing'`, absorbing old blobs without a schema migration.
 * 8×8 legibility: `RefThumbnail` at `w-28` (112px) renders 8×8 cells at ≈12px — below the 15px shape-legibility threshold stated in design doc §8. Implemented as-is and flagged in a TER-221 Linear comment with four options (larger thumbnail, side-by-side layout, tuck into status row, accept 12px). Decision deferred to Chris per design doc open question §8.
+
+### 2026-05-27 — [TER-235](https://linear.app/terenc/issue/TER-235) M6: Game-screen header cluster (Claude Code / Sonnet 4.6)
+
+Implemented the compact header cluster on the game screen: RefThumbnail (`w-28`, tap-to-zoom intact) on the left; Score, Par slot, Time, and ThemeToggle stacked in a flex column on the right. Relocated the theme toggle from App's global fixed overlay into GameScreen — App suppresses the global overlay while `view === 'game'` and GameScreen provides the toggle in all three phases.
+
+**Files changed:**
+* `src/components/GameScreen.tsx` — added `theme?: Theme` and `toggleTheme?: () => void` props (optional, defaulting to `'dark'` and noop so existing tests don't break). Replaced the separate status bar + "Fixed game area" (thumbnail centered above grid) with a single header cluster: `flex items-start gap-3` row containing `<RefThumbnail>` and a `flex flex-col flex-1` info column (Score + par slot `min-w-[4rem]`, Time, ThemeToggle). Removed the outer wrapper div that was centering the thumbnail. For `validating` and `complete` phases, added a `fixed top-0 right-0 z-50` ThemeToggle overlay matching the App global overlay's position — so the toggle is accessible throughout all game phases. Imported `ThemeToggle` and `Theme` type.
+* `src/App.tsx` — wrapped the global ThemeToggle overlay in `{view !== 'game' && (...)}` so it is suppressed on the game screen. Added `data-testid="global-theme-toggle"` to the overlay wrapper for testability. Passed `theme={theme}` and `toggleTheme={toggleTheme}` to `<GameScreen>`.
+* `src/components/GameScreen.test.tsx` — renamed `'par slot is present in the status bar'` → `'par slot is present in the header cluster'`; added 3 new tests: toggle renders in playing phase; clicking toggle calls toggleTheme; toggle accessible during validating phase.
+* `src/App.test.tsx` — added 3 new tests: global toggle present on difficulty screen; global toggle suppressed on game screen (toggle still accessible inside GameScreen); global toggle returns after Quit.
+* `docs/RYGO_CONTEXT.md` — updated GameScreen architecture note; added TER-235 to M6 issue map.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 358 passing (was 339; +19 net — 3 new GameScreen + 3 new App + 13 from TER-221 base already on m6); build clean.
+
+**Non-obvious decisions:**
+* `theme` and `toggleTheme` made **optional** (with sensible defaults) rather than required. This keeps all pre-existing GameScreen tests valid without modification — they don't pass theme props and the defaults (`'dark'` / noop) are inert. The App always passes live values.
+* For **validating and complete phases**, the ThemeToggle is rendered in a fixed top-right overlay (same position as the global overlay, but owned by GameScreen). An alternative was to leave the toggle absent during the ~850ms validating transient and add it to Summary's component surface — but the overlay approach is cleaner, doesn't touch Summary's interface, and ensures the toggle is never temporarily inaccessible.
+* The par slot retains `min-w-[4rem]` (64px) to **prevent reflow** when TER-223 fills it. At 219px available info-column width on iPhone SE, this reserves space for a two-character number label pair without crowding Score.
+
+### 2026-05-27 — [TER-235](https://linear.app/terenc/issue/TER-235) patch: revert theme-toggle relocation (Claude Code / Sonnet 4.6)
+
+Scope-adjustment patch on the same branch/PR per Linear comment "Scope adjustment: revert the theme-toggle relocation." The cluster layout (RefThumbnail + Score/Par-slot/Time) is unchanged.
+
+**Reverted:**
+* `src/components/GameScreen.tsx` — removed `ThemeToggle` import, `Theme` type import, `theme?`/`toggleTheme?` props, ThemeToggle element from the playing-phase header cluster, and ThemeToggle fixed-overlay from both the `validating` and `complete` phase returns. `validating` returns a single `<div>` again; `complete` returns `<Summary>` directly.
+* `src/App.tsx` — restored the global ThemeToggle overlay to unconditional render (no `view !== 'game'` gate, no `data-testid`). Removed `theme`/`toggleTheme` props from the `<GameScreen>` call.
+* `src/components/GameScreen.test.tsx` — removed 3 toggle-in-cluster tests.
+* `src/App.test.tsx` — removed 3 global-toggle-suppression tests.
+* `docs/RYGO_CONTEXT.md` — updated GameScreen arch note and TER-235 issue-map entry to remove toggle-relocation references.
+
+**Kept intact:** header cluster layout, par-slot reservation, no-reflow guarantee, RefThumbnail tap-to-zoom.
+
+**Tests:** 352 passing (was 358; −6 toggle tests removed); build clean.

@@ -262,33 +262,35 @@ export function GameScreen({
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-4 w-full max-w-sm mx-auto">
-      {/* Status bar */}
-      <div className="flex items-center justify-between w-full px-1 py-2">
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
-            {game.moveCount}
-          </p>
-        </div>
-        {/* Par display slot — wired up in TER-223 */}
-        <div className="text-center flex-1 px-2" data-testid="par-slot" />
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="timer-value">
-            {formatTime(game.elapsedMs)}
-          </p>
+      {/* Header cluster: reference thumbnail + score/par/time side by side */}
+      <div className="flex items-start gap-3 w-full">
+        <RefThumbnail board={game.target} size={game.gridSize} />
+        <div className="flex flex-col flex-1 gap-2 pt-1">
+          <div className="flex items-start gap-3">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
+              <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
+                {game.moveCount}
+              </p>
+            </div>
+            {/* Par display slot — wired up in TER-223; min-w reserves space to prevent reflow */}
+            <div className="min-w-[4rem]" data-testid="par-slot" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
+            <p className="text-xl font-bold text-ink dark:text-paper" data-testid="timer-value">
+              {formatTime(game.elapsedMs)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Fixed game area: reference thumbnail always visible above play grid */}
-      <div className="flex flex-col items-center gap-2 w-full">
-        <RefThumbnail board={game.target} size={game.gridSize} />
-        <Grid
-          board={game.current}
-          size={game.gridSize}
-          onCellTap={(r, c) => game.placeAt(r, c)}
-        />
-      </div>
+      {/* Play grid */}
+      <Grid
+        board={game.current}
+        size={game.gridSize}
+        onCellTap={(r, c) => game.placeAt(r, c)}
+      />
 
       <ColorPicker activeColor={game.activeColor} onSelectColor={game.selectColor} />
 

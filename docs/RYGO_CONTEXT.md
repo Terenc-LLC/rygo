@@ -310,7 +310,7 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 **Screens:**
 
 * **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)). Now also accepts a `completedToday` map and passes each level's recorded result through to its `LevelButton` ([TER-142](https://linear.app/terenc/issue/TER-142)).
-* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. Status bar (Score labeled, Time, par slot reserved for TER-223), fixed game area (RefThumbnail above play Grid — both always visible, no reflow), `ColorPicker` (always shown during play), Restart button (calls `reset()` then `resumeTimer()`), Quit button (calls `onPickDifficulty` directly). `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. (Layout rework shipped in [TER-221](https://linear.app/terenc/issue/TER-221); validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169).)
+* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. **Header cluster** (shipped in [TER-235](https://linear.app/terenc/issue/TER-235)): RefThumbnail (`w-28`) on the left, flex column of Score / Par slot (`data-testid="par-slot"`, reserved for TER-223, `min-w-[4rem]` prevents reflow) / Time on the right — both always visible, no reflow between sizes or phases. `ColorPicker` (always shown during play), Restart button (calls `reset()` then `resumeTimer()`), Quit button (calls `onPickDifficulty` directly). `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. App's global ThemeToggle overlay renders on every screen including the game screen. (Layout rework shipped in [TER-221](https://linear.app/terenc/issue/TER-221); header cluster shipped in [TER-235](https://linear.app/terenc/issue/TER-235); validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169).)
 
 **Sub-components:**
 
@@ -658,10 +658,11 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 
 1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ Done. Production par solver (A* + memoization, placements-only, proven flag, yellow min-cover DP).
 2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ In Review. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
-3. TER-222 — Backlog. Offline daily-par pipeline. Unblocked (TER-220 done).
-4. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222.
-5. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
-6. TER-226 — Backlog (Low). Solver/engine parity test.
+3. [TER-235](https://linear.app/terenc/issue/TER-235) — ✅ In Review. Game-screen header cluster (RefThumbnail + Score/Time/Par-slot side by side; global ThemeToggle overlay unchanged).
+4. TER-222 — Backlog. Offline daily-par pipeline. Unblocked (TER-220 done).
+5. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222 + TER-235.
+6. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
+7. TER-226 — Backlog (Low). Solver/engine parity test.
 
 Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 

@@ -431,4 +431,36 @@ describe('GameScreen', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
     expect(screen.getByTestId('par-slot')).toBeInTheDocument();
   });
+
+  it('opening and closing the ref thumbnail overlay does not change moveCount', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
+
+    const scoreBefore = screen.getByTestId('score-value').textContent;
+    expect(Number(scoreBefore)).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge target pattern' }));
+    expect(screen.getByTestId('score-value').textContent).toBe(scoreBefore);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByTestId('score-value').textContent).toBe(scoreBefore);
+  });
+
+  it('opening and closing the ref thumbnail overlay does not affect the timer', () => {
+    render(<GameScreen puzzle={makeTestPuzzle()} mode="practice" onPickDifficulty={vi.fn()} />);
+
+    act(() => {}); // flush RESUME_TIMER
+    act(() => vi.advanceTimersByTime(1000));
+
+    const timerBefore = screen.getByTestId('timer-value').textContent;
+    expect(timerBefore).not.toBe('00:00');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge target pattern' }));
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+  });
 });

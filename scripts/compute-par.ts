@@ -16,7 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { generatePuzzle } from '../src/engine/generator.ts';
+import { generatePuzzle, type GeneratedPuzzle } from '../src/engine/generator.ts';
 import { solveOptimalPar, type SolverResult } from '../src/engine/parSolver.ts';
 import { boardHash } from '../src/engine/boardHash.ts';
 
@@ -70,6 +70,36 @@ export function shouldSkipRow(existingHash: string | null | undefined, newHash: 
   return existingHash != null && existingHash === newHash;
 }
 
+/**
+ * Runs the solver for sizes 4/5/6 and returns a soft-par fallback for size 8.
+ *
+ * Two safety layers:
+ * - 8×8: always returns { proven: false } without calling the solver. The
+ *   solver OOMs on 8×8 before the time budget fires (heap exhaustion is
+ *   uncatchable), which would crash the whole run. 8×8 is soft-par by design
+ *   and attempting a solve buys nothing.
+ * - 4/5/6: wraps the solver call in try/catch so any thrown error (unexpected
+ *   solver bug, etc.) degrades to soft par for that puzzle rather than
+ *   aborting the run.
+ *
+ * The optional `solver` parameter exists for testing — pass a stub to verify
+ * the error-fallback path without needing module-level mocks.
+ */
+export function solveWithFallback(
+  puzzle: GeneratedPuzzle,
+  budgetMs: number,
+  solver: (target: GeneratedPuzzle['target'], size: GeneratedPuzzle['gridSize'], opts: { budgetMs: number }) => SolverResult = solveOptimalPar,
+): SolverResult {
+  if (puzzle.gridSize === 8) {
+    return { proven: false };
+  }
+  try {
+    return solver(puzzle.target, puzzle.gridSize, { budgetMs });
+  } catch {
+    return { proven: false };
+  }
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -110,7 +140,7 @@ async function main(): Promise<void> {
       }
 
       const start = Date.now();
-      const result = solveOptimalPar(puzzle.target, size, { budgetMs: BUDGET_MS });
+      const result = solveWithFallback(puzzle, BUDGET_MS);
       const elapsed = Date.now() - start;
 
       const row = buildParRow(dateStr, size, result, puzzle.solution.length, hash);

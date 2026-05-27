@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { buildParRow, shouldSkipRow, utcDateStr } from './compute-par.ts';
+import { describe, it, expect, vi } from 'vitest';
+import { buildParRow, shouldSkipRow, utcDateStr, solveWithFallback } from './compute-par.ts';
+import { generatePuzzle, type GeneratedPuzzle } from '../src/engine/generator.ts';
+import type { SolverResult } from '../src/engine/parSolver.ts';
 
 // ── buildParRow ────────────────────────────────────────────────────────────
 
@@ -66,6 +68,48 @@ describe('shouldSkipRow', () => {
 
   it('returns false on empty string existing hash (not a valid hash)', () => {
     expect(shouldSkipRow('', 'any_hash')).toBe(false);
+  });
+});
+
+// ── solveWithFallback ─────────────────────────────────────────────────────
+
+describe('solveWithFallback', () => {
+  it('returns { proven: false } for 8×8 without calling the solver', () => {
+    const puzzle = generatePuzzle('RYGO-2026-01-01', 8);
+    const spy = vi.fn<[GeneratedPuzzle['target'], 4 | 5 | 6 | 8, { budgetMs: number }], SolverResult>(
+      () => ({ proven: true, par: 1 }),
+    );
+    const result = solveWithFallback(puzzle, 30_000, spy);
+    expect(result).toEqual({ proven: false });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('returns the solver result for sizes 4/5/6 when no error is thrown', () => {
+    const puzzle = generatePuzzle('RYGO-2026-01-01', 4);
+    const stub = vi.fn<[GeneratedPuzzle['target'], 4 | 5 | 6 | 8, { budgetMs: number }], SolverResult>(
+      () => ({ proven: true, par: 7 }),
+    );
+    const result = solveWithFallback(puzzle, 30_000, stub);
+    expect(result).toEqual({ proven: true, par: 7 });
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it('returns { proven: false } when the solver throws — never propagates the error', () => {
+    const puzzle = generatePuzzle('RYGO-2026-01-01', 5);
+    const throwingSolver = vi.fn<[GeneratedPuzzle['target'], 4 | 5 | 6 | 8, { budgetMs: number }], SolverResult>(
+      () => { throw new Error('simulated OOM'); },
+    );
+    expect(() => solveWithFallback(puzzle, 30_000, throwingSolver)).not.toThrow();
+    expect(solveWithFallback(puzzle, 30_000, throwingSolver)).toEqual({ proven: false });
+  });
+
+  it('passes the puzzle target, gridSize, and budgetMs to the solver', () => {
+    const puzzle = generatePuzzle('RYGO-2026-01-01', 6);
+    const spy = vi.fn<[GeneratedPuzzle['target'], 4 | 5 | 6 | 8, { budgetMs: number }], SolverResult>(
+      () => ({ proven: false }),
+    );
+    solveWithFallback(puzzle, 12_345, spy);
+    expect(spy).toHaveBeenCalledWith(puzzle.target, 6, { budgetMs: 12_345 });
   });
 });
 

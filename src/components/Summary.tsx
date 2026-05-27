@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { buildShareString } from '../share/shareString';
+import { displayedPar } from '../display/parDisplay';
 
 interface SummaryProps {
   gridSize: 4 | 5 | 6 | 8;
@@ -45,12 +46,22 @@ export function Summary({
   mode,
   streak,
   standing,
-  dailyPar: _dailyPar,
+  dailyPar,
   onPlayAgain,
   onPickDifficulty,
 }: SummaryProps): JSX.Element {
   const [copied, setCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+
+  const dp = displayedPar(dailyPar?.par ?? null);
+  const parOutcome = dp !== null
+    ? (() => {
+        const delta = moveCount - dp;
+        if (delta < 0) return { text: `−${Math.abs(delta)} Under par`, under: true };
+        if (delta === 0) return { text: 'Even par', under: false };
+        return { text: `+${delta} Over par`, under: false };
+      })()
+    : null;
 
   const shareText = buildShareString({
     date,
@@ -98,8 +109,17 @@ export function Summary({
           </div>
         </div>
       </div>
-      {/* Par display slot — wired up in TER-223 */}
-      <div data-testid="par-slot" />
+      {/* Par outcome row — reserves height so layout is stable while par resolves */}
+      <div className="min-h-[1.5rem] flex items-center justify-center" data-testid="par-outcome-row">
+        {parOutcome !== null && (
+          <p
+            className={`text-sm font-medium ${parOutcome.under ? 'text-rygo-green' : 'text-ink dark:text-paper'}`}
+            data-testid="par-outcome-text"
+          >
+            {parOutcome.text}
+          </p>
+        )}
+      </div>
       {standing != null && (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center" data-testid="standing-line">
           #{standing.rank} of {Math.max(standing.rank, standing.total)} today

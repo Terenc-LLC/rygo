@@ -4,9 +4,10 @@ import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
-const { mockEnqueueAndSubmit, mockGetStanding } = vi.hoisted(() => ({
+const { mockEnqueueAndSubmit, mockGetStanding, mockGetDailyPar } = vi.hoisted(() => ({
   mockEnqueueAndSubmit: vi.fn().mockResolvedValue(undefined),
   mockGetStanding: vi.fn().mockResolvedValue(null),
+  mockGetDailyPar: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../persistence/submitScore', () => ({
@@ -16,6 +17,10 @@ vi.mock('../persistence/submitScore', () => ({
 
 vi.mock('../backend/getStanding', () => ({
   getStanding: mockGetStanding,
+}));
+
+vi.mock('../backend/getDailyPar', () => ({
+  getDailyPar: mockGetDailyPar,
 }));
 
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target in one move.
@@ -51,6 +56,8 @@ describe('GameScreen', () => {
     mockEnqueueAndSubmit.mockClear();
     mockGetStanding.mockClear();
     mockGetStanding.mockResolvedValue(null);
+    mockGetDailyPar.mockClear();
+    mockGetDailyPar.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -462,5 +469,44 @@ describe('GameScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+  });
+
+  describe('par-slot (status bar)', () => {
+    it('par-slot is empty when getDailyPar resolves null', async () => {
+      mockGetDailyPar.mockResolvedValue(null);
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      const slot = screen.getByTestId('par-slot');
+      expect(slot).toBeInTheDocument();
+      expect(slot).toBeEmptyDOMElement();
+    });
+
+    it('par-slot renders "Par {displayedPar}" when getDailyPar resolves with a value', async () => {
+      mockGetDailyPar.mockResolvedValue({ par: 9, proven: true });
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      const slot = screen.getByTestId('par-slot');
+      // displayedPar(9) = 10 (raw + PAR_SLACK=1)
+      expect(slot).toHaveTextContent('Par');
+      expect(slot).toHaveTextContent('10');
+    });
+
+    it('par-slot layout stays stable (min-w class present) regardless of par state', async () => {
+      mockGetDailyPar.mockResolvedValue(null);
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      expect(screen.getByTestId('par-slot').className).toContain('min-w-[4rem]');
+    });
+
+    it('getDailyPar is called at mount (not only on completion)', async () => {
+      mockGetDailyPar.mockResolvedValue(null);
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      expect(mockGetDailyPar).toHaveBeenCalledOnce();
+    });
   });
 });

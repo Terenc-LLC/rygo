@@ -310,14 +310,14 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 **Screens:**
 
 * **DifficultyPicker** (`src/components/DifficultyPicker.tsx`) — RYGO lockup at top ([TER-151](https://linear.app/terenc/issue/TER-151)), tagline, four `LevelButton`s: Easy 4×4, Normal 5×5, Hard 6×6, Extreme 8×8 ([TER-145](https://linear.app/terenc/issue/TER-145)). `onShowStats?` no-op stub in top-right header (slot for [TER-143](https://linear.app/terenc/issue/TER-143)). Now also accepts a `completedToday` map and passes each level's recorded result through to its `LevelButton` ([TER-142](https://linear.app/terenc/issue/TER-142)).
-* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. **Header cluster** (shipped in [TER-235](https://linear.app/terenc/issue/TER-235)): RefThumbnail (`w-28`) on the left, flex column of Score / Par slot (`data-testid="par-slot"`, reserved for TER-223, `min-w-[4rem]` prevents reflow) / Time on the right — both always visible, no reflow between sizes or phases. `ColorPicker` (always shown during play), Restart button (calls `reset()` then `resumeTimer()`), Quit button (calls `onPickDifficulty` directly). `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. App's global ThemeToggle overlay renders on every screen including the game screen. (Layout rework shipped in [TER-221](https://linear.app/terenc/issue/TER-221); header cluster shipped in [TER-235](https://linear.app/terenc/issue/TER-235); validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169).)
+* **GameScreen** (`src/components/GameScreen.tsx`) — consumes `useGame(puzzle)`. **Header cluster** (shipped in [TER-235](https://linear.app/terenc/issue/TER-235)): RefThumbnail (`w-28`) on the left, flex column of Score / Par slot (`data-testid="par-slot"`, `min-w-[4rem]` prevents reflow, renders `Par {displayedPar}` when available — wired in [TER-223](https://linear.app/terenc/issue/TER-223)) / Time on the right — both always visible, no reflow between sizes or phases. `ColorPicker` (always shown during play), Restart button (calls `reset()` then `resumeTimer()`), Quit button (calls `onPickDifficulty` directly). `mode?: 'daily' | 'practice'` prop plumbed for [TER-142](https://linear.app/terenc/issue/TER-142); in daily mode fires `onDailyComplete({moves, elapsedMs})` once when `phase === 'complete'`. On `phase === 'validating'`, renders the frozen board with the 850ms row-glow sweep + "Solved!" label + aria-live announcement, all gameplay controls suppressed, and a "Tap to continue" button (`aria-label="Continue to summary"`) that dispatches `completeValidation()` on tap — no auto-advance ([TER-169](https://linear.app/terenc/issue/TER-169)); under `prefers-reduced-motion` the sweep overlay is skipped but the tap is still required. On `phase === 'complete'`, renders `Summary` in place of the game UI. App's global ThemeToggle overlay renders on every screen including the game screen. (Layout rework shipped in [TER-221](https://linear.app/terenc/issue/TER-221); header cluster shipped in [TER-235](https://linear.app/terenc/issue/TER-235); validating branch + sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169).)
 
 **Sub-components:**
 
 * **LevelButton** (`src/components/LevelButton.tsx`) — large button with `size: 4 | 5 | 6 | 8`, `label`, `onSelect`, `completedToday?: { moves, elapsedMs }`. In completed state ([TER-142](https://linear.app/terenc/issue/TER-142)) shows the recorded result (`{moves} moves · {M:SS}`) plus a live H:MM:SS countdown to the next UTC day and a "Practice" affordance; tapping still calls `onSelect` (which starts practice mode).
 * **RefThumbnail** (`src/components/RefThumbnail.tsx`) — read-only minimap of the target board. `w-28` (112px), same color tokens as Grid, non-interactive divs. Always visible alongside the play Grid. Shipped in [TER-221](https://linear.app/terenc/issue/TER-221). Note: 8×8 at 112px → cells ≈12px — below the 15px shape-legibility threshold from design doc §8; flagged in TER-221 Linear comment for design decision.
 * **ColorPicker** (`src/components/ColorPicker.tsx`) — red/yellow/green buttons showing color bg + shape icon. Active state: `ring-4 ring-blue-500 ring-offset-2 ring-offset-paper dark:ring-offset-ink` (non-color cue; blue-500 contrasts all three game colors in both themes; shipped in [TER-148](https://linear.app/terenc/issue/TER-148)).
-* **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), Share button (full-width, above the "Play again" + "Change difficulty" row — shipped in [TER-144](https://linear.app/terenc/issue/TER-144)), `flex gap-3` button row with "Play again" + "Change difficulty". Props: `gridSize`, `moveCount`, `elapsedMs`, `date`, `mode`, `streak`. Calls `buildShareString` from `src/share/shareString.ts`; invokes Web Share API (mobile native sheet), else clipboard (`Copied!` label for 2s), else textarea fallback.
+* **Summary** (`src/components/Summary.tsx`) — score (moves), time, grid size (labels: Easy/Normal/Hard/Extreme — updated [TER-145](https://linear.app/terenc/issue/TER-145)), par outcome row (`data-testid="par-outcome-row"`, always rendered for layout stability; shows `−N Under par` / `Even par` / `+N Over par` when `dailyPar` is non-null, empty placeholder when null — shipped in [TER-223](https://linear.app/terenc/issue/TER-223)), Share button (full-width, above the "Play again" + "Change difficulty" row — shipped in [TER-144](https://linear.app/terenc/issue/TER-144)), `flex gap-3` button row with "Play again" + "Change difficulty". Props: `gridSize`, `moveCount`, `elapsedMs`, `date`, `mode`, `streak`, `standing?`, `dailyPar?`. Calls `buildShareString` from `src/share/shareString.ts`; invokes Web Share API (mobile native sheet), else clipboard (`Copied!` label for 2s), else textarea fallback.
 * **ThemeToggle** (`src/components/ThemeToggle.tsx`) — receives `theme` and `toggleTheme` as props from App. Shows `Sun` when dark, `Moon` when light. `aria-label` reflects the action.
 
 **Board interactivity:** Grid cells are disabled (`onCellTap` = undefined) in `idle`, `pattern-revealed`, and `validating` phases; enabled only in `playing`.
@@ -585,13 +585,28 @@ Offline par computation job + client read path. Clients never run the solver; pa
 export interface DailyPar { par: number; proven: boolean; }
 export async function getDailyPar(dateStr: string, gridSize: 4 | 5 | 6 | 8): Promise<DailyPar | null>
 ```
-Queries `daily_par` by `(date, grid_size)`, verifies the `generation_hash` against the client's own puzzle, and returns `{par, proven}` or `null`. Never throws. Called in `GameScreen`'s daily-completion `useEffect` alongside `getStanding`; result stored in `dailyPar` state and passed to `Summary` as an optional `dailyPar` prop (accepted, not yet displayed — display is TER-223).
+Queries `daily_par` by `(date, grid_size)`, verifies the `generation_hash` against the client's own puzzle, and returns `{par, proven}` or `null`. Never throws. Called in `GameScreen`'s mount `useEffect` (deps `[effectiveDayKey, puzzle.gridSize]`) so par is available from move one in both daily and practice modes; result stored in `dailyPar` state and passed to `Summary` as `dailyPar` prop. ([TER-222](https://linear.app/terenc/issue/TER-222) wired it in the completion effect; [TER-223](https://linear.app/terenc/issue/TER-223) moved it to mount.)
 
 **Graceful degradation**: any failure path (supabase null, DB error, missing row, hash mismatch, type error, network throw) returns null. `Summary` receives `null` and silently omits par — play is never blocked.
 
 **Runner rationale**: GitHub Actions chosen over Supabase scheduled function (design doc §8 open question, resolved in TER-222 Linear comment). 8×8 burns the full 30s budget, which is wrong for a CPU-capped Supabase edge function; a GH Actions runner has no CPU cap and keeps both schedule and job code in version control. Only the `daily_par` table and client read stay in Supabase.
 
 Shipped in [TER-222](https://linear.app/terenc/issue/TER-222), May 27, 2026.
+
+### Par display module — READY (`src/display/parDisplay.ts`) [TER-223]
+
+```ts
+export const PAR_SLACK = 1;
+export function displayedPar(raw: number | null): number | null;
+```
+
+Thin display module: `PAR_SLACK = 1` applies one slack move so every par is beatable. `displayedPar(raw)` returns `raw + PAR_SLACK` or `null`. Offset lives in display, not the DB — `daily_par.par` stays "raw par"; tuning slack is a one-constant change. GameScreen and Summary both import from here.
+
+**Status bar (during play):** `GameScreen` renders `Par {displayedPar}` inside the `data-testid="par-slot"` div when par resolves; empty when null. The `min-w-[4rem]` class on the slot prevents reflow.
+
+**Summary outcome row:** always rendered (empty placeholder when null, for layout stability). When `dailyPar` is non-null: delta = `moveCount − displayedPar`; renders `−N Under par` (`text-rygo-green`), `Even par` (neutral), or `+N Over par` (neutral). Over-par is never styled negatively. No "optimal" language, no badge.
+
+Shipped in [TER-223](https://linear.app/terenc/issue/TER-223), May 27, 2026.
 
 ### Client rank read — READY (`src/backend/getStanding.ts`) [TER-215]
 
@@ -683,7 +698,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ In Review. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
 3. [TER-235](https://linear.app/terenc/issue/TER-235) — ✅ In Review. Game-screen header cluster (RefThumbnail + Score/Time/Par-slot side by side; global ThemeToggle overlay unchanged).
 4. TER-222 — ✅ In Review. Offline daily-par pipeline.
-5. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222 + TER-235.
+5. TER-223 — ✅ In Review. Par display (Score vs Par).
 6. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
 7. TER-226 — Backlog (Low). Solver/engine parity test.
 

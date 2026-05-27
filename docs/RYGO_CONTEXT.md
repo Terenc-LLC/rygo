@@ -97,10 +97,10 @@ These are settled. Don't re-litigate without raising it explicitly with Opus.
 * **Pattern requirements (May 2, 2026):**
   * **Full coverage** — every cell in the target is colored. No empty cells in any generated target.
   * **All three colors required** — every generated target uses red, yellow, AND green. Two-color targets are rejected and regenerated.
-* **First reveal is free.** Timer starts on first reveal but move counter does not increment.
+* **Timer starts on game-screen mount** (M6 logic pivot, locked May 27, 2026 in [TER-221](https://linear.app/terenc/issue/TER-221)). The move counter starts at 0. There is no separate "first reveal" — the loop is purely placement and clearing.
 * **Timer is an active-play accumulator (locked; lands in [TER-167](https://linear.app/terenc/issue/TER-167)).** Measures active play time: runs while the puzzle is open (including through the transition blanks), banks and pauses when the attempt is set aside (backgrounding, refresh, quit-to-picker) and resumes on return, never resets on Restart, and discards a stale attempt at UTC rollover; the in-progress board is restored on return. (GDD v1.7.)
 * **Auto-detection of completion → validation sequence.** When the playable board matches the target exactly, the timer freezes immediately and a ~750–1000ms validation sweep plays; the solved board then holds and the player taps to advance to the Summary (no timed auto-advance; reduced-motion shows the solved board immediately and still requires the tap). (Locked design doc v1.5/v1.6; sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153); tap-to-advance shipped in [TER-169](https://linear.app/terenc/issue/TER-169), GDD v1.6.)
-* **Pattern and playable board are never visible at the same time.** Transitioning between them shows a 1-second blank "Get ready..." screen in either direction; the timer keeps running through the blank.
+* **Pattern and playable board are visible side by side at all times** (M6 logic pivot, locked May 27, 2026 in [TER-221](https://linear.app/terenc/issue/TER-221)). The target pattern renders as a small reference thumbnail (`w-28`) next to the play grid in the game-screen header cluster; tapping it opens an accessible `role="dialog"` overlay with shape-legible cells (free look — no move cost, no timer impact). There is no reveal/hide loop and no "Get ready..." blank.
 
 ### Difficulty ladder
 
@@ -116,15 +116,18 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * **Moves are the score.** Time is shown during play (light tension cue) and as the tiebreaker for any leaderboard or aggregate, but does not enter the score formula itself.
 * **Display format:** `{moves} moves · {M:SS}` (e.g., `8 moves · 2:14`). The "moves" line is the headline; time is supporting context.
 * **Hook surface:** `useGame` exposes `moveCount` and `elapsedMs` separately; the UI labels `moveCount` as "Score." No separate `score` field on the hook — would just be a passthrough rename. If scoring ever evolves to a formula, add the field then.
-* **Every meaningful click counts as a move (May 2, 2026):**
+* **Placements-only scoring (M6 logic pivot, locked May 27, 2026 in [TER-221](https://linear.app/terenc/issue/TER-221); reverses the earlier "every meaningful click counts" rule):**
   * **Placement** (tapping an empty/non-matching cell with a color active) → **+1 move**
   * **Clearing** (tapping a matching-color cell with that color active) → **+1 move**
-  * **Color switch to a *different* color** in the picker → **+1 move**
-  * **Color tap that does not change state** (tapping the already-active color) → **0 moves** (no-op)
-  * **Re-reveal of pattern** (after the first) → **+1 move**
-  * **Hide pattern** (returning to the playable board) → **+1 move**
-  * **First reveal** → **0 moves** (free)
-* This rule turns optimal play into a routing problem: minimize switches and re-reveals as well as placements. A 12-placement solution with 2 switches scores 14; with 5 switches it scores 17.
+  * **Color switch** in the picker → **0 moves** (free)
+  * **No-op tap** (already-active color, or a tap the overwrite hierarchy rejects) → **0 moves**
+  * The pattern is always visible, so there is no reveal/hide cost.
+* **Par framing (M6 logic pivot, locked May 27, 2026):**
+  * Each daily puzzle has a precomputed `raw par` stored in the Supabase `daily_par` table — proven optimum where the [TER-220](https://linear.app/terenc/issue/TER-220) solver completes within budget, generator solution length as a soft fallback otherwise. Pipeline lives in [TER-222](https://linear.app/terenc/issue/TER-222).
+  * The display layer applies a +1 slack: `displayedPar = rawPar + PAR_SLACK` (`PAR_SLACK = 1` in `src/display/parDisplay.ts`). Every par is therefore beatable — the asymmetry between proven and soft pars is invisible to the player.
+  * **During play:** the status bar shows `Par {displayedPar}` next to `Score {moveCount}` — no live delta indicator.
+  * **Summary:** the result is shown relative to par in golf framing: `−N Under par` (positive accent, brand `rygo-green`), `Even par` (neutral), `+N Over par` (neutral, never styled negatively).
+  * The word "optimal" is never used in the par UI. No perfect/optimal badge. The `proven` flag is internal-only and is never surfaced to the player. Shipped in [TER-223](https://linear.app/terenc/issue/TER-223).
 
 ### Visual / accessibility (MVP requirement, not polish)
 
@@ -137,6 +140,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * **Color picker buttons** also display the shape, with active color indicated by a non-color cue (border / ring) so the active state is meaningful for color-blind users. **The active-color cue must be visible in both light and dark themes** — not a white/light ring that disappears against a light background.
 * **All cells are** `<button>` elements with `aria-label`s describing state and position (e.g., "Red cell at row 2, column 3").
 * **Shapes are inline SVGs**, defined in `src/components/Shapes.tsx`.
+* **Reference thumbnail tap-to-zoom** (locked May 27, 2026 in the M6 logic pivot). The always-visible `RefThumbnail` stays `w-28` for all grid sizes (no vertical-budget cost). It is a real button (`aria-label="Enlarge target pattern"`, `aria-haspopup="dialog"`) that opens a `role="dialog"` `aria-modal="true"` overlay with cells well above the ~15px shape-legibility threshold for every size. Three dismiss paths (close button, tap-outside, Esc); focus lands on the close button on open and returns to the trigger on close. The enlarge is a free look — no move cost, no event appended, no timer interaction; only reachable during the `playing` phase.
 * **No reliance on color alone for any state indicator** anywhere in the UI. (The win-state success cue in [TER-153](https://linear.app/terenc/issue/TER-153) pairs the green glow with a "Solved!" label and an `aria-live` announcement.)
 * **Cell size at 8×8 on iPhone SE viewport is ~43px**, marginally below the 44px Apple HIG target. Accepted tradeoff per Chris on May 1, 2026 (the entire cell is the hit target; revisit if real users miss taps).
 
@@ -663,7 +667,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * [TER-147](https://linear.app/terenc/issue/TER-147) — ✅ Done. Same-color clearing mechanic (engine + hook).
 * [TER-152](https://linear.app/terenc/issue/TER-152) — ✅ Done. RYGO brand palette tokens (Tailwind v4 `@theme` block, swap utilities to brand tokens, contrast verification).
 * [TER-148](https://linear.app/terenc/issue/TER-148) — ✅ Done. Game-screen UX cleanup (quit dialog removed, Restart button, light-mode active-ring fix, transition blank, click-feedback).
-* [TER-150](https://linear.app/terenc/issue/TER-150) — ✅ Done. Every-click-counts scoring (color switch, hide pattern).
+* [TER-150](https://linear.app/terenc/issue/TER-150) — ✅ Done. Every-click-counts scoring (color switch, hide pattern); subsequently **reversed in [TER-221](https://linear.app/terenc/issue/TER-221)** (M6 logic pivot, May 26, 2026) — scoring is now placements-only.
 * [TER-146](https://linear.app/terenc/issue/TER-146) — ✅ Done. Generator v1.4: full coverage + all 3 colors + retune (Phase A green guarantee, 100-attempt cap).
 * [TER-153](https://linear.app/terenc/issue/TER-153) — ✅ Done. Win-state validation sequence (`'validating'` GamePhase + green row-glow sweep + Solved! label before Summary).
 
@@ -695,10 +699,10 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 ### M6 — Logic pivot (in progress)
 
 1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ Done. Production par solver (A* + memoization, placements-only, proven flag, yellow min-cover DP).
-2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ In Review. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
-3. [TER-235](https://linear.app/terenc/issue/TER-235) — ✅ In Review. Game-screen header cluster (RefThumbnail + Score/Time/Par-slot side by side; global ThemeToggle overlay unchanged).
-4. TER-222 — ✅ In Review. Offline daily-par pipeline.
-5. TER-223 — ✅ In Review. Par display (Score vs Par).
+2. [TER-221](https://linear.app/terenc/issue/TER-221) — ✅ Done. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
+3. [TER-235](https://linear.app/terenc/issue/TER-235) — ✅ Done. Game-screen header cluster (RefThumbnail + Score/Time/Par-slot side by side; global ThemeToggle overlay unchanged).
+4. [TER-222](https://linear.app/terenc/issue/TER-222) — ✅ Done. Offline daily-par pipeline.
+5. [TER-223](https://linear.app/terenc/issue/TER-223) — ✅ Done. Par display (Score vs Par, +1 slack, relative-to-par framing).
 6. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
 7. TER-226 — Backlog (Low). Solver/engine parity test.
 

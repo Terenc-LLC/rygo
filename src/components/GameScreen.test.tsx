@@ -427,9 +427,50 @@ describe('GameScreen', () => {
     expect(screen.getByTestId('standing-line')).toHaveTextContent('#5 of 5 today');
   });
 
-  it('par slot is present in the status bar', () => {
+  it('par slot is present in the header cluster', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
     expect(screen.getByTestId('par-slot')).toBeInTheDocument();
+  });
+
+  it('theme toggle is rendered in the playing phase header cluster', () => {
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        onPickDifficulty={vi.fn()}
+        theme="dark"
+        toggleTheme={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText('Switch to light theme')).toBeInTheDocument();
+  });
+
+  it('clicking the theme toggle in the header calls toggleTheme', () => {
+    const toggleTheme = vi.fn();
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        onPickDifficulty={vi.fn()}
+        theme="dark"
+        toggleTheme={toggleTheme}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Switch to light theme'));
+    expect(toggleTheme).toHaveBeenCalledOnce();
+  });
+
+  it('theme toggle is accessible during the validating phase', () => {
+    render(
+      <GameScreen
+        puzzle={makeTestPuzzle()}
+        onPickDifficulty={vi.fn()}
+        theme="dark"
+        toggleTheme={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    expect(screen.getByText('Solved!')).toBeInTheDocument(); // validating
+    expect(screen.getByLabelText('Switch to light theme')).toBeInTheDocument();
   });
 
   it('opening and closing the ref thumbnail overlay does not change moveCount', () => {

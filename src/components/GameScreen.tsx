@@ -6,6 +6,8 @@ import { Grid } from './Grid';
 import { ColorPicker } from './ColorPicker';
 import { Summary } from './Summary';
 import { RefThumbnail } from './RefThumbnail';
+import { ThemeToggle } from './ThemeToggle';
+import type { Theme } from '../hooks/useTheme';
 import type { InProgressBlob } from '../persistence/inProgress';
 import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistence/inProgress';
 import { loadState, todayKey } from '../persistence/dailyState';
@@ -21,6 +23,8 @@ interface GameScreenProps {
   resume?: InProgressBlob;
   onPickDifficulty: () => void;
   onDailyComplete?: (result: { moves: number; elapsedMs: number }) => void;
+  theme?: Theme;
+  toggleTheme?: () => void;
 }
 
 // Total sweep budget in ms; per-row delay = SWEEP_MS / rowCount.
@@ -52,6 +56,8 @@ export function GameScreen({
   resume,
   onPickDifficulty,
   onDailyComplete,
+  theme = 'dark',
+  toggleTheme = () => {},
 }: GameScreenProps): JSX.Element {
   const game = useGame(puzzle, {
     resume: mode === 'daily' ? resume : undefined,
@@ -148,26 +154,35 @@ export function GameScreen({
     const streak =
       mode === 'daily' ? computeGlobalStreak(loadState(), todayKey()).current : null;
     return (
-      <Summary
-        gridSize={game.gridSize}
-        moveCount={game.moveCount}
-        elapsedMs={game.elapsedMs}
-        date={effectiveDayKey}
-        mode={mode}
-        streak={streak}
-        standing={standing}
-        onPlayAgain={() => {
-          game.reset();
-          game.resumeTimer();
-        }}
-        onPickDifficulty={onPickDifficulty}
-      />
+      <>
+        <div className="fixed top-0 right-0 z-50 p-3 pt-[env(safe-area-inset-top,12px)] pr-[env(safe-area-inset-right,12px)]">
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+        </div>
+        <Summary
+          gridSize={game.gridSize}
+          moveCount={game.moveCount}
+          elapsedMs={game.elapsedMs}
+          date={effectiveDayKey}
+          mode={mode}
+          streak={streak}
+          standing={standing}
+          onPlayAgain={() => {
+            game.reset();
+            game.resumeTimer();
+          }}
+          onPickDifficulty={onPickDifficulty}
+        />
+      </>
     );
   }
 
   if (game.phase === 'validating') {
     const perRowDelay = SWEEP_MS / game.gridSize;
     return (
+      <>
+      <div className="fixed top-0 right-0 z-50 p-3 pt-[env(safe-area-inset-top,12px)] pr-[env(safe-area-inset-right,12px)]">
+        <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+      </div>
       <div className="flex flex-col items-center gap-4 px-4 py-4 w-full max-w-sm mx-auto">
         <div className="flex items-center justify-between w-full px-1 py-2">
           <div className="text-center min-w-16">
@@ -225,6 +240,7 @@ export function GameScreen({
           Tap to continue
         </button>
       </div>
+      </>
     );
   }
 
@@ -262,33 +278,36 @@ export function GameScreen({
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-4 w-full max-w-sm mx-auto">
-      {/* Status bar */}
-      <div className="flex items-center justify-between w-full px-1 py-2">
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
-            {game.moveCount}
-          </p>
-        </div>
-        {/* Par display slot — wired up in TER-223 */}
-        <div className="text-center flex-1 px-2" data-testid="par-slot" />
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="timer-value">
-            {formatTime(game.elapsedMs)}
-          </p>
+      {/* Header cluster: reference thumbnail + score/par/time/toggle side by side */}
+      <div className="flex items-start gap-3 w-full">
+        <RefThumbnail board={game.target} size={game.gridSize} />
+        <div className="flex flex-col flex-1 gap-2 pt-1">
+          <div className="flex items-start gap-3">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
+              <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
+                {game.moveCount}
+              </p>
+            </div>
+            {/* Par display slot — wired up in TER-223; min-w reserves space to prevent reflow */}
+            <div className="min-w-[4rem]" data-testid="par-slot" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
+            <p className="text-xl font-bold text-ink dark:text-paper" data-testid="timer-value">
+              {formatTime(game.elapsedMs)}
+            </p>
+          </div>
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
         </div>
       </div>
 
-      {/* Fixed game area: reference thumbnail always visible above play grid */}
-      <div className="flex flex-col items-center gap-2 w-full">
-        <RefThumbnail board={game.target} size={game.gridSize} />
-        <Grid
-          board={game.current}
-          size={game.gridSize}
-          onCellTap={(r, c) => game.placeAt(r, c)}
-        />
-      </div>
+      {/* Play grid */}
+      <Grid
+        board={game.current}
+        size={game.gridSize}
+        onCellTap={(r, c) => game.placeAt(r, c)}
+      />
 
       <ColorPicker activeColor={game.activeColor} onSelectColor={game.selectColor} />
 

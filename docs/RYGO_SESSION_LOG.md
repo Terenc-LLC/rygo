@@ -673,3 +673,30 @@ Promoted the TER-217 spike prototype to a production A* par solver module.
 ### 2026-05-26 — TER-220 Opus close-out (docs only)
 
 Issue map M6 section updated to full backlog (TER-220 ✅ Done, TER-221–226 filed); parSolver architecture note wording corrected: `proven` flag now documented as "optimal among placements" not "provably global optimal," with TER-225 tracking the formal close.
+
+### 2026-05-26 — [TER-221](https://linear.app/terenc/issue/TER-221) M6-2: Logic-loop rework (Claude Code / Sonnet 4.6)
+
+Removed the reveal/hide toggle and 1-second transition blank. Target pattern is now a persistent read-only reference thumbnail (`RefThumbnail`) shown alongside the play grid — both always visible. Timer starts on game-screen entry (no gate). Fixed-layout game area (no reflow between phases).
+
+**Files changed:**
+* `src/engine/replay.ts` — Placements-only scoring: `select` → +0 (reverses TER-150 rule, authorized by design doc §4); `reveal`/`hide` → +0 (backward-compat with old event logs); placement/clear taps remain +1.
+* `supabase/functions/_shared/engine/replay.ts` — Auto-synced via `npm run sync-engine`.
+* `src/hooks/useGame.ts` — `GamePhase` narrowed to `'playing' | 'validating' | 'complete'`; `patternVisible` removed from `GameView`; `revealPattern`/`hidePattern` removed from `GameActions`; `RESUME_TIMER` dispatched unconditionally on mount (was conditional on `hasResume`). Old `InProgressBlob` phases (`'idle'`, `'pattern-revealed'`) silently remapped to `'playing'` on resume.
+* `src/components/RefThumbnail.tsx` — New. Read-only minimap of target board. `w-28` (112px), same color tokens as Grid, non-interactive divs.
+* `src/components/GameScreen.tsx` — Removed `transitioning` state, `timerRef`, reveal/hide button, "Get ready..." blank, conditional ColorPicker. Added `RefThumbnail` always-visible above play grid. `buildBlob` always writes `phase: 'playing'`. `handleRestart`/`onPlayAgain` call `game.reset()` then `game.resumeTimer()`. Par slot reserved (`data-testid="par-slot"`) for TER-223.
+* `src/components/Summary.tsx` — Par slot reserved (`data-testid="par-slot"`) for TER-223.
+* `src/hooks/useGame.test.ts` — Rewritten: game starts in `'playing'`, timer starts on mount, `selectColor` is +0, no reveal/hide actions tested.
+* `src/components/GameScreen.test.tsx` — Rewritten: no reveal flow, `ref-thumbnail` present on initial render, par slot test added.
+* `src/engine/replay.test.ts` — Updated: all scoring expectations match placements-only rules; backward-compat test for old reveal/hide events.
+* `src/App.test.tsx` — `ref-thumbnail` check replaces "Reveal Pattern" check; no reveal step needed for grid cell count test.
+* `src/persistence/submitScore.test.ts` — Removed `revealPattern()`/`hidePattern()` calls; added `act(() => {})` to flush RESUME_TIMER.
+* `docs/RYGO_CONTEXT.md` — `GamePhase` type updated; useGame interface updated; GameScreen description updated; RefThumbnail sub-component added; inProgress phase guard updated; event-log capture note updated; replay scoring rules updated; M6 issue map: TER-221 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 339 passing (was 346; 7 reveal/hide action tests removed); build clean; drift guard clean.
+
+**Non-obvious decisions:**
+* TER-150 GDD reversal: the TER-150 rule (every color switch costs +1) is **reversed here** (color switches now +0, placements-only). Authorized by the RYGO Logic Pivot Design Doc §4. Score is now a pure placement count — a cleaner spatial-skill signal and simpler to server-validate.
+* `RESUME_TIMER` unconditional mount: previously only fired when `hasResume` was set. Removed the condition so the timer starts on every game-screen mount — fresh, resumed, or restarted. Minimal change to replace the old reveal gate.
+* Old blob phases remapped silently: `InProgressBlob` v2 may have `phase: 'idle'` or `phase: 'pattern-revealed'` from pre-TER-221 sessions. `makeInitialState` always returns `phase: 'playing'`, absorbing old blobs without a schema migration.
+* 8×8 legibility: `RefThumbnail` at `w-28` (112px) renders 8×8 cells at ≈12px — below the 15px shape-legibility threshold stated in design doc §8. Implemented as-is and flagged in a TER-221 Linear comment with four options (larger thumbnail, side-by-side layout, tuck into status row, accept 12px). Decision deferred to Chris per design doc open question §8.

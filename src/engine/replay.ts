@@ -20,18 +20,21 @@ export interface EventReplayState {
 
 // Pure single-event rule set. Called by replayEventLog and the useGame reducer.
 // Does NOT detect completion — the caller is responsible for comparing board to target.
+//
+// TER-221 scoring change (reverses TER-150): color switches are now +0.
+// reveal/hide events still exist in old blobs — they are +0 for backward compat.
 export function applyEvent(state: EventReplayState, event: GameEvent): EventReplayState {
   switch (event.type) {
     case 'select': {
       if (state.activeColor === event.color) return state; // no-op re-tap, +0
-      return { ...state, activeColor: event.color, moveCount: state.moveCount + 1 };
+      return { ...state, activeColor: event.color }; // color switch now +0
     }
     case 'reveal': {
-      if (!state.hasRevealed) return { ...state, hasRevealed: true }; // first reveal, +0
-      return { ...state, moveCount: state.moveCount + 1 };
+      // Always +0; hasRevealed tracked for backward-compat with old event logs.
+      return { ...state, hasRevealed: true };
     }
     case 'hide': {
-      return { ...state, moveCount: state.moveCount + 1 };
+      return state; // +0 (no-op — always-visible pattern; kept for old-blob compat)
     }
     case 'tap': {
       if (state.activeColor === null) return state;

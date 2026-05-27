@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import App from './App';
 
@@ -28,17 +28,16 @@ describe('App', () => {
   it('selecting a difficulty mounts the game screen', () => {
     render(<App />);
     fireEvent.click(screen.getByText('Easy'));
-    expect(screen.getByText('Reveal Pattern')).toBeInTheDocument();
+    // No reveal toggle in TER-221 logic-loop; reference thumbnail always visible
+    expect(screen.getByTestId('ref-thumbnail')).toBeInTheDocument();
     expect(screen.getByTestId('score-value')).toBeInTheDocument();
     expect(screen.getByTestId('timer-value')).toBeInTheDocument();
   });
 
-  it('selecting Normal starts a 5×5 game (25 grid cells)', () => {
+  it('selecting Normal starts a 5×5 game (25 play grid cells, always visible)', () => {
     render(<App />);
     fireEvent.click(screen.getByText('Normal'));
-    // Reveal the pattern so cells are in the DOM
-    fireEvent.click(screen.getByText('Reveal Pattern'));
-    act(() => vi.advanceTimersByTime(1000));
+    // Cells are in the play grid immediately — no reveal step needed
     const cells = screen.getAllByRole('button', { name: /cell at row/i });
     expect(cells).toHaveLength(25);
   });

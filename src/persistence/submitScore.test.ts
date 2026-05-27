@@ -248,8 +248,8 @@ describe('replayEventLog — real captured log from useGame (all grid sizes)', (
       //   - clearCells removes only yellow cells in the plus-shape (or the connected
       //     region for green/red), all of which were already that color anyway, and
       //   - the subsequent re-apply refills them (canOverwrite('empty', C) = true).
-      act(() => { result.current.revealPattern(); });
-      act(() => { result.current.hidePattern(); });
+      // TER-221: no reveal/hide step — game starts in playing phase directly.
+      act(() => {}); // flush RESUME_TIMER useEffect
 
       let lastColor: string | null = null;
       const sel = (c: typeof puzzle.solution[number]['color']) => {

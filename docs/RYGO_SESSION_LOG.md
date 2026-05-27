@@ -734,3 +734,39 @@ Scope-adjustment patch on the same branch/PR per Linear comment "Scope adjustmen
 **Kept intact:** header cluster layout, par-slot reservation, no-reflow guarantee, RefThumbnail tap-to-zoom.
 
 **Tests:** 352 passing (was 358; −6 toggle tests removed); build clean.
+
+### 2026-05-27 — [TER-222](https://linear.app/terenc/issue/TER-222) M6: Offline daily-par pipeline (Claude Code / Sonnet 4.6)
+
+Built the full par pipeline: `daily_par` Supabase table, GitHub Actions compute job, `boardHash` drift guard, and the `getDailyPar` client read path. Stopped and confirmed the runner choice (GitHub Actions) before implementing — no Supabase scheduled-function infrastructure was set up; posted a comment with options; Chris chose Option 3 (GH Actions) due to 8×8's full-CPU profile.
+
+**Files changed:**
+* `supabase/migrations/20260527000000_daily_par_schema.sql` — new. `daily_par` table keyed by `(date, grid_size)` with `par`, `proven`, `generation_hash`, timestamps. RLS: public SELECT; service-role-only writes. `set_updated_at` trigger.
+* `src/engine/boardHash.ts` — new. `boardHash(board): string` — single char per cell (`e`/`r`/`y`/`g`) in row-major order; shared fingerprint between compute job and client for drift detection. Not added to `sync-engine.mjs` (no Deno edge function uses it).
+* `scripts/compute-par.ts` — new. Node.js compute script run by the GH Actions job. Exports pure helpers (`buildParRow`, `shouldSkipRow`, `utcDateStr`) for testability. Precomputes 14 days ahead; 30s budget per puzzle; proven result → `proven=true`; timeout/OOM → `proven=false, par=generatorMoves`; skip-existing logic on hash match.
+* `.github/workflows/compute-par.yml` — new. Weekly Monday 02:00 UTC + `workflow_dispatch`. Reads `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from GH secrets.
+* `src/backend/getDailyPar.ts` — new. `getDailyPar(dateStr, gridSize)` → `{par, proven} | null`. Queries `daily_par`, verifies generation hash against client's own puzzle, returns null on any failure path.
+* `src/backend/getDailyPar.test.ts` — new. 11 tests: supabase-null, DB error, missing row, hash mismatch, invalid shape, network throw, success (proven + fallback), correct query shape.
+* `scripts/compute-par.test.ts` — new. 14 tests: `buildParRow` proven/fallback/hash storage, `shouldSkipRow` match/mismatch/null/empty, `utcDateStr` offset/boundary cases.
+* `src/components/GameScreen.tsx` — added `getDailyPar` import, `dailyPar` state, concurrent fetch in completion effect, `dailyPar` prop passed to `Summary`.
+* `src/components/Summary.tsx` — added optional `dailyPar?: {par, proven} | null` prop (accepted, not rendered — display wired in TER-223). Par-slot div untouched.
+* `docs/RYGO_CONTEXT.md` — daily par pipeline architecture note added; TER-222 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 377 passing (was 352; +17 new: 11 getDailyPar + 14 compute-par − 8 from prior base count delta); build clean; drift guard clean.
+
+**Par values for today's seed (RYGO-2026-05-27):**
+* 4×4: proven par=10, genMoves=11
+* 5×5: proven par=14, genMoves=15
+* 6×6: proven par=18, genMoves=21 (proved within 30s budget — design doc §3 says "conditional at 6×6")
+* 8×8: fallback par=34, genMoves=34 (solver OOMs on local Mac before 30s deadline; GH Actions runner has more headroom to time out cleanly; 8×8 always uses soft par by design)
+
+**Non-obvious decisions:**
+* Runner choice: GitHub Actions (GH Actions), not Supabase scheduled function. 8×8 burns the full 30s budget in a CPU-heavy A* search — wrong for a CPU-capped Supabase edge function. GH Actions gives a full runner with no cap, keeps schedule+job in version control. `daily_par` table and client read stay in Supabase. See TER-222 Linear comment for full option analysis.
+* boardHash lives in `src/engine/` but is NOT added to `sync-engine.mjs` FILES — the only consumers are the GH Actions Node.js script and the browser client; no Deno edge function needs it, so no drift-guard surface is created.
+* `getDailyPar` takes `dateStr: string` (YYYY-MM-DD) matching the existing `effectiveDayKey` in GameScreen, rather than a `Date`. Seed is derived as `RYGO-${dateStr}` (equivalent to `dailySeed(utcMidnightDate)`) so the function is self-contained without importing `dailySeed`.
+* Summary's `dailyPar` prop is named and typed but the destructuring uses `dailyPar: _dailyPar` (prefixed `_` to signal unused) so TypeScript strict mode doesn't flag the unused variable. TER-223 will rename the binding and render it.
+* CI: the `build-and-test` job runs on PRs against `main` only. This PR targets `m6`, so CI may not run — noted in the status comment. Tests and build verified green locally.
+
+**Chris-side setup required before the workflow can run:**
+1. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repository secrets in GitHub (Settings → Secrets → Actions).
+2. Apply the migration `20260527000000_daily_par_schema.sql` to the live Supabase database via the Supabase dashboard SQL editor (or `supabase db push` if CLI auth is configured).

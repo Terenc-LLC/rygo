@@ -10,6 +10,8 @@ interface SummaryProps {
   mode: 'daily' | 'practice';
   streak: number | null;
   standing?: { rank: number; total: number } | null;
+  /** Resolved daily par — available after TER-222; displayed in TER-223. */
+  dailyPar?: { par: number; proven: boolean } | null;
   onPlayAgain: () => void;
   onPickDifficulty: () => void;
 }
@@ -43,6 +45,7 @@ export function Summary({
   mode,
   streak,
   standing,
+  dailyPar: _dailyPar,
   onPlayAgain,
   onPickDifficulty,
 }: SummaryProps): JSX.Element {

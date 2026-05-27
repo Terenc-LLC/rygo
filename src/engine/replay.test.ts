@@ -4,14 +4,11 @@ import type { EventReplayState } from './replay';
 import type { GameEvent } from './types';
 import type { GeneratedPuzzle } from './generator';
 
-// Minimal 2×2 puzzle helper. The solver seeds it ourselves so tests are predictable.
 function makePuzzle(target: string[][]): GeneratedPuzzle {
   const board = target.map(row => row.map(c => c)) as GeneratedPuzzle['target'];
   return { target: board, solution: [], gridSize: 2, seed: 'test' } as unknown as GeneratedPuzzle;
 }
 
-// Convenience: build a GeneratedPuzzle that wraps a 4×4 target produced by the real generator.
-// Most tests need only the gridSize / target, not the solution.
 function makePuzzle4(target: string[][]): GeneratedPuzzle {
   const board = target.map(row => row.map(c => c)) as GeneratedPuzzle['target'];
   return { target: board, solution: [], gridSize: 4, seed: 'test' } as unknown as GeneratedPuzzle;
@@ -24,11 +21,11 @@ const baseState: EventReplayState = {
   hasRevealed: false,
 };
 
-describe('applyEvent — select', () => {
-  it('switching to a new color costs +1', () => {
+describe('applyEvent — select (TER-221: color switches are +0)', () => {
+  it('switching to a new color is +0', () => {
     const s = applyEvent(baseState, { type: 'select', color: 'red' });
     expect(s.activeColor).toBe('red');
-    expect(s.moveCount).toBe(1);
+    expect(s.moveCount).toBe(0);
   });
 
   it('re-selecting the already-active color is +0 (no-op)', () => {
@@ -38,31 +35,31 @@ describe('applyEvent — select', () => {
     expect(s1.activeColor).toBe('red');
   });
 
-  it('switching color updates activeColor', () => {
-    const s0 = { ...baseState, activeColor: 'red' as const };
+  it('switching color updates activeColor and stays at same moveCount', () => {
+    const s0 = { ...baseState, activeColor: 'red' as const, moveCount: 3 };
     const s1 = applyEvent(s0, { type: 'select', color: 'green' });
     expect(s1.activeColor).toBe('green');
-    expect(s1.moveCount).toBe(1);
+    expect(s1.moveCount).toBe(3);
   });
 });
 
-describe('applyEvent — reveal / hide', () => {
-  it('first reveal is free (+0) and sets hasRevealed', () => {
+describe('applyEvent — reveal / hide (backward-compat: both +0 after TER-221)', () => {
+  it('first reveal is +0 and sets hasRevealed', () => {
     const s = applyEvent(baseState, { type: 'reveal' });
     expect(s.moveCount).toBe(0);
     expect(s.hasRevealed).toBe(true);
   });
 
-  it('second reveal (hasRevealed=true) costs +1', () => {
+  it('second reveal (hasRevealed=true) is still +0', () => {
     const s0 = { ...baseState, hasRevealed: true, moveCount: 1 };
     const s1 = applyEvent(s0, { type: 'reveal' });
-    expect(s1.moveCount).toBe(2);
+    expect(s1.moveCount).toBe(1);
   });
 
-  it('hide costs +1', () => {
+  it('hide is +0 (no-op)', () => {
     const s0 = { ...baseState, hasRevealed: true, moveCount: 2 };
     const s1 = applyEvent(s0, { type: 'hide' });
-    expect(s1.moveCount).toBe(3);
+    expect(s1.moveCount).toBe(2);
   });
 });
 
@@ -88,11 +85,10 @@ describe('applyEvent — tap (placement)', () => {
     };
     const s1 = applyEvent(s0, { type: 'tap', row: 0, col: 0 });
     expect(s1.moveCount).toBe(2);
-    expect(s1.board[0][0]).toBe('empty'); // cleared
+    expect(s1.board[0][0]).toBe('empty');
   });
 
   it('tap that is a board no-op under the overwrite hierarchy still counts +1', () => {
-    // yellow cannot overwrite red — board is unchanged but moveCount increments
     const s0: EventReplayState = {
       board: [['red', 'empty'], ['empty', 'empty']],
       activeColor: 'yellow',
@@ -101,7 +97,7 @@ describe('applyEvent — tap (placement)', () => {
     };
     const s1 = applyEvent(s0, { type: 'tap', row: 0, col: 0 });
     expect(s1.moveCount).toBe(2);
-    expect(s1.board[0][0]).toBe('red'); // unchanged — yellow can't overwrite red
+    expect(s1.board[0][0]).toBe('red');
   });
 });
 
@@ -113,7 +109,7 @@ describe('replayEventLog', () => {
     expect(board[0][0]).toBe('empty');
   });
 
-  it('first reveal is free; second reveal costs +1', () => {
+  it('reveal and hide are both +0 (backward-compat)', () => {
     const puzzle = makePuzzle([['red', 'empty'], ['empty', 'empty']]);
     const events: GameEvent[] = [
       { type: 'reveal' },
@@ -121,72 +117,78 @@ describe('replayEventLog', () => {
       { type: 'reveal' }, // re-reveal
     ];
     const { moveCount } = replayEventLog(puzzle, events);
-    // reveal(+0) + hide(+1) + reveal(+1) = 2
-    expect(moveCount).toBe(2);
+    // All +0
+    expect(moveCount).toBe(0);
   });
 
-  it('no-op select (same color twice) only charges once', () => {
+  it('no-op select (same color twice) charges zero in both cases', () => {
     const puzzle = makePuzzle([['red', 'empty'], ['empty', 'empty']]);
     const events: GameEvent[] = [
-      { type: 'select', color: 'red' },   // +1 (null → red)
+      { type: 'select', color: 'red' },   // +0
       { type: 'select', color: 'red' },   // +0 (no-op)
-      { type: 'select', color: 'green' }, // +1
+      { type: 'select', color: 'green' }, // +0
     ];
     const { moveCount } = replayEventLog(puzzle, events);
-    expect(moveCount).toBe(2);
+    expect(moveCount).toBe(0);
   });
 
   it('same-color clear counts +1 and removes the cell', () => {
     const puzzle = makePuzzle([['red', 'empty'], ['empty', 'empty']]);
     const events: GameEvent[] = [
-      { type: 'select', color: 'red' }, // +1, activeColor = red
+      { type: 'select', color: 'red' }, // +0, activeColor = red
       { type: 'tap', row: 0, col: 0 },  // +1, places red
       { type: 'tap', row: 0, col: 0 },  // +1, same-color: clears
     ];
     const { board, moveCount } = replayEventLog(puzzle, events);
-    expect(moveCount).toBe(3);
+    expect(moveCount).toBe(2);
     expect(board[0][0]).toBe('empty');
   });
 
   it('non-overwriting tap (yellow on red) still counts +1', () => {
-    // Place red first, then try to overwrite with yellow — board no-op but +1 score
     const puzzle = makePuzzle([['red', 'empty'], ['empty', 'empty']]);
     const events: GameEvent[] = [
-      { type: 'select', color: 'red' },    // +1
+      { type: 'select', color: 'red' },    // +0
       { type: 'tap', row: 0, col: 0 },     // +1, places red
-      { type: 'select', color: 'yellow' }, // +1
-      { type: 'tap', row: 0, col: 0 },     // +1, board no-op — yellow can't overwrite red
+      { type: 'select', color: 'yellow' }, // +0
+      { type: 'tap', row: 0, col: 0 },     // +1, board no-op
     ];
     const { board, moveCount } = replayEventLog(puzzle, events);
-    expect(moveCount).toBe(4);
-    expect(board[0][0]).toBe('red'); // unchanged
+    expect(moveCount).toBe(2);
+    expect(board[0][0]).toBe('red');
   });
 
-  it('realistic full sequence produces same moveCount as the reducer would', () => {
-    // 2×2 target: [[red, yellow], [empty, green]]... but replayEventLog doesn't check
-    // completion, so target doesn't need to match. We verify the move count formula.
+  it('realistic full sequence — color switches do not add to moveCount', () => {
     const puzzle = makePuzzle([['red', 'yellow'], ['red', 'green']]);
     const events: GameEvent[] = [
-      { type: 'reveal' },                   // +0 (first reveal free)
-      { type: 'hide' },                     // +1
-      { type: 'select', color: 'red' },     // +1
+      { type: 'select', color: 'red' },     // +0
       { type: 'tap', row: 0, col: 0 },      // +1
-      { type: 'select', color: 'yellow' },  // +1
+      { type: 'select', color: 'yellow' },  // +0
       { type: 'tap', row: 0, col: 1 },      // +1
-      { type: 'reveal' },                   // +1 (re-reveal)
-      { type: 'hide' },                     // +1
-      { type: 'select', color: 'green' },   // +1
+      { type: 'select', color: 'green' },   // +0
       { type: 'tap', row: 1, col: 1 },      // +1
-      { type: 'select', color: 'red' },     // +1
+      { type: 'select', color: 'red' },     // +0
       { type: 'tap', row: 1, col: 0 },      // +1
     ];
     const { moveCount } = replayEventLog(puzzle, events);
-    // 0+1+1+1+1+1+1+1+1+1+1+1 = 11
-    expect(moveCount).toBe(11);
+    // 4 taps × 1 = 4
+    expect(moveCount).toBe(4);
+  });
+
+  it('old-blob sequence with reveal/hide still replays correctly (+0 for each)', () => {
+    // Simulates replaying a pre-TER-221 event log that contains reveal/hide events.
+    const puzzle = makePuzzle([['red', 'empty'], ['empty', 'empty']]);
+    const events: GameEvent[] = [
+      { type: 'reveal' },                   // +0 (old: was +0 for first)
+      { type: 'hide' },                     // +0 (old: was +1)
+      { type: 'select', color: 'red' },     // +0 (old: was +1)
+      { type: 'tap', row: 0, col: 0 },      // +1
+    ];
+    const { moveCount } = replayEventLog(puzzle, events);
+    // New scoring: 0+0+0+1 = 1
+    expect(moveCount).toBe(1);
   });
 
   it('event log that reaches the target yields board === target', () => {
-    // 4×4 target — red only for simplicity (red overwrites everything)
     const target = [
       ['red', 'red', 'red', 'red'],
       ['red', 'red', 'red', 'red'],
@@ -194,9 +196,6 @@ describe('replayEventLog', () => {
       ['red', 'red', 'red', 'red'],
     ];
     const puzzle = makePuzzle4(target);
-    // Red plus shape from center covers 5 cells; 4 taps from different positions cover all 16
-    // More practically: red has reach 1, so we need a tap for each cell.
-    // Let's just do a sequence of 16 taps with red (red always overwrites).
     const events: GameEvent[] = [{ type: 'select', color: 'red' }];
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {

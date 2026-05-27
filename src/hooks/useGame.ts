@@ -4,14 +4,14 @@ import type { GeneratedPuzzle } from '../engine/generator';
 import { applyEvent } from '../engine/replay';
 import type { InProgressBlob } from '../persistence/inProgress';
 
-export type GamePhase = 'idle' | 'pattern-revealed' | 'playing' | 'validating' | 'complete';
+// TER-221: removed 'idle' and 'pattern-revealed' — game starts directly in 'playing'.
+export type GamePhase = 'playing' | 'validating' | 'complete';
 
 export interface GameView {
   phase: GamePhase;
   gridSize: 4 | 5 | 6 | 8;
   current: Board;
   target: Board;
-  patternVisible: boolean;
   elapsedMs: number;
   moveCount: number;
   activeColor: Color | null;
@@ -19,8 +19,6 @@ export interface GameView {
 }
 
 export interface GameActions {
-  revealPattern: () => void;
-  hidePattern: () => void;
   selectColor: (c: Color) => void;
   placeAt: (row: number, col: number) => void;
   completeValidation: () => void;
@@ -51,8 +49,6 @@ function clampDelta(now: number, startedAt: number): number {
 }
 
 type Action =
-  | { type: 'REVEAL_PATTERN'; now: number }
-  | { type: 'HIDE_PATTERN' }
   | { type: 'SELECT_COLOR'; color: Color }
   | { type: 'PLACE_AT'; row: number; col: number; target: Board; now: number }
   | { type: 'COMPLETE_VALIDATION' }
@@ -81,8 +77,10 @@ interface InitArgs {
 
 function makeInitialState({ gridSize, resume }: InitArgs): GameState {
   if (resume) {
+    // All InProgressPhase values ('idle', 'pattern-revealed', 'playing') map to 'playing'
+    // since idle/pattern-revealed phases no longer exist after TER-221.
     return {
-      phase: resume.phase,
+      phase: 'playing',
       current: resume.board,
       activeColor: resume.activeColor,
       elapsedMs: resume.accumulatedMs,
@@ -93,7 +91,7 @@ function makeInitialState({ gridSize, resume }: InitArgs): GameState {
     };
   }
   return {
-    phase: 'idle',
+    phase: 'playing',
     current: emptyBoard(gridSize),
     activeColor: null,
     elapsedMs: 0,
@@ -106,33 +104,6 @@ function makeInitialState({ gridSize, resume }: InitArgs): GameState {
 
 function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
-    case 'REVEAL_PATTERN': {
-      if (state.phase !== 'idle' && state.phase !== 'playing') return state;
-      const { moveCount } = applyEvent(
-        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: state.phase !== 'idle' },
-        { type: 'reveal' },
-      );
-      const newEventLog = [...state.eventLog, { type: 'reveal' as const }];
-      if (state.phase === 'idle') {
-        return {
-          ...state,
-          phase: 'pattern-revealed',
-          // Only set runStartedAt if not already running (e.g., post-reset in daily mode)
-          runStartedAt: state.runStartedAt ?? action.now,
-          moveCount,
-          eventLog: newEventLog,
-        };
-      }
-      return { ...state, phase: 'pattern-revealed', moveCount, eventLog: newEventLog };
-    }
-    case 'HIDE_PATTERN': {
-      if (state.phase !== 'pattern-revealed') return state;
-      const { moveCount } = applyEvent(
-        { board: state.current, activeColor: state.activeColor, moveCount: state.moveCount, hasRevealed: true },
-        { type: 'hide' },
-      );
-      return { ...state, phase: 'playing', moveCount, eventLog: [...state.eventLog, { type: 'hide' as const }] };
-    }
     case 'SELECT_COLOR': {
       // Always append the event — the server applies +0 for no-op selects on replay.
       const rs = applyEvent(
@@ -149,9 +120,7 @@ function reducer(state: GameState, action: Action): GameState {
         { type: 'tap', row: action.row, col: action.col },
       );
       // Targets are fully covered (TER-146) so a clear (empty cells) can never match.
-      // Running boardsMatch on both paths is safe and removes the branch.
       if (boardsMatch(rs.board, action.target)) {
-        // Freeze the clock atomically with the completion
         const frozen =
           state.accumulatedMs +
           (state.runStartedAt !== null ? clampDelta(action.now, state.runStartedAt) : 0);
@@ -175,7 +144,6 @@ function reducer(state: GameState, action: Action): GameState {
       return state;
     }
     case 'RESET': {
-      // makeInitialState always produces eventLog: [] for a fresh state.
       const base = makeInitialState({ gridSize: action.gridSize });
       if (action.keepClock) {
         return {
@@ -226,14 +194,11 @@ export function useGame(
   const puzzleRef = useRef(puzzle);
   puzzleRef.current = puzzle;
   const keepClockOnReset = options?.keepClockOnReset ?? false;
-  const hasResume = !!(options?.resume);
 
-  // Start the clock immediately when resuming from an in-progress blob.
+  // Timer starts immediately on mount (fresh game or resume).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (hasResume) {
-      dispatch({ type: 'RESUME_TIMER', now: Date.now() });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    dispatch({ type: 'RESUME_TIMER', now: Date.now() });
   }, []);
 
   useEffect(() => {
@@ -241,14 +206,6 @@ export function useGame(
       dispatch({ type: 'TICK', now: Date.now() });
     }, 100);
     return () => clearInterval(id);
-  }, []);
-
-  const revealPattern = useCallback(() => {
-    dispatch({ type: 'REVEAL_PATTERN', now: Date.now() });
-  }, []);
-
-  const hidePattern = useCallback(() => {
-    dispatch({ type: 'HIDE_PATTERN' });
   }, []);
 
   const selectColor = useCallback((c: Color) => {
@@ -290,13 +247,10 @@ export function useGame(
     gridSize: puzzle.gridSize,
     current: state.current,
     target: puzzle.target,
-    patternVisible: state.phase === 'pattern-revealed',
     elapsedMs: state.elapsedMs,
     moveCount: state.moveCount,
     activeColor: state.activeColor,
     eventLog: state.eventLog,
-    revealPattern,
-    hidePattern,
     selectColor,
     placeAt,
     completeValidation,

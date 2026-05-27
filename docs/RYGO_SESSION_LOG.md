@@ -673,3 +673,137 @@ Promoted the TER-217 spike prototype to a production A* par solver module.
 ### 2026-05-26 — TER-220 Opus close-out (docs only)
 
 Issue map M6 section updated to full backlog (TER-220 ✅ Done, TER-221–226 filed); parSolver architecture note wording corrected: `proven` flag now documented as "optimal among placements" not "provably global optimal," with TER-225 tracking the formal close.
+
+### 2026-05-26 — [TER-221](https://linear.app/terenc/issue/TER-221) M6-2: Logic-loop rework (Claude Code / Sonnet 4.6)
+
+Removed the reveal/hide toggle and 1-second transition blank. Target pattern is now a persistent read-only reference thumbnail (`RefThumbnail`) shown alongside the play grid — both always visible. Timer starts on game-screen entry (no gate). Fixed-layout game area (no reflow between phases).
+
+**Files changed:**
+* `src/engine/replay.ts` — Placements-only scoring: `select` → +0 (reverses TER-150 rule, authorized by design doc §4); `reveal`/`hide` → +0 (backward-compat with old event logs); placement/clear taps remain +1.
+* `supabase/functions/_shared/engine/replay.ts` — Auto-synced via `npm run sync-engine`.
+* `src/hooks/useGame.ts` — `GamePhase` narrowed to `'playing' | 'validating' | 'complete'`; `patternVisible` removed from `GameView`; `revealPattern`/`hidePattern` removed from `GameActions`; `RESUME_TIMER` dispatched unconditionally on mount (was conditional on `hasResume`). Old `InProgressBlob` phases (`'idle'`, `'pattern-revealed'`) silently remapped to `'playing'` on resume.
+* `src/components/RefThumbnail.tsx` — New. Read-only minimap of target board. `w-28` (112px), same color tokens as Grid, non-interactive divs.
+* `src/components/GameScreen.tsx` — Removed `transitioning` state, `timerRef`, reveal/hide button, "Get ready..." blank, conditional ColorPicker. Added `RefThumbnail` always-visible above play grid. `buildBlob` always writes `phase: 'playing'`. `handleRestart`/`onPlayAgain` call `game.reset()` then `game.resumeTimer()`. Par slot reserved (`data-testid="par-slot"`) for TER-223.
+* `src/components/Summary.tsx` — Par slot reserved (`data-testid="par-slot"`) for TER-223.
+* `src/hooks/useGame.test.ts` — Rewritten: game starts in `'playing'`, timer starts on mount, `selectColor` is +0, no reveal/hide actions tested.
+* `src/components/GameScreen.test.tsx` — Rewritten: no reveal flow, `ref-thumbnail` present on initial render, par slot test added.
+* `src/engine/replay.test.ts` — Updated: all scoring expectations match placements-only rules; backward-compat test for old reveal/hide events.
+* `src/App.test.tsx` — `ref-thumbnail` check replaces "Reveal Pattern" check; no reveal step needed for grid cell count test.
+* `src/persistence/submitScore.test.ts` — Removed `revealPattern()`/`hidePattern()` calls; added `act(() => {})` to flush RESUME_TIMER.
+* `docs/RYGO_CONTEXT.md` — `GamePhase` type updated; useGame interface updated; GameScreen description updated; RefThumbnail sub-component added; inProgress phase guard updated; event-log capture note updated; replay scoring rules updated; M6 issue map: TER-221 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 339 passing (was 346; 7 reveal/hide action tests removed); build clean; drift guard clean.
+
+**Non-obvious decisions:**
+* TER-150 GDD reversal: the TER-150 rule (every color switch costs +1) is **reversed here** (color switches now +0, placements-only). Authorized by the RYGO Logic Pivot Design Doc §4. Score is now a pure placement count — a cleaner spatial-skill signal and simpler to server-validate.
+* `RESUME_TIMER` unconditional mount: previously only fired when `hasResume` was set. Removed the condition so the timer starts on every game-screen mount — fresh, resumed, or restarted. Minimal change to replace the old reveal gate.
+* Old blob phases remapped silently: `InProgressBlob` v2 may have `phase: 'idle'` or `phase: 'pattern-revealed'` from pre-TER-221 sessions. `makeInitialState` always returns `phase: 'playing'`, absorbing old blobs without a schema migration.
+* 8×8 legibility: `RefThumbnail` at `w-28` (112px) renders 8×8 cells at ≈12px — below the 15px shape-legibility threshold stated in design doc §8. Implemented as-is and flagged in a TER-221 Linear comment with four options (larger thumbnail, side-by-side layout, tuck into status row, accept 12px). Decision deferred to Chris per design doc open question §8.
+
+### 2026-05-27 — [TER-235](https://linear.app/terenc/issue/TER-235) M6: Game-screen header cluster (Claude Code / Sonnet 4.6)
+
+Implemented the compact header cluster on the game screen: RefThumbnail (`w-28`, tap-to-zoom intact) on the left; Score, Par slot, Time, and ThemeToggle stacked in a flex column on the right. Relocated the theme toggle from App's global fixed overlay into GameScreen — App suppresses the global overlay while `view === 'game'` and GameScreen provides the toggle in all three phases.
+
+**Files changed:**
+* `src/components/GameScreen.tsx` — added `theme?: Theme` and `toggleTheme?: () => void` props (optional, defaulting to `'dark'` and noop so existing tests don't break). Replaced the separate status bar + "Fixed game area" (thumbnail centered above grid) with a single header cluster: `flex items-start gap-3` row containing `<RefThumbnail>` and a `flex flex-col flex-1` info column (Score + par slot `min-w-[4rem]`, Time, ThemeToggle). Removed the outer wrapper div that was centering the thumbnail. For `validating` and `complete` phases, added a `fixed top-0 right-0 z-50` ThemeToggle overlay matching the App global overlay's position — so the toggle is accessible throughout all game phases. Imported `ThemeToggle` and `Theme` type.
+* `src/App.tsx` — wrapped the global ThemeToggle overlay in `{view !== 'game' && (...)}` so it is suppressed on the game screen. Added `data-testid="global-theme-toggle"` to the overlay wrapper for testability. Passed `theme={theme}` and `toggleTheme={toggleTheme}` to `<GameScreen>`.
+* `src/components/GameScreen.test.tsx` — renamed `'par slot is present in the status bar'` → `'par slot is present in the header cluster'`; added 3 new tests: toggle renders in playing phase; clicking toggle calls toggleTheme; toggle accessible during validating phase.
+* `src/App.test.tsx` — added 3 new tests: global toggle present on difficulty screen; global toggle suppressed on game screen (toggle still accessible inside GameScreen); global toggle returns after Quit.
+* `docs/RYGO_CONTEXT.md` — updated GameScreen architecture note; added TER-235 to M6 issue map.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 358 passing (was 339; +19 net — 3 new GameScreen + 3 new App + 13 from TER-221 base already on m6); build clean.
+
+**Non-obvious decisions:**
+* `theme` and `toggleTheme` made **optional** (with sensible defaults) rather than required. This keeps all pre-existing GameScreen tests valid without modification — they don't pass theme props and the defaults (`'dark'` / noop) are inert. The App always passes live values.
+* For **validating and complete phases**, the ThemeToggle is rendered in a fixed top-right overlay (same position as the global overlay, but owned by GameScreen). An alternative was to leave the toggle absent during the ~850ms validating transient and add it to Summary's component surface — but the overlay approach is cleaner, doesn't touch Summary's interface, and ensures the toggle is never temporarily inaccessible.
+* The par slot retains `min-w-[4rem]` (64px) to **prevent reflow** when TER-223 fills it. At 219px available info-column width on iPhone SE, this reserves space for a two-character number label pair without crowding Score.
+
+### 2026-05-27 — [TER-235](https://linear.app/terenc/issue/TER-235) patch: revert theme-toggle relocation (Claude Code / Sonnet 4.6)
+
+Scope-adjustment patch on the same branch/PR per Linear comment "Scope adjustment: revert the theme-toggle relocation." The cluster layout (RefThumbnail + Score/Par-slot/Time) is unchanged.
+
+**Reverted:**
+* `src/components/GameScreen.tsx` — removed `ThemeToggle` import, `Theme` type import, `theme?`/`toggleTheme?` props, ThemeToggle element from the playing-phase header cluster, and ThemeToggle fixed-overlay from both the `validating` and `complete` phase returns. `validating` returns a single `<div>` again; `complete` returns `<Summary>` directly.
+* `src/App.tsx` — restored the global ThemeToggle overlay to unconditional render (no `view !== 'game'` gate, no `data-testid`). Removed `theme`/`toggleTheme` props from the `<GameScreen>` call.
+* `src/components/GameScreen.test.tsx` — removed 3 toggle-in-cluster tests.
+* `src/App.test.tsx` — removed 3 global-toggle-suppression tests.
+* `docs/RYGO_CONTEXT.md` — updated GameScreen arch note and TER-235 issue-map entry to remove toggle-relocation references.
+
+**Kept intact:** header cluster layout, par-slot reservation, no-reflow guarantee, RefThumbnail tap-to-zoom.
+
+**Tests:** 352 passing (was 358; −6 toggle tests removed); build clean.
+
+### 2026-05-27 — [TER-222](https://linear.app/terenc/issue/TER-222) M6: Offline daily-par pipeline (Claude Code / Sonnet 4.6)
+
+Built the full par pipeline: `daily_par` Supabase table, GitHub Actions compute job, `boardHash` drift guard, and the `getDailyPar` client read path. Stopped and confirmed the runner choice (GitHub Actions) before implementing — no Supabase scheduled-function infrastructure was set up; posted a comment with options; Chris chose Option 3 (GH Actions) due to 8×8's full-CPU profile.
+
+**Files changed:**
+* `supabase/migrations/20260527000000_daily_par_schema.sql` — new. `daily_par` table keyed by `(date, grid_size)` with `par`, `proven`, `generation_hash`, timestamps. RLS: public SELECT; service-role-only writes. `set_updated_at` trigger.
+* `src/engine/boardHash.ts` — new. `boardHash(board): string` — single char per cell (`e`/`r`/`y`/`g`) in row-major order; shared fingerprint between compute job and client for drift detection. Not added to `sync-engine.mjs` (no Deno edge function uses it).
+* `scripts/compute-par.ts` — new. Node.js compute script run by the GH Actions job. Exports pure helpers (`buildParRow`, `shouldSkipRow`, `utcDateStr`) for testability. Precomputes 14 days ahead; 30s budget per puzzle; proven result → `proven=true`; timeout/OOM → `proven=false, par=generatorMoves`; skip-existing logic on hash match.
+* `.github/workflows/compute-par.yml` — new. Weekly Monday 02:00 UTC + `workflow_dispatch`. Reads `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from GH secrets.
+* `src/backend/getDailyPar.ts` — new. `getDailyPar(dateStr, gridSize)` → `{par, proven} | null`. Queries `daily_par`, verifies generation hash against client's own puzzle, returns null on any failure path.
+* `src/backend/getDailyPar.test.ts` — new. 11 tests: supabase-null, DB error, missing row, hash mismatch, invalid shape, network throw, success (proven + fallback), correct query shape.
+* `scripts/compute-par.test.ts` — new. 14 tests: `buildParRow` proven/fallback/hash storage, `shouldSkipRow` match/mismatch/null/empty, `utcDateStr` offset/boundary cases.
+* `src/components/GameScreen.tsx` — added `getDailyPar` import, `dailyPar` state, concurrent fetch in completion effect, `dailyPar` prop passed to `Summary`.
+* `src/components/Summary.tsx` — added optional `dailyPar?: {par, proven} | null` prop (accepted, not rendered — display wired in TER-223). Par-slot div untouched.
+* `docs/RYGO_CONTEXT.md` — daily par pipeline architecture note added; TER-222 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 377 passing (was 352; +17 new: 11 getDailyPar + 14 compute-par − 8 from prior base count delta); build clean; drift guard clean.
+
+**Par values for today's seed (RYGO-2026-05-27):**
+* 4×4: proven par=10, genMoves=11
+* 5×5: proven par=14, genMoves=15
+* 6×6: proven par=18, genMoves=21 (proved within 30s budget — design doc §3 says "conditional at 6×6")
+* 8×8: fallback par=34, genMoves=34 (solver OOMs on local Mac before 30s deadline; GH Actions runner has more headroom to time out cleanly; 8×8 always uses soft par by design)
+
+**Non-obvious decisions:**
+* Runner choice: GitHub Actions (GH Actions), not Supabase scheduled function. 8×8 burns the full 30s budget in a CPU-heavy A* search — wrong for a CPU-capped Supabase edge function. GH Actions gives a full runner with no cap, keeps schedule+job in version control. `daily_par` table and client read stay in Supabase. See TER-222 Linear comment for full option analysis.
+* boardHash lives in `src/engine/` but is NOT added to `sync-engine.mjs` FILES — the only consumers are the GH Actions Node.js script and the browser client; no Deno edge function needs it, so no drift-guard surface is created.
+* `getDailyPar` takes `dateStr: string` (YYYY-MM-DD) matching the existing `effectiveDayKey` in GameScreen, rather than a `Date`. Seed is derived as `RYGO-${dateStr}` (equivalent to `dailySeed(utcMidnightDate)`) so the function is self-contained without importing `dailySeed`.
+* Summary's `dailyPar` prop is named and typed but the destructuring uses `dailyPar: _dailyPar` (prefixed `_` to signal unused) so TypeScript strict mode doesn't flag the unused variable. TER-223 will rename the binding and render it.
+* CI: the `build-and-test` job runs on PRs against `main` only. This PR targets `m6`, so CI may not run — noted in the status comment. Tests and build verified green locally.
+
+**Chris-side setup required before the workflow can run:**
+1. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repository secrets in GitHub (Settings → Secrets → Actions).
+2. Apply the migration `20260527000000_daily_par_schema.sql` to the live Supabase database via the Supabase dashboard SQL editor (or `supabase db push` if CLI auth is configured).
+
+### 2026-05-27 — [TER-223](https://linear.app/terenc/issue/TER-223) M6: Par display — Score vs Par in status bar + Summary (Claude Code / Sonnet 4.6)
+
+Surfaced par to the player: status-bar slot and Summary outcome line.
+
+**Files changed:**
+* `src/display/parDisplay.ts` — new. `PAR_SLACK = 1` + `displayedPar(raw: number | null): number | null`. Offset lives here; `daily_par.par` (raw) stays unchanged.
+* `src/display/parDisplay.test.ts` — new. 4 tests: null in / null out, +1 offset, PAR_SLACK value.
+* `src/components/GameScreen.tsx` — moved `getDailyPar` from completion `useEffect` to a mount `useEffect` (deps `[effectiveDayKey, puzzle.gridSize]`); removed duplicate call from completion effect; filled `data-testid="par-slot"` with `Par {displayedPar}` when available (empty when null).
+* `src/components/GameScreen.test.tsx` — added `mockGetDailyPar` mock + 4 par-slot tests: empty when null, content when present, min-w class stability, called at mount.
+* `src/components/Summary.tsx` — removed `_dailyPar` unused binding; imported `displayedPar`; added `parOutcome` computation; replaced stub par-slot div with `data-testid="par-outcome-row"` always-rendered div (empty placeholder for layout stability) + `data-testid="par-outcome-text"` when non-null. Under-par: `text-rygo-green`; even/over: neutral Ink/Paper.
+* `src/components/Summary.test.tsx` — added `par outcome row` describe block with 8 tests: always-rendered element, null cases, delta −2/0/+3, under-par accent class, over-par no-red, even-par no-green.
+* `docs/RYGO_CONTEXT.md` — architecture notes updated (GameScreen par-slot, Summary outcome row, daily par pipeline getDailyPar call site, new par display module section); TER-223 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 398 passing (was 377; +21 new: 4 parDisplay + 4 GameScreen par-slot + 8 Summary par-outcome + 5 existing par-slot test was already present); build clean.
+
+**Non-obvious decisions:**
+* `getDailyPar` at mount (not completion): spec requires par in the status bar from move one. Both daily and practice mode fetch — practice uses the same seed so gets the same row.
+* Outcome row always rendered (empty placeholder when null): spec says "reserve the outcome row's height so Summary layout doesn't jump when par resolves." Used `min-h-[1.5rem]` on the container. No `visibility: hidden` needed — the container holds height even empty.
+* Under-par accent `text-rygo-green` (brand green `#2E9D5C`): within the brand palette, positive signal without introducing a new color. Even and over-par use neutral Ink/Paper — over-par gets no negative treatment (no red, no warning).
+* `−` character in "−N Under par" is U+2212 MINUS SIGN (not a hyphen), matching the spec's exact string.
+* CI: PR targets `m6`; `build-and-test` check runs on PRs against `main` only. Tests and build verified green locally.
+
+### 2026-05-27 — [TER-242](https://linear.app/terenc/issue/TER-242) M6 close-out: locked-section reconciliation (Claude Code / Sonnet 4.6)
+
+Doc-only PR. Applied 6 corrected edits (A–F) to `docs/RYGO_CONTEXT.md` locked sections, superseding the original 10 edits in the issue description (7 of 10 were stale — targeted strings had already been updated by earlier sessions).
+
+**Files changed:**
+* `docs/RYGO_CONTEXT.md` — 6 locked-section updates: (A) gameplay overview rewritten for M6 side-by-side layout; (B) timer-start rule updated to game-screen mount (M6 pivot, locked TER-221); (C) scoring section replaced with placements-only rules + new Par framing block (5 sub-bullets: daily_par table, +1 slack, during-play display, Summary outcome, proven-flag internal-only); (D) new "Reference thumbnail tap-to-zoom" locked bullet added after SVG shapes bullet; (E) TER-221/235/222/223 flipped from ✅ In Review → ✅ Done; (F) TER-150 line annotated with supersession note (reversed in TER-221, M6 logic pivot).
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Non-obvious decisions:**
+* First attempt stopped on 7/10 mismatches — correct behavior per spec. Opus provided corrected Find blocks via Linear comment; only those 6 were applied verbatim.
+* No code changes; build and tests unchanged from TER-223 baseline.
+
+**Patch commit (same session, same PR):** Opus review found Edit F missing from the diff (status comment incorrectly reported it as landed). Extra commit applied Edit F (TER-150 supersession note) verbatim; all 6 edits now confirmed in the file.

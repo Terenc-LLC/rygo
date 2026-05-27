@@ -5,12 +5,15 @@ import { useGame } from '../hooks/useGame';
 import { Grid } from './Grid';
 import { ColorPicker } from './ColorPicker';
 import { Summary } from './Summary';
+import { RefThumbnail } from './RefThumbnail';
 import type { InProgressBlob } from '../persistence/inProgress';
 import { saveInProgress, deleteInProgress, IN_PROGRESS_KEY } from '../persistence/inProgress';
 import { loadState, todayKey } from '../persistence/dailyState';
 import { computeGlobalStreak } from '../persistence/stats';
 import { enqueueAndSubmit } from '../persistence/submitScore';
 import { getStanding } from '../backend/getStanding';
+import { getDailyPar } from '../backend/getDailyPar';
+import { displayedPar } from '../display/parDisplay';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -44,14 +47,6 @@ function emptyBoard(size: number): Board {
   return Array.from({ length: size }, () => Array<'empty'>(size).fill('empty'));
 }
 
-const PHASE_LABEL: Record<string, string> = {
-  idle: 'Tap to reveal',
-  'pattern-revealed': 'Memorize the pattern',
-  playing: 'Place colors to match',
-  validating: 'Solved!',
-  complete: '',
-};
-
 export function GameScreen({
   puzzle,
   mode = 'daily',
@@ -64,9 +59,8 @@ export function GameScreen({
     resume: mode === 'daily' ? resume : undefined,
     keepClockOnReset: mode === 'daily',
   });
-  const [transitioning, setTransitioning] = useState(false);
   const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
-  const timerRef = useRef<number | null>(null);
+  const [dailyPar, setDailyPar] = useState<{ par: number; proven: boolean } | null>(null);
   const prefersReducedMotion = useRef(
     typeof window !== 'undefined' &&
       typeof window.matchMedia === 'function' &&
@@ -83,20 +77,16 @@ export function GameScreen({
   // Build the in-progress blob from current game state (called at save points).
   const buildBlob = (overrideAccumulatedMs?: number): InProgressBlob => {
     const g = gameRef.current;
-    // Use provided override (e.g. pre-computed before a reset), else use elapsedMs
-    // which is within 100ms of the real banked value (last TICK).
     const accMs = overrideAccumulatedMs ?? g.elapsedMs;
     return {
       version: 2,
       date: effectiveDayKey,
       gridSize: puzzle.gridSize,
       board: g.current,
-      phase: (g.phase === 'idle' || g.phase === 'pattern-revealed' || g.phase === 'playing')
-        ? g.phase
-        : 'playing',
+      phase: 'playing', // always 'playing' — idle/pattern-revealed phases removed in TER-221
       activeColor: g.activeColor,
       moveCount: g.moveCount,
-      patternVisible: g.phase === 'pattern-revealed',
+      patternVisible: false,
       accumulatedMs: accMs,
       savedAt: Date.now(),
       eventLog: g.eventLog,
@@ -109,13 +99,8 @@ export function GameScreen({
 
     const handleHide = () => {
       gameRef.current.bankTime();
-      // Only persist in phases where the attempt is still in progress.
-      // Skipping 'validating' (solved but not yet tapped) and 'complete' prevents
-      // writing a solved-board blob that would strand the user on resume with no
-      // way to submit the result. bankTime above is a no-op in those phases
-      // (runStartedAt is already null post-freeze), so it's always safe to call.
       const { phase } = gameRef.current;
-      if (phase === 'idle' || phase === 'pattern-revealed' || phase === 'playing') {
+      if (phase === 'playing') {
         saveInProgress(buildBlob());
       }
     };
@@ -142,15 +127,12 @@ export function GameScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  // Fetch par at mount so it's ready in the status bar from move one.
   useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
+    void getDailyPar(effectiveDayKey, puzzle.gridSize).then(result => setDailyPar(result));
+  }, [effectiveDayKey, puzzle.gridSize]);
 
-  // Report, submit, and read standing on daily completion exactly once when phase first becomes 'complete'.
+  // Report, submit, and read standing on daily completion exactly once.
   const { phase } = game;
   useEffect(() => {
     if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
@@ -182,7 +164,11 @@ export function GameScreen({
         mode={mode}
         streak={streak}
         standing={standing}
-        onPlayAgain={game.reset}
+        dailyPar={dailyPar}
+        onPlayAgain={() => {
+          game.reset();
+          game.resumeTimer();
+        }}
         onPickDifficulty={onPickDifficulty}
       />
     );
@@ -200,7 +186,7 @@ export function GameScreen({
             </p>
           </div>
           <div className="text-center flex-1 px-2">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{PHASE_LABEL['validating']}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Solved!</p>
           </div>
           <div className="text-center min-w-16">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
@@ -251,117 +237,79 @@ export function GameScreen({
     );
   }
 
-  const clearTransitionTimer = () => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const startTransition = (action: () => void) => {
-    clearTransitionTimer();
-    setTransitioning(true);
-    action();
-    timerRef.current = window.setTimeout(() => {
-      setTransitioning(false);
-      timerRef.current = null;
-    }, 1000);
-  };
-
-  const handleRevealToggle = () => {
-    if (game.phase === 'idle' || game.phase === 'playing') {
-      startTransition(game.revealPattern);
-    } else if (game.phase === 'pattern-revealed') {
-      startTransition(game.hidePattern);
-    }
-  };
+  // ── playing phase ──────────────────────────────────────────────────────────
+  const dp = displayedPar(dailyPar?.par ?? null);
 
   const handleRestart = () => {
-    clearTransitionTimer();
-    setTransitioning(false);
     if (mode === 'daily') {
-      // Save in-progress with the cleared board state. The clock is kept by RESET (keepClock=true).
-      // We construct the blob manually since the reducer hasn't updated yet.
       saveInProgress({
         version: 2,
         date: effectiveDayKey,
         gridSize: puzzle.gridSize,
         board: emptyBoard(puzzle.gridSize),
-        phase: 'idle',
+        phase: 'playing',
         activeColor: null,
         moveCount: 0,
         patternVisible: false,
-        accumulatedMs: game.elapsedMs, // within 100ms of real banked value
+        accumulatedMs: game.elapsedMs,
         savedAt: Date.now(),
-        eventLog: [], // RESET clears the log; post-reset blob starts fresh
+        eventLog: [],
       });
     }
     game.reset();
+    // Timer restarts immediately — resumeTimer is a no-op if keepClock preserved a
+    // running clock (daily mode); for practice it starts fresh from 0.
+    game.resumeTimer();
   };
 
   const handleQuit = () => {
-    clearTransitionTimer();
     if (mode === 'daily') {
-      // Bank time and persist before navigating away.
       game.bankTime();
       saveInProgress(buildBlob());
     }
     onPickDifficulty();
   };
 
-  const isPlaying = game.phase === 'playing';
-
   return (
-    <div className="flex flex-col items-center gap-4 px-4 py-4 w-full max-w-sm mx-auto">
-      <div className="flex items-center justify-between w-full px-1 py-2">
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
-            {game.moveCount}
-          </p>
-        </div>
-        <div className="text-center flex-1 px-2">
-          <p className="text-xs text-gray-500 dark:text-gray-400">{PHASE_LABEL[game.phase]}</p>
-        </div>
-        <div className="text-center min-w-16">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
-          <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="timer-value">
-            {formatTime(game.elapsedMs)}
-          </p>
-        </div>
-      </div>
-
-      <div className="w-full">
-        {transitioning ? (
-          <div className="flex items-center justify-center h-48">
-            <p
-              className="text-lg text-gray-500 dark:text-gray-400"
-              data-testid="transition-blank"
-            >
-              Get ready...
+    <div className="flex flex-col items-center gap-3 px-4 py-4 w-full max-w-sm mx-auto">
+      {/* Header cluster: reference thumbnail + score/par/time side by side */}
+      <div className="flex items-start gap-3 w-full">
+        <RefThumbnail board={game.target} size={game.gridSize} />
+        <div className="flex flex-col flex-1 gap-2 pt-1">
+          <div className="flex items-start gap-3">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
+              <p className="text-2xl font-bold text-ink dark:text-paper" data-testid="score-value">
+                {game.moveCount}
+              </p>
+            </div>
+            {/* Par display slot — min-w reserves space to prevent reflow regardless of par state */}
+            <div className="min-w-[4rem]" data-testid="par-slot">
+              {dp !== null && (
+                <>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Par</p>
+                  <p className="text-2xl font-bold text-ink dark:text-paper">{dp}</p>
+                </>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
+            <p className="text-xl font-bold text-ink dark:text-paper" data-testid="timer-value">
+              {formatTime(game.elapsedMs)}
             </p>
           </div>
-        ) : game.patternVisible ? (
-          <Grid board={game.target} size={game.gridSize} />
-        ) : (
-          <Grid
-            board={game.current}
-            size={game.gridSize}
-            onCellTap={isPlaying ? (r, c) => game.placeAt(r, c) : undefined}
-          />
-        )}
+        </div>
       </div>
 
-      <button
-        onClick={handleRevealToggle}
-        className="w-full py-3 rounded-xl bg-gray-200 dark:bg-gray-700 text-ink dark:text-paper font-semibold active:scale-95 transition-transform duration-100"
-      >
-        {game.patternVisible ? 'Hide / Start Solving' : 'Reveal Pattern'}
-      </button>
+      {/* Play grid */}
+      <Grid
+        board={game.current}
+        size={game.gridSize}
+        onCellTap={(r, c) => game.placeAt(r, c)}
+      />
 
-      {!game.patternVisible && (
-        <ColorPicker activeColor={game.activeColor} onSelectColor={game.selectColor} />
-      )}
+      <ColorPicker activeColor={game.activeColor} onSelectColor={game.selectColor} />
 
       <div className="flex gap-3 mt-1">
         <button

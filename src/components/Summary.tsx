@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { buildShareString } from '../share/shareString';
+import { displayedPar } from '../display/parDisplay';
 
 interface SummaryProps {
   gridSize: 4 | 5 | 6 | 8;
@@ -10,6 +11,8 @@ interface SummaryProps {
   mode: 'daily' | 'practice';
   streak: number | null;
   standing?: { rank: number; total: number } | null;
+  /** Resolved daily par — available after TER-222; displayed in TER-223. */
+  dailyPar?: { par: number; proven: boolean } | null;
   onPlayAgain: () => void;
   onPickDifficulty: () => void;
 }
@@ -43,11 +46,22 @@ export function Summary({
   mode,
   streak,
   standing,
+  dailyPar,
   onPlayAgain,
   onPickDifficulty,
 }: SummaryProps): JSX.Element {
   const [copied, setCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+
+  const dp = displayedPar(dailyPar?.par ?? null);
+  const parOutcome = dp !== null
+    ? (() => {
+        const delta = moveCount - dp;
+        if (delta < 0) return { text: `−${Math.abs(delta)} Under par`, under: true };
+        if (delta === 0) return { text: 'Even par', under: false };
+        return { text: `+${delta} Over par`, under: false };
+      })()
+    : null;
 
   const shareText = buildShareString({
     date,
@@ -94,6 +108,17 @@ export function Summary({
             <p className="text-4xl font-bold text-ink dark:text-paper">{formatTime(elapsedMs)}</p>
           </div>
         </div>
+      </div>
+      {/* Par outcome row — reserves height so layout is stable while par resolves */}
+      <div className="min-h-[1.5rem] flex items-center justify-center" data-testid="par-outcome-row">
+        {parOutcome !== null && (
+          <p
+            className={`text-sm font-medium ${parOutcome.under ? 'text-rygo-green' : 'text-ink dark:text-paper'}`}
+            data-testid="par-outcome-text"
+          >
+            {parOutcome.text}
+          </p>
+        )}
       </div>
       {standing != null && (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center" data-testid="standing-line">

@@ -793,3 +793,15 @@ Surfaced par to the player: status-bar slot and Summary outcome line.
 * Under-par accent `text-rygo-green` (brand green `#2E9D5C`): within the brand palette, positive signal without introducing a new color. Even and over-par use neutral Ink/Paper — over-par gets no negative treatment (no red, no warning).
 * `−` character in "−N Under par" is U+2212 MINUS SIGN (not a hyphen), matching the spec's exact string.
 * CI: PR targets `m6`; `build-and-test` check runs on PRs against `main` only. Tests and build verified green locally.
+
+### 2026-05-27 — [TER-242](https://linear.app/terenc/issue/TER-242) M6 close-out: locked-section reconciliation (Claude Code / Sonnet 4.6)
+
+Doc-only PR. Applied 6 corrected edits (A–F) to `docs/RYGO_CONTEXT.md` locked sections, superseding the original 10 edits in the issue description (7 of 10 were stale — targeted strings had already been updated by earlier sessions).
+
+**Files changed:**
+* `docs/RYGO_CONTEXT.md` — 6 locked-section updates: (A) gameplay overview rewritten for M6 side-by-side layout; (B) timer-start rule updated to game-screen mount (M6 pivot, locked TER-221); (C) scoring section replaced with placements-only rules + new Par framing block (5 sub-bullets: daily_par table, +1 slack, during-play display, Summary outcome, proven-flag internal-only); (D) new "Reference thumbnail tap-to-zoom" locked bullet added after SVG shapes bullet; (E) TER-221/235/222/223 flipped from ✅ In Review → ✅ Done; (F) TER-150 line annotated with supersession note (reversed in TER-221, M6 logic pivot).
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Non-obvious decisions:**
+* First attempt stopped on 7/10 mismatches — correct behavior per spec. Opus provided corrected Find blocks via Linear comment; only those 6 were applied verbatim.
+* No code changes; build and tests unchanged from TER-223 baseline.

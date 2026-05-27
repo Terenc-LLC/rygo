@@ -69,6 +69,64 @@ describe('Summary', () => {
     });
   });
 
+  describe('par outcome row', () => {
+    const withPar = (par: number | null) => ({
+      ...defaultProps,
+      dailyPar: par !== null ? { par, proven: true } : null,
+    });
+
+    it('renders par-outcome-row element always (layout stability)', () => {
+      render(<Summary {...defaultProps} />);
+      expect(screen.getByTestId('par-outcome-row')).toBeInTheDocument();
+    });
+
+    it('outcome row is empty (no text) when dailyPar is null', () => {
+      render(<Summary {...withPar(null)} />);
+      expect(screen.queryByTestId('par-outcome-text')).toBeNull();
+    });
+
+    it('outcome row is empty when dailyPar prop is absent', () => {
+      render(<Summary {...defaultProps} />);
+      expect(screen.queryByTestId('par-outcome-text')).toBeNull();
+    });
+
+    it('delta < 0 → "−{|delta|} Under par" (delta = −2, score=8, displayedPar=10)', () => {
+      // raw par = 9 → displayedPar = 10; moveCount = 8 → delta = 8-10 = −2
+      render(<Summary {...withPar(9)} moveCount={8} />);
+      expect(screen.getByTestId('par-outcome-text')).toHaveTextContent('−2 Under par');
+    });
+
+    it('delta === 0 → "Even par" (score=10, displayedPar=10)', () => {
+      // raw par = 9 → displayedPar = 10; moveCount = 10
+      render(<Summary {...withPar(9)} moveCount={10} />);
+      expect(screen.getByTestId('par-outcome-text')).toHaveTextContent('Even par');
+    });
+
+    it('delta > 0 → "+{delta} Over par" (delta = +3, score=13, displayedPar=10)', () => {
+      // raw par = 9 → displayedPar = 10; moveCount = 13 → delta = 13-10 = +3
+      render(<Summary {...withPar(9)} moveCount={13} />);
+      expect(screen.getByTestId('par-outcome-text')).toHaveTextContent('+3 Over par');
+    });
+
+    it('under-par text uses positive accent class (text-rygo-green)', () => {
+      render(<Summary {...withPar(9)} moveCount={8} />);
+      expect(screen.getByTestId('par-outcome-text').className).toContain('text-rygo-green');
+    });
+
+    it('over-par text does not use red or warning styling', () => {
+      render(<Summary {...withPar(9)} moveCount={13} />);
+      const el = screen.getByTestId('par-outcome-text');
+      expect(el.className).not.toContain('text-rygo-red');
+      expect(el.className).not.toContain('red');
+      expect(el.className).not.toContain('warning');
+    });
+
+    it('even-par text does not use rygo-green accent', () => {
+      render(<Summary {...withPar(9)} moveCount={10} />);
+      expect(screen.getByTestId('par-outcome-text').className).not.toContain('text-rygo-green');
+    });
+  });
+
   describe('clipboard fallback (navigator.share undefined)', () => {
     const mockWriteText = vi.fn().mockResolvedValue(undefined);
 

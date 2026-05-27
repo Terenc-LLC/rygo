@@ -13,6 +13,7 @@ import { computeGlobalStreak } from '../persistence/stats';
 import { enqueueAndSubmit } from '../persistence/submitScore';
 import { getStanding } from '../backend/getStanding';
 import { getDailyPar } from '../backend/getDailyPar';
+import { displayedPar } from '../display/parDisplay';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -126,6 +127,11 @@ export function GameScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  // Fetch par at mount so it's ready in the status bar from move one.
+  useEffect(() => {
+    void getDailyPar(effectiveDayKey, puzzle.gridSize).then(result => setDailyPar(result));
+  }, [effectiveDayKey, puzzle.gridSize]);
+
   // Report, submit, and read standing on daily completion exactly once.
   const { phase } = game;
   useEffect(() => {
@@ -142,9 +148,6 @@ export function GameScreen({
       });
       void getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs).then(
         result => setStanding(result),
-      );
-      void getDailyPar(effectiveDayKey, puzzle.gridSize).then(
-        result => setDailyPar(result),
       );
     }
   }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
@@ -235,6 +238,7 @@ export function GameScreen({
   }
 
   // ── playing phase ──────────────────────────────────────────────────────────
+  const dp = displayedPar(dailyPar?.par ?? null);
 
   const handleRestart = () => {
     if (mode === 'daily') {
@@ -279,8 +283,15 @@ export function GameScreen({
                 {game.moveCount}
               </p>
             </div>
-            {/* Par display slot — wired up in TER-223; min-w reserves space to prevent reflow */}
-            <div className="min-w-[4rem]" data-testid="par-slot" />
+            {/* Par display slot — min-w reserves space to prevent reflow regardless of par state */}
+            <div className="min-w-[4rem]" data-testid="par-slot">
+              {dp !== null && (
+                <>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Par</p>
+                  <p className="text-2xl font-bold text-ink dark:text-paper">{dp}</p>
+                </>
+              )}
+            </div>
           </div>
           <div>
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Time</p>

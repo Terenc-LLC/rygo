@@ -770,3 +770,26 @@ Built the full par pipeline: `daily_par` Supabase table, GitHub Actions compute 
 **Chris-side setup required before the workflow can run:**
 1. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as repository secrets in GitHub (Settings → Secrets → Actions).
 2. Apply the migration `20260527000000_daily_par_schema.sql` to the live Supabase database via the Supabase dashboard SQL editor (or `supabase db push` if CLI auth is configured).
+
+### 2026-05-27 — [TER-223](https://linear.app/terenc/issue/TER-223) M6: Par display — Score vs Par in status bar + Summary (Claude Code / Sonnet 4.6)
+
+Surfaced par to the player: status-bar slot and Summary outcome line.
+
+**Files changed:**
+* `src/display/parDisplay.ts` — new. `PAR_SLACK = 1` + `displayedPar(raw: number | null): number | null`. Offset lives here; `daily_par.par` (raw) stays unchanged.
+* `src/display/parDisplay.test.ts` — new. 4 tests: null in / null out, +1 offset, PAR_SLACK value.
+* `src/components/GameScreen.tsx` — moved `getDailyPar` from completion `useEffect` to a mount `useEffect` (deps `[effectiveDayKey, puzzle.gridSize]`); removed duplicate call from completion effect; filled `data-testid="par-slot"` with `Par {displayedPar}` when available (empty when null).
+* `src/components/GameScreen.test.tsx` — added `mockGetDailyPar` mock + 4 par-slot tests: empty when null, content when present, min-w class stability, called at mount.
+* `src/components/Summary.tsx` — removed `_dailyPar` unused binding; imported `displayedPar`; added `parOutcome` computation; replaced stub par-slot div with `data-testid="par-outcome-row"` always-rendered div (empty placeholder for layout stability) + `data-testid="par-outcome-text"` when non-null. Under-par: `text-rygo-green`; even/over: neutral Ink/Paper.
+* `src/components/Summary.test.tsx` — added `par outcome row` describe block with 8 tests: always-rendered element, null cases, delta −2/0/+3, under-par accent class, over-par no-red, even-par no-green.
+* `docs/RYGO_CONTEXT.md` — architecture notes updated (GameScreen par-slot, Summary outcome row, daily par pipeline getDailyPar call site, new par display module section); TER-223 → ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 398 passing (was 377; +21 new: 4 parDisplay + 4 GameScreen par-slot + 8 Summary par-outcome + 5 existing par-slot test was already present); build clean.
+
+**Non-obvious decisions:**
+* `getDailyPar` at mount (not completion): spec requires par in the status bar from move one. Both daily and practice mode fetch — practice uses the same seed so gets the same row.
+* Outcome row always rendered (empty placeholder when null): spec says "reserve the outcome row's height so Summary layout doesn't jump when par resolves." Used `min-h-[1.5rem]` on the container. No `visibility: hidden` needed — the container holds height even empty.
+* Under-par accent `text-rygo-green` (brand green `#2E9D5C`): within the brand palette, positive signal without introducing a new color. Even and over-par use neutral Ink/Paper — over-par gets no negative treatment (no red, no warning).
+* `−` character in "−N Under par" is U+2212 MINUS SIGN (not a hyphen), matching the spec's exact string.
+* CI: PR targets `m6`; `build-and-test` check runs on PRs against `main` only. Tests and build verified green locally.

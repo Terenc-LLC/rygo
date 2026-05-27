@@ -54,7 +54,7 @@ If Code believes a locked decision needs to change, Code stops and posts a Linea
 
 ## Source-of-truth documents
 
-* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.8** (May 25, 2026). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
+* **RYGO Game Design Document** — `Terenc-LLC/rygo/docs/RYGO_Game-Design-Document.md` on GitHub main. Currently at **v1.9** (May 27, 2026). v1.9 reflects the M6 logic pivot (always-visible reference thumbnail, placements-only scoring, par framing). Was titled "Yergers — Game Design Document" before brand finalization. (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)
 * **RYGO Anonymous Daily Leaderboard (Design Doc)** — `Terenc-LLC/rygo/docs/RYGO_Leaderboard-Design.md` on GitHub main. Source of truth for the M5 leaderboard feature. Approved by Chris May 25, 2026; the "no backend" flip it required is in GDD v1.8 and this doc's Tech stack / Retention scope.
 * **Terenc Development Process** — `Terenc-LLC/rygo/docs/Terenc-Development-Process.md` on GitHub main. Currently at **v2.5** (May 25, 2026). Canonical copy per project; org-level synchronization is a manual responsibility until a central terenc-org doc location is established.
 * **This context document** — `Terenc-LLC/rygo/docs/RYGO_CONTEXT.md` on GitHub main. Title is `RYGO_CONTEXT.md` (was `YERGERS_CONTEXT.md`). (Migrated from Linear in v2.4 docs-only PR, May 3, 2026.)

@@ -559,7 +559,7 @@ Pure, deterministic, dependency-free. A* search with a Map-based closed set (ful
 
 **Move ordering:** within each node expansion, yellow and green candidates are sorted by net-target-cells-gained (descending) before being pushed to the heap, reducing average search depth in practice.
 
-**Placement-only verification:** confirmed by tests and structural argument — R1+R2 prevent all permanently-damaging placements, so optimal paths never require clearing. 20 sampled 4×4 puzzles and 15 sampled 5×5 puzzles all prove optimal (proven:true) within budget. 6×6 and 8×8 time out (search-space size, not structural need for clears). No counterexample found.
+**Placement-only optimality:** solveOptimalPar returns the optimum *among placement-only solutions*. R1+R2 plus full-coverage targets make a shorter clear-using solution very unlikely, and all 35 solved 4×4/5×5 puzzles matched placement-only optima — but global optimality (including deliberate place-blocker → green → clear maneuvers) is NOT formally established. The `proven` flag therefore means "optimal among placements," not "provably global optimal." Closing this is tracked in TER-225; no proven/perfect badge ships until then. 6×6/8×8 time out and use soft par.
 
 **Synced to `_shared/engine/parSolver.ts`** via `npm run sync-engine` (parSolver.ts added to FILES in sync-engine.mjs; drift guard in CI covers it).
 
@@ -653,9 +653,14 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 
 ### M6 — Logic pivot (in progress)
 
-Logic-first pivot: always-visible pattern, true-optimal par, placements-only scoring. Design doc: RYGO Logic Pivot — Design Document (draft v0.1, May 26, 2026). Hard-ordered. Issues filed by Opus.
+1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ Done. Production par solver (A* + memoization, placements-only, proven flag, yellow min-cover DP).
+2. TER-221 — Backlog. Logic-loop rework (always-visible pattern, fixed layout, placements-only scoring).
+3. TER-222 — Backlog. Offline daily-par pipeline. Unblocked (TER-220 done).
+4. TER-223 — Backlog. Par display (Score vs Par). Blocked by TER-221 + TER-222.
+5. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
+6. TER-226 — Backlog (Low). Solver/engine parity test.
 
-1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ In Review. **Production par solver** — A* + full memoization, placements-only, `proven` flag, yellow min-cover DP, benchmark harness; placement-only assumption verified.
+Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 
 ### Unscheduled (pre-launch bugs / polish, no milestone yet)
 

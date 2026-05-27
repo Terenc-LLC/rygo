@@ -805,3 +805,5 @@ Doc-only PR. Applied 6 corrected edits (A–F) to `docs/RYGO_CONTEXT.md` locked 
 **Non-obvious decisions:**
 * First attempt stopped on 7/10 mismatches — correct behavior per spec. Opus provided corrected Find blocks via Linear comment; only those 6 were applied verbatim.
 * No code changes; build and tests unchanged from TER-223 baseline.
+
+**Patch commit (same session, same PR):** Opus review found Edit F missing from the diff (status comment incorrectly reported it as landed). Extra commit applied Edit F (TER-150 supersession note) verbatim; all 6 edits now confirmed in the file.

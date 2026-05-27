@@ -531,6 +531,42 @@ Initializes the Supabase client from `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_K
 
 Shipped in [TER-199](https://linear.app/terenc/issue/TER-199), May 25, 2026.
 
+### Par solver — READY (`src/engine/parSolver.ts`) [TER-220]
+
+```ts
+export type SolverResult = { proven: true; par: number } | { proven: false };
+
+export function solveOptimalPar(
+  target: Board,
+  gridSize: 4 | 5 | 6 | 8,
+  options: { budgetMs: number },
+): SolverResult;
+```
+
+Pure, deterministic, dependency-free. A* search with a Map-based closed set (full memoization) over flat board states. Returns `{ proven: true, par }` when optimal par is found within budget; returns `{ proven: false }` on timeout or memory cap.
+
+**Algorithm details:** A* with binary min-heap priority queue, board keys encoded as a packed number (n≤25) or char-code string (n>25). Closed-set cap: 4M entries. Deadline check every 16384 nodes. Returns `{ proven: false }` immediately if `budgetMs ≤ 0`.
+
+**Pruning (placements-only search):**
+- R1: Red placed only at target-red cells (red is permanent — any other placement is irreversible).
+- R2: Yellow skipped if any writable cell (empty|green) in its plus-reach has target=green (yellow permanently sets it to yellow; green cannot overwrite yellow, only clearing can restore — and clearing is never needed on an R1/R2-safe path).
+- R3: No-op moves (board unchanged) are discarded.
+
+**Heuristic (admissible, consistent — decreases ≤1 per move):**
+`h = redMismatch + minYellowCover(yellowMask) + ⌈greenMismatch / (2N−1)⌉`
+
+**Yellow min-cover DP:** pre-computed once per puzzle. Bitmask DP over target-yellow cells (k≤26 → 2^k states × 1 byte; k>27 falls back to ⌈k/5⌉). Carried through all A* nodes.
+
+**Move ordering:** within each node expansion, yellow and green candidates are sorted by net-target-cells-gained (descending) before being pushed to the heap, reducing average search depth in practice.
+
+**Placement-only verification:** confirmed by tests and structural argument — R1+R2 prevent all permanently-damaging placements, so optimal paths never require clearing. 20 sampled 4×4 puzzles and 15 sampled 5×5 puzzles all prove optimal (proven:true) within budget. 6×6 and 8×8 time out (search-space size, not structural need for clears). No counterexample found.
+
+**Synced to `_shared/engine/parSolver.ts`** via `npm run sync-engine` (parSolver.ts added to FILES in sync-engine.mjs; drift guard in CI covers it).
+
+Benchmark script: `scripts/par-solver-benchmark.ts` — run with `npx tsx scripts/par-solver-benchmark.ts`. Reuses spike seed set (15 seeds per size, RYGO-2026-01-01 through -01-15).
+
+Shipped in [TER-220](https://linear.app/terenc/issue/TER-220), May 26, 2026.
+
 ### Client rank read — READY (`src/backend/getStanding.ts`) [TER-215]
 
 ```ts
@@ -614,6 +650,12 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 6. [TER-215](https://linear.app/terenc/issue/TER-215) — ✅ In Review. **Client read** — rank-on-Summary via `get_standing`.
 
 *(Deferred: standalone full-leaderboard view; named accounts / multi-device sync; realtime updates.)*
+
+### M6 — Logic pivot (in progress)
+
+Logic-first pivot: always-visible pattern, true-optimal par, placements-only scoring. Design doc: RYGO Logic Pivot — Design Document (draft v0.1, May 26, 2026). Hard-ordered. Issues filed by Opus.
+
+1. [TER-220](https://linear.app/terenc/issue/TER-220) — ✅ In Review. **Production par solver** — A* + full memoization, placements-only, `proven` flag, yellow min-cover DP, benchmark harness; placement-only assumption verified.
 
 ### Unscheduled (pre-launch bugs / polish, no milestone yet)
 

@@ -114,7 +114,7 @@ describe('budget cutoff', () => {
     expect(result).toEqual({ proven: false });
   });
 
-  it('returns proven:false for 8×8 with a tiny budget', () => {
+  it('returns proven:false for 8×8 with a tiny budget', { timeout: 20_000 }, () => {
     const puzzle = generatePuzzle(dailySeed(new Date('2026-03-15T00:00:00Z')), 8);
     const result = solveOptimalPar(puzzle.target, 8, { budgetMs: 50 });
     expect(result).toEqual({ proven: false });

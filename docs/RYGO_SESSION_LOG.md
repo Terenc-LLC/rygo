@@ -807,3 +807,14 @@ Doc-only PR. Applied 6 corrected edits (A–F) to `docs/RYGO_CONTEXT.md` locked 
 * No code changes; build and tests unchanged from TER-223 baseline.
 
 **Patch commit (same session, same PR):** Opus review found Edit F missing from the diff (status comment incorrectly reported it as landed). Extra commit applied Edit F (TER-150 supersession note) verbatim; all 6 edits now confirmed in the file.
+
+### 2026-05-27 — [TER-244](https://linear.app/terenc/issue/TER-244) GDD v1.9 — M6 logic pivot (Claude Code / Sonnet 4.6)
+
+Doc-only PR. Applied Opus's v1.9 GDD draft verbatim to `docs/RYGO_Game-Design-Document.md` (complete file replacement) and bumped the GDD version reference in `docs/RYGO_CONTEXT.md`.
+
+**Files changed:**
+* `docs/RYGO_Game-Design-Document.md` — complete rewrite from v1.8 to v1.9. Key changes: Concept rewritten for logic-puzzle framing (pattern always visible, not memorized); "Pattern display" component replaced by "Reference thumbnail" (always-visible `w-28`, tap-to-zoom overlay); Move counter and Timer updated to placements-only / game-screen-mount; Gameplay section major rewrite (no first-reveal step, no re-reveal, no transition blanks); Scoring rewritten to placements-only + new Par framing subsection; Accessibility gains tap-to-zoom bullet; Open questions: §8 resolved, new §7 (par slack tuning) and §8 (6×6 budget bump, TER-240); Changelog v1.9 entry added.
+* `docs/RYGO_CONTEXT.md` — one-line edit: GDD version reference bumped from v1.8 (May 25, 2026) to v1.9 (May 27, 2026) with M6 pivot summary.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**No source-code or test changes. `npm run build` passes clean.**

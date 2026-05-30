@@ -173,7 +173,7 @@ Four sizes (May 2, 2026 — was three previously; shipped in [TER-145](https://l
 * Cascade animations — defer to polish (M4). The win-state validation sweep shipped in [TER-153](https://linear.app/terenc/issue/TER-153) (M2); any further cell-fill / completion cascades remain M4.
 * Respect `prefers-color-scheme` on first visit — currently no.
 * Shapes opt-out toggle — default shapes ON (color-blind accessibility is MVP and stays the default); add an optional user toggle to hide shapes, paired with future CVD-friendly color schemes as the accessible path for players who turn shapes off. Post-launch — needs a settings surface (none exists yet). Note: aggregate "track which choice users make" is not possible under the current no-backend / per-device-localStorage architecture; only the local preference can be stored. (Reframed May 24, 2026 from "always-on for MVP, revisit if users complain.")
-* Pattern generator solution-length ranges — initial v1.4 ranges set in [TER-146](https://linear.app/terenc/issue/TER-146) (starting L and MOVE_CAP per size; see the Pattern generator architecture note). Still to be retuned with real-play data; the per-size feel — especially whether Easy 4×4 stays easy at the longer lengths — is a Chris manual-verify item.
+* Pattern generator solution-length ranges — v1.5 ranges live ([TER-248](https://linear.app/terenc/issue/TER-248)): 4×4 8–11, 5×5 10–14, 6×6 13–18, 8×8 18–26 (starting L; MOVE_CAP per size in the Pattern generator architecture note). Still to be retuned with real-play data; the per-size feel — especially whether Easy 4×4 stays easy at the longer lengths — remains a Chris manual-verify item.
 * Pattern generator color weights (red 0.40 / yellow 0.40 / green 0.20) are a starting hypothesis from [TER-146](https://linear.app/terenc/issue/TER-146) — retune with real-play data.
 
 *(Resolved May 3, 2026: "Migrate context doc from Linear to GitHub" — done in v2.4 docs-only PR. Three Linear last-write-wins clobbering incidents drove the call. Removed from open questions.)*
@@ -692,7 +692,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 4a. [TER-206](https://linear.app/terenc/issue/TER-206) — ✅ Done. **Shared replay core** — pure `src/engine/replay.ts` (`applyEvent` + `replayEventLog`); `useGame` reducer delegates board+score transitions to it; synced to `_shared/engine/`. 270 existing tests stay green; 16 direct `replayEventLog` tests added (286 total).
 4b. [TER-207](https://linear.app/terenc/issue/TER-207) — ✅ Done. **Edge function** — `supabase/functions/submit-score/` replay validator: pure `validate.ts` (parse → day bounds → eventLog cap → replay → elapsed bounds) + `index.ts` (CORS/auth/DB). Generator-parity fixture (12 entries, 3 seeds × 4 sizes) + 36 Deno tests (24 validate unit + 12 parity). CI extended with `deno test` step.
 5. [TER-213](https://linear.app/terenc/issue/TER-213) — ✅ Done. **Client submit** — fire-and-forget on completion + `rygo:pending-submit` retry queue.
-6. [TER-215](https://linear.app/terenc/issue/TER-215) — ✅ In Review. **Client read** — rank-on-Summary via `get_standing`.
+6. [TER-215](https://linear.app/terenc/issue/TER-215) — ✅ Done. **Client read** — rank-on-Summary via `get_standing`.
 
 *(Deferred: standalone full-leaderboard view; named accounts / multi-device sync; realtime updates.)*
 
@@ -714,7 +714,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 * [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
-* [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ In Review. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated).
+* [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ Done. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated). Shipped May 30, 2026.
 
 ## Session log
 

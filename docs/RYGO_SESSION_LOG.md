@@ -173,7 +173,7 @@ Locked-section updates absorbed in this PR:
 
 **M2 follow-ups status:** 6 of 9 shipped (TER-145 / TER-149 / TER-151 / TER-147 / TER-152 / TER-148). Remaining: [TER-150](https://linear.app/terenc/issue/TER-150) unblocked; [TER-146](https://linear.app/terenc/issue/TER-146) unblocked but design pass pending; [TER-153](https://linear.app/terenc/issue/TER-153) design pass pending.
 
-**Next recommended:** [TER-150](https://linear.app/terenc/issue/TER-150) (every-click-counts scoring) — locked spec, narrow blast radius (touches `useGame` reducer + tests). For a parallel design slot, [TER-146](https://linear.app/terenc/issue/TER-146) generator rewrite or [TER-153](https://linear.app/terenc/issue/TER-153) validation sweep are the two M2 issues still needing design passes.
+**Next recommended:** [TER-150](https://linear.app/terenc/issue/TER-150) (every-click-counts scoring) — locked spec, narrow blast radius (touches `useGame` reducer + tests). For a parallel design slot, [TER-146](https://linear.app/terenc/issue/TER-146) generator rewrite or [TER-153](https https://linear.app/terenc/issue/TER-153) validation sweep are the two M2 issues still needing design passes.
 
 ### 2026-05-03 — [TER-150](https://linear.app/terenc/issue/TER-150) Every-click-counts scoring (Claude Code / Sonnet 4.6)
 
@@ -479,8 +479,6 @@ Locked-section updates absorbed in this docs-only PR:
 **Drift guard verified locally:** staged the committed baseline, appended `// drift-test` to `src/engine/types.ts`, ran `npm run sync-engine`, and confirmed `git diff --exit-code -- supabase/functions/_shared/` exits 1 with a visible diff. Reverted and re-synced back to clean.
 
 **Idempotency verified:** running `npm run sync-engine` twice in a row produces `git diff --exit-code` exit 0.
-
-**No runtime behavior changes.** No edits to `useGame`, `GameScreen`, `App`, or any file outside `src/engine/`, `scripts/`, `supabase/functions/_shared/engine/`, `package.json`, `.github/workflows/ci.yml`, and `docs/`.
 
 **Docs changes (allowlisted sections only):**
 * **Architecture notes:** added "Shared-engine delivery" section.
@@ -837,3 +835,20 @@ Difficulty-tuning pass on the daily generator. With the M6 pivot the target patt
 * MOVE_CAP increases (minimum needed to keep rate ≤ 5% per size): diagnosed per-size cap-exceeded rates at 6.2% (4×4), 4.4% (5×5, OK), 6.8% (6×6), 13.6% (8×8) with the old caps. Tested candidate cap values with an inline diagnostic (500 puzzles per size): caps 4×4→16, 6×6→26, 8×8→40 gave per-size rates of ~2.4%, ~1.2%, ~0.0% — all well under 5%. 5×5 already under 5% at cap 18 → unchanged.
 * Deno parity test verified by construction (local Deno not installed); CI is the formal gate.
 * No MOVE_CAP change for 5×5 — its 4.4% rate remained under threshold with the existing cap 18.
+
+### 2026-05-30 — [TER-248](https://linear.app/terenc/issue/TER-248) + [TER-215](https://linear.app/terenc/issue/TER-215) closed by Opus (docs-only PR #66)
+
+Chris reported [TER-248](https://linear.app/terenc/issue/TER-248)'s PR merged (PR #65, merged 18:49 UTC May 30) and confirmed [TER-215](https://linear.app/terenc/issue/TER-215) should flip alongside it. TER-215's code (PR #52) had been on `main` since May 26 but its close-out was missed — the issue map and this log were never updated, a four-day gap caught during this reconciliation. Opus reviewed PR #66's diff: three surgical edits to `docs/RYGO_CONTEXT.md`, no source touched, no other files. Both issues marked Done.
+
+Locked-section updates in docs-only PR #66:
+
+* **Issue map (Unscheduled):** [TER-248](https://linear.app/terenc/issue/TER-248) ✅ In Review → ✅ Done ("Shipped May 30, 2026").
+* **Issue map (M5 item 6):** [TER-215](https://linear.app/terenc/issue/TER-215) ✅ In Review → ✅ Done.
+* **Open questions:** the generator solution-length-ranges entry refreshed from the v1.4 ([TER-146](https://linear.app/terenc/issue/TER-146)) framing to v1.5 ([TER-248](https://linear.app/terenc/issue/TER-248)) — new starting-L floors listed (4×4 8–11, 5×5 10–14, 6×6 13–18, 8×8 18–26); MOVE_CAPs in the Pattern generator arch note; still flagged for real-play retune and as a Chris manual-verify item.
+
+Ops items flagged at close-out (not code; Chris-side, post-deploy):
+
+* **Trigger the `compute-par` `workflow_dispatch` after the v1.5 deploy.** The new generator changes target boards, so every precomputed `daily_par` row mismatches on `generation_hash` and the client silently degrades to no-par until the rows are refilled — up to ~a week if only the weekly Monday cron runs. (Also called out in PR #65's body.)
+* **Then watch the 6×6 proven rate.** v1.5's longer solutions deepen the solver search; a drop in the 6×6 proven rate is the trigger to promote [TER-240](https://linear.app/terenc/issue/TER-240) (6×6 par budget bump).
+
+Board after this close-out: nothing In Progress. Remaining is Backlog/Low — [TER-240](https://linear.app/terenc/issue/TER-240), TER-225 (clear-enabled optimality cross-check), TER-226 (solver/engine parity test) — plus non-code TER-212 (launch checklist) and undesigned TER-216 (leaderboard v2). Nothing is spec-ready for an autonomous launch; the next target gets a design pass before any spec draft.

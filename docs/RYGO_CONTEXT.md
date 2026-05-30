@@ -237,7 +237,7 @@ Deterministic, seeded puzzle generator. Zero external dependencies. Implementati
 * **Algorithm (v1.4 — [TER-146](https://linear.app/terenc/issue/TER-146)):** Generate a starting sequence of L moves → simulate on empty board → if fully covered and all-3-colors, accept (if non-trivial). Otherwise: Phase A — append moves targeting empty cells, forcing green if green is absent from the current board state (guarantees a window for green before the board fills); Phase B — fix any remaining missing non-green colors (red or yellow can overwrite existing cells). Abort attempt if total moves exceed MOVE_CAP; outer loop retries up to 100 times before throwing. Solvability is guaranteed by construction.
 * **Color weights:** red 0.40, yellow 0.40, green 0.20. Green raised from 0.15 (TER-149 blocking limits effective reach); Phase A green-forcing closes the structural gap. Starting hypothesis — retune with real-play data.
 * **Trivial-puzzle rejection:** rejects and retries if all-empty, all-one-color, >85% single color, or first move alone produces the target. Each retry uses `hash(seed + "/" + attempt)` so retries are independent but output is deterministic from the user-facing seed.
-* **Solution length (v1.4):** Starting L — 4×4: 6–10, 5×5: 8–12, 6×6: 10–16, 8×8: 14–22. MOVE_CAP — 4×4: 14, 5×5: 18, 6×6: 24, 8×8: 36. Actual solution length = starting L + any appended moves (≤ MOVE_CAP).
+* **Solution length (v1.5 — [TER-248](https://linear.app/terenc/issue/TER-248)):** Starting L — 4×4: 8–11, 5×5: 10–14, 6×6: 13–18, 8×8: 18–26. MOVE_CAP — 4×4: 16, 5×5: 18, 6×6: 26, 8×8: 40. Floors raised ~2–4 vs v1.4 to produce harder dailies under the M6 always-visible-pattern model; MOVE_CAPs for 4×4, 6×6, and 8×8 raised by the minimum needed (1–4 moves) to keep the cap-exceeded retry rate ≤ 5%. 5×5 MOVE_CAP unchanged. Bulk-1000 test: 100% full coverage + all-3-colors, cap-exceeded rate ≤ 5%, max attempts ≤ 10. Actual solution length = starting L + any appended moves (≤ MOVE_CAP).
 * **Full coverage + all-3-colors:** every target cell is red/yellow/green (no empty). All three colors appear at least once. Both conditions verified before accepting a puzzle. Bulk-1000 test confirms 100% compliance and cap-exceeded rate ≤ 5%.
 * **dailySeed prefix:** `'RYGO-'` (switched from `'YERGERS-'` in [TER-151](https://linear.app/terenc/issue/TER-151)).
 
@@ -714,6 +714,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-169](https://linear.app/terenc/issue/TER-169) — ✅ Done. Reward-screen pacing: hold on the solved board, tap to advance to Summary (no auto-advance). Shipped May 24, 2026.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 * [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
+* [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ In Review. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated).
 
 ## Session log
 

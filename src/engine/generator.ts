@@ -81,22 +81,26 @@ function isTrivial(target: Board, solution: Move[], size: number): boolean {
   return false;
 }
 
-// Starting solution-length ranges (v1.4). The generator draws a starting L from this
-// range, then appends additional moves until full coverage + all 3 colors are met.
+// Starting solution-length ranges (v1.5 — TER-248 difficulty retune). The generator draws
+// a starting L from this range, then appends additional moves until full coverage + all 3
+// colors are met. Floors raised ~2–4 vs v1.4 to produce harder dailies under the M6
+// always-visible-pattern model (challenge is routing, not memory).
 export const MOVE_RANGE: Record<4 | 5 | 6 | 8, [number, number]> = {
-  4: [6, 10],
-  5: [8, 12],
-  6: [10, 16],
-  8: [14, 22],
+  4: [8, 11],
+  5: [10, 14],
+  6: [13, 18],
+  8: [18, 26],
 };
 
 // Maximum total solution length (starting L + all appended moves).
 // If this cap is reached before the board satisfies all constraints, abort and retry.
+// v1.5 (TER-248): 4×4 raised 14→16, 6×6 raised 24→26, 8×8 raised 36→40 to keep the
+// cap-exceeded rate ≤ 5% with the higher starting-L floors; 5×5 unchanged.
 export const MOVE_CAP: Record<4 | 5 | 6 | 8, number> = {
-  4: 14,
+  4: 16,
   5: 18,
-  6: 24,
-  8: 36,
+  6: 26,
+  8: 40,
 };
 
 // Test instrumentation: counts puzzles that required more than one attempt,

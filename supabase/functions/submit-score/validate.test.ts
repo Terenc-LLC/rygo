@@ -9,7 +9,7 @@ import {
 } from './validate.ts';
 import { generatePuzzle, dailySeed } from '../_shared/engine/generator.ts';
 import { replayEventLog } from '../_shared/engine/replay.ts';
-import type { GameEvent } from '../_shared/engine/types.ts';
+import type { Board, GameEvent } from '../_shared/engine/types.ts';
 
 // ── Assertion helpers (no external deps) ────────────────────────────────────
 
@@ -35,6 +35,17 @@ function assertThrowsBadRequest(fn: () => void, msgIncludes?: string): void {
       );
     }
   }
+}
+
+function boardsEqual(a: Board, b: Board): boolean {
+  if (a.length !== b.length) return false;
+  for (let r = 0; r < a.length; r++) {
+    if (a[r].length !== b[r].length) return false;
+    for (let c = 0; c < a[r].length; c++) {
+      if (a[r][c] !== b[r][c]) return false;
+    }
+  }
+  return true;
 }
 
 // ── Event-log builder from generator solution ────────────────────────────────
@@ -72,6 +83,26 @@ function goodPayload(
   // Extract YYYY-MM-DD from the seed ("RYGO-2026-05-25" → "2026-05-25")
   const day = seed.slice(5); // works for our daily seeds
   return { grid_size: gridSize, day, eventLog, moveCount, elapsedMs };
+}
+
+// Scans daily-date seeds from LAUNCH_DAY and returns the first whose 1:1
+// solutionToEventLog replay faithfully reproduces the target board. Necessary
+// because at v1.5 solution lengths, same-color re-touches are common enough
+// that a pinned seed often diverges between applyMove (generator) and applyEvent
+// (replay) semantics — making goodPayload unreliable for accepted:true tests.
+function faithfulDailyFixture(
+  gridSize: 4 | 5 | 6 | 8,
+  elapsedMs = ELAPSED_FLOOR_MS + 1000,
+): { grid_size: 4 | 5 | 6 | 8; day: string; eventLog: GameEvent[]; moveCount: number; elapsedMs: number } {
+  const base = new Date('2026-05-25T00:00:00Z'); // LAUNCH_DAY
+  for (let i = 0; i < 400; i++) {
+    const day = dailySeed(new Date(base.getTime() + i * 86400000)).slice(5); // YYYY-MM-DD
+    const puzzle = generatePuzzle(`RYGO-${day}`, gridSize);
+    const eventLog = solutionToEventLog(puzzle.solution as SolutionMove[]);
+    const { board, moveCount } = replayEventLog(puzzle, eventLog);
+    if (boardsEqual(board, puzzle.target)) return { grid_size: gridSize, day, eventLog, moveCount, elapsedMs };
+  }
+  throw new Error(`no faithful ${gridSize}×${gridSize} fixture seed found in 400 days`);
 }
 
 // ── parsePayload tests ────────────────────────────────────────────────────────
@@ -181,14 +212,16 @@ Deno.test('parsePayload: rejects tap with col >= grid_size', () => {
 // diverge between applyMove and applyEvent semantics). Correctness for 6×6 and 8×8 is
 // covered by the generator-parity test (parity.test.ts).
 Deno.test('validateSubmission: accepts a correct 4×4 replay', () => {
-  const payload = parsePayload(goodPayload('RYGO-2026-05-25', 4));
-  const result = validateSubmission(payload, '2026-05-25');
+  const base = faithfulDailyFixture(4);
+  const payload = parsePayload(base);
+  const result = validateSubmission(payload, base.day);
   assertEquals(result, { accepted: true });
 });
 
 Deno.test('validateSubmission: accepts a correct 5×5 replay', () => {
-  const payload = parsePayload(goodPayload('RYGO-2026-05-25', 5));
-  const result = validateSubmission(payload, '2026-05-25');
+  const base = faithfulDailyFixture(5);
+  const payload = parsePayload(base);
+  const result = validateSubmission(payload, base.day);
   assertEquals(result, { accepted: true });
 });
 
@@ -253,16 +286,16 @@ Deno.test('validateSubmission: elapsedMs below floor → accepted:false (reject,
 });
 
 Deno.test('validateSubmission: elapsedMs at floor → accepted:true', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4, ELAPSED_FLOOR_MS);
+  const base = faithfulDailyFixture(4, ELAPSED_FLOOR_MS);
   const payload = parsePayload(base);
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, base.day);
   assertEquals(result, { accepted: true });
 });
 
 Deno.test('validateSubmission: elapsedMs at ceiling → accepted:true', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4, ELAPSED_CEILING_MS);
+  const base = faithfulDailyFixture(4, ELAPSED_CEILING_MS);
   const payload = parsePayload(base);
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, base.day);
   assertEquals(result, { accepted: true });
 });
 
@@ -274,7 +307,8 @@ Deno.test('validateSubmission: elapsedMs above ceiling → accepted:false (rejec
 });
 
 Deno.test('validateSubmission: same-day submit (serverToday === day) is accepted', () => {
-  const payload = parsePayload(goodPayload('RYGO-2026-05-25', 4));
-  const result = validateSubmission(payload, '2026-05-25');
+  const base = faithfulDailyFixture(4);
+  const payload = parsePayload(base);
+  const result = validateSubmission(payload, base.day);
   assertEquals(result, { accepted: true });
 });

@@ -84,7 +84,7 @@ describe('generatePuzzle — 5×5 grid', () => {
     expect(target[0].length).toBe(5);
   });
 
-  it('5×5 solution length is within starting range [8, 12] up to cap 18', () => {
+  it('5×5 solution length is within starting range [10, 14] up to cap 18', () => {
     const { solution } = generatePuzzle('5x5-length', 5);
     expect(solution.length).toBeGreaterThanOrEqual(MOVE_RANGE[5][0]);
     expect(solution.length).toBeLessThanOrEqual(MOVE_CAP[5]);

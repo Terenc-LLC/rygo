@@ -19,11 +19,11 @@
         "yellow",
         "yellow",
         "yellow",
-        "green"
+        "red"
       ],
       [
         "red",
-        "yellow",
+        "red",
         "red",
         "green"
       ]
@@ -34,8 +34,8 @@
     "gridSize": 5,
     "target": [
       [
-        "yellow",
-        "yellow",
+        "red",
+        "green",
         "yellow",
         "yellow",
         "yellow"
@@ -51,7 +51,7 @@
         "yellow",
         "yellow",
         "yellow",
-        "red",
+        "yellow",
         "red"
       ],
       [
@@ -63,10 +63,10 @@
       ],
       [
         "red",
+        "red",
         "yellow",
-        "yellow",
-        "yellow",
-        "yellow"
+        "red",
+        "green"
       ]
     ]
   },
@@ -75,11 +75,11 @@
     "gridSize": 6,
     "target": [
       [
+        "green",
+        "yellow",
         "red",
         "yellow",
-        "green",
         "yellow",
-        "green",
         "yellow"
       ],
       [
@@ -95,7 +95,7 @@
         "red",
         "yellow",
         "yellow",
-        "green",
+        "yellow",
         "yellow"
       ],
       [
@@ -108,18 +108,18 @@
       ],
       [
         "yellow",
-        "green",
+        "yellow",
         "yellow",
         "red",
-        "yellow",
-        "yellow"
+        "green",
+        "green"
       ],
       [
         "red",
+        "yellow",
         "green",
-        "yellow",
-        "yellow",
-        "yellow",
+        "green",
+        "green",
         "green"
       ]
     ]
@@ -129,83 +129,83 @@
     "gridSize": 8,
     "target": [
       [
-        "green",
-        "green",
-        "green",
-        "green",
-        "green",
+        "red",
+        "red",
         "green",
         "yellow",
+        "green",
+        "red",
+        "red",
         "yellow"
       ],
       [
         "yellow",
-        "red",
         "yellow",
-        "red",
         "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow"
+      ],
+      [
         "red",
+        "red",
+        "red",
+        "red",
+        "green",
+        "green",
         "yellow",
         "red"
       ],
       [
         "yellow",
-        "red",
-        "yellow",
-        "red",
         "yellow",
         "yellow",
-        "red",
-        "yellow"
-      ],
-      [
-        "yellow",
-        "yellow",
-        "yellow",
-        "red",
-        "yellow",
-        "red",
-        "yellow",
-        "yellow"
-      ],
-      [
-        "yellow",
-        "yellow",
-        "yellow",
-        "yellow",
-        "yellow",
-        "yellow",
+        "green",
+        "green",
+        "green",
         "green",
         "red"
       ],
       [
-        "red",
         "yellow",
         "yellow",
         "yellow",
+        "yellow",
+        "green",
+        "green",
+        "yellow",
+        "yellow"
+      ],
+      [
+        "yellow",
+        "green",
         "yellow",
         "red",
         "green",
-        "green"
+        "green",
+        "red",
+        "yellow"
       ],
       [
         "red",
+        "green",
+        "yellow",
+        "green",
         "yellow",
         "yellow",
         "yellow",
-        "red",
-        "red",
-        "yellow",
-        "green"
+        "yellow"
       ],
       [
         "red",
+        "red",
         "yellow",
         "yellow",
         "yellow",
         "yellow",
-        "yellow",
-        "yellow",
+        "red",
         "yellow"
       ]
     ]
@@ -229,13 +229,13 @@
       [
         "green",
         "yellow",
-        "red",
-        "green"
+        "yellow",
+        "yellow"
       ],
       [
         "green",
         "yellow",
-        "yellow",
+        "red",
         "yellow"
       ]
     ]
@@ -259,7 +259,7 @@
         "yellow"
       ],
       [
-        "yellow",
+        "red",
         "yellow",
         "yellow",
         "yellow",
@@ -277,7 +277,7 @@
         "yellow",
         "yellow",
         "red",
-        "yellow"
+        "green"
       ]
     ]
   },
@@ -294,7 +294,7 @@
         "yellow"
       ],
       [
-        "green",
+        "yellow",
         "yellow",
         "yellow",
         "yellow",
@@ -302,7 +302,7 @@
         "red"
       ],
       [
-        "green",
+        "yellow",
         "yellow",
         "yellow",
         "yellow",
@@ -311,7 +311,7 @@
       ],
       [
         "red",
-        "yellow",
+        "green",
         "yellow",
         "yellow",
         "yellow",
@@ -319,7 +319,7 @@
       ],
       [
         "yellow",
-        "yellow",
+        "green",
         "green",
         "yellow",
         "yellow",
@@ -342,16 +342,6 @@
       [
         "green",
         "green",
-        "green",
-        "yellow",
-        "green",
-        "yellow",
-        "yellow",
-        "yellow"
-      ],
-      [
-        "green",
-        "green",
         "yellow",
         "yellow",
         "yellow",
@@ -361,17 +351,7 @@
       ],
       [
         "green",
-        "yellow",
         "green",
-        "yellow",
-        "red",
-        "yellow",
-        "yellow",
-        "yellow"
-      ],
-      [
-        "red",
-        "yellow",
         "yellow",
         "yellow",
         "yellow",
@@ -380,30 +360,30 @@
         "red"
       ],
       [
-        "red",
+        "green",
         "yellow",
         "green",
         "yellow",
-        "yellow",
+        "red",
         "yellow",
         "yellow",
         "red"
       ],
       [
         "red",
-        "green",
-        "green",
-        "green",
+        "yellow",
+        "yellow",
+        "red",
         "yellow",
         "yellow",
         "yellow",
-        "yellow"
+        "green"
       ],
       [
+        "red",
         "yellow",
         "green",
-        "red",
-        "green",
+        "yellow",
         "yellow",
         "yellow",
         "yellow",
@@ -412,12 +392,32 @@
       [
         "yellow",
         "yellow",
+        "yellow",
         "green",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow"
+      ],
+      [
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "green"
+      ],
+      [
+        "yellow",
         "yellow",
         "yellow",
         "red",
         "yellow",
-        "yellow"
+        "red",
+        "red",
+        "green"
       ]
     ]
   },
@@ -441,10 +441,10 @@
         "red",
         "green",
         "yellow",
-        "red"
+        "yellow"
       ],
       [
-        "green",
+        "red",
         "green",
         "red",
         "red"
@@ -458,7 +458,7 @@
       [
         "yellow",
         "green",
-        "green",
+        "red",
         "yellow",
         "green"
       ],
@@ -474,14 +474,14 @@
         "yellow",
         "yellow",
         "yellow",
-        "red"
+        "green"
       ],
       [
         "red",
         "green",
         "yellow",
-        "yellow",
-        "yellow"
+        "red",
+        "green"
       ],
       [
         "red",
@@ -514,27 +514,27 @@
       ],
       [
         "yellow",
+        "red",
         "yellow",
         "yellow",
         "yellow",
-        "yellow",
-        "red"
+        "yellow"
       ],
       [
         "yellow",
         "yellow",
         "yellow",
         "yellow",
-        "yellow",
-        "red"
+        "red",
+        "yellow"
       ],
       [
         "red",
         "red",
         "yellow",
+        "red",
         "yellow",
-        "yellow",
-        "red"
+        "yellow"
       ],
       [
         "green",
@@ -551,8 +551,8 @@
     "gridSize": 8,
     "target": [
       [
-        "yellow",
-        "yellow",
+        "red",
+        "green",
         "yellow",
         "yellow",
         "yellow",
@@ -563,12 +563,12 @@
       [
         "yellow",
         "green",
-        "green",
+        "yellow",
         "yellow",
         "red",
         "yellow",
         "yellow",
-        "yellow"
+        "red"
       ],
       [
         "yellow",
@@ -582,7 +582,7 @@
       ],
       [
         "yellow",
-        "red",
+        "yellow",
         "red",
         "yellow",
         "yellow",
@@ -591,19 +591,9 @@
         "yellow"
       ],
       [
-        "green",
-        "green",
-        "yellow",
-        "yellow",
-        "yellow",
         "red",
         "yellow",
-        "yellow"
-      ],
-      [
-        "red",
-        "red",
-        "green",
+        "yellow",
         "yellow",
         "yellow",
         "yellow",
@@ -612,7 +602,7 @@
       ],
       [
         "red",
-        "green",
+        "red",
         "green",
         "yellow",
         "red",
@@ -621,9 +611,19 @@
         "red"
       ],
       [
-        "green",
-        "green",
         "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow",
+        "yellow"
+      ],
+      [
+        "yellow",
+        "green",
+        "green",
         "yellow",
         "yellow",
         "red",

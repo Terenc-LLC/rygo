@@ -854,3 +854,13 @@ Ops items flagged at close-out (not code; Chris-side, post-deploy):
 * **Then watch the 6×6 proven rate.** v1.5's longer solutions deepen the solver search; a drop in the 6×6 proven rate is the trigger to promote [TER-240](https://linear.app/terenc/issue/TER-240) (6×6 par budget bump).
 
 Board after this close-out: nothing In Progress. Remaining is Backlog/Low — [TER-240](https://linear.app/terenc/issue/TER-240), TER-225 (clear-enabled optimality cross-check), TER-226 (solver/engine parity test) — plus non-code TER-212 (launch checklist) and undesigned TER-216 (leaderboard v2). Nothing is spec-ready for an autonomous launch; the next target gets a design pass before any spec draft.
+
+### 2026-06-01 — [TER-293](https://linear.app/terenc/issue/TER-293) compute-par workflow Node bump 20 → 22 (Claude Code / Sonnet 4.6)
+
+One-line fix to `.github/workflows/compute-par.yml`: `node-version: '20'` → `'22'`. Root cause: `@supabase/supabase-js` instantiates `RealtimeClient` inside `createClient`, which requires a native global `WebSocket` — available in Node 22+ but absent in Node 20. The workflow has never succeeded; all `daily_par` rows through 2026-05-27 were written by local dev-machine runs (Node 25). With the v1.5 generator live and old rows stale on `generation_hash`, par is missing in production.
+
+**What changed:** `.github/workflows/compute-par.yml` line 21 only. No changes to `scripts/compute-par.ts`, `ci.yml`, any engine file, or any dependency.
+
+**Tested:** `npm run build` clean; `npm run test` 398/398 passing. CI `build-and-test` does not exercise `compute-par.yml`, so the real validation is a `workflow_dispatch` run against the fix branch (see PR status comment).
+
+**Decisions made:** none — scope is fully specified by the issue; no unspecified decisions encountered.

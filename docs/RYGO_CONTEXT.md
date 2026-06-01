@@ -715,6 +715,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 * [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
 * [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ Done. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated). Shipped May 30, 2026.
+* [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ In Review. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+).
 
 ## Session log
 

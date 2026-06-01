@@ -891,3 +891,16 @@ Fixed the self-count race that caused the rank line to show "1 of 1" even when p
 **Tested:** `npm run build` clean; `npm run test` 402/402 passing (up from 398 — 4 new tests).
 
 **Decisions made:** none — spec fully covers the fix; no unspecified decisions encountered.
+
+### 2026-06-01 — Opus close-out: June 1 production-incident session (TER-289 / TER-293 / TER-295 / TER-297)
+
+Diagnosed and resolved two concurrent production issues, both rooted in deployed runtime drifting from the repo while CI stayed green.
+
+* **TER-289 — leaderboard submissions silently failing (~05-27 onward).** Edge-function logs showed continuous invocations but no rows landing → deployed `submit-score` was stale vs the M6 + v1.5 client and rejected every submission (retry queue drops `accepted:false`/4xx as terminal). Resolved by redeploying `submit-score` from `main` via the new TER-295 workflow dispatch; verified a fresh `2026-06-01` `scores` row landed. Ops fix, no code change.
+* **TER-293 — compute-par failed on Node 20.** `@supabase/supabase-js` `createClient` needs native WebSocket (Node 22+); the workflow pinned Node 20, so it had never run in CI (prior `daily_par` rows came from local Node-25 runs). One-line bump to Node 22 (PR #67); dispatch refilled `daily_par` for the 14-day window with v1.5 hashes.
+* **TER-295 — deploy-parity automation.** New `deploy-functions.yml` (PR #68) auto-deploys all edge functions via `workflow_dispatch` and on push to `main` under `supabase/functions/**` (path filter catches synced `_shared/engine/**` too). Closes the drift gap behind TER-289.
+* **TER-297 — Summary rank stale "#R of N".** Corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement (PR #69); `scores` data confirmed "1 of 1" was a read/write race, not low adoption or an anon-identity bug.
+
+Also: filed **TER-290** (low grid contrast, user-reported, parked pending repro). Trimmed **TER-216** — idea #1 ("re-check today's rank") shipped as TER-297; two ideas remain (yesterday's final rank, first-place stars).
+
+Open follow-ups: generator-path `push` trigger on `compute-par.yml` (par-staleness half of deploy-parity); Process v2.6 (Opus authors repo-doc edits, Code/Chris applies). Post-v1.5 the 6×6 par proven-rate dropped (~40% in the sampled window) — meets the TER-240 promotion trigger; awaiting Chris's decision.

@@ -874,3 +874,20 @@ Added `.github/workflows/deploy-functions.yml` — the CI gap that allowed `subm
 **Tested:** `npm run build` clean; `npm run test` 398/398 passing. CI `build-and-test` does not exercise this workflow — real validation is a `workflow_dispatch` run against the fix branch (Chris to dispatch and confirm a fresh daily lands a `scores` row; that is also the TER-289 end-to-end fix).
 
 **Decisions made:** all spec-locked (D1: deploy all functions; D3: `workflow_dispatch` + push-to-main on `supabase/functions/**`; D4: no smoke test in v1). No unspecified decisions encountered.
+
+### 2026-06-01 — [TER-297](https://linear.app/terenc/issue/TER-297) Summary rank stale fix — corrective re-read after submit settles (Claude Code / Sonnet 4.6)
+
+Fixed the self-count race that caused the rank line to show "1 of 1" even when peer rows already existed in the `scores` table. The immediate `getStanding` read raced `enqueueAndSubmit` and always resolved before the player's own row committed.
+
+**What changed:** `src/components/GameScreen.tsx` (completion effect) and `src/components/GameScreen.test.tsx` only.
+
+* Completion effect refactored: captures `enqueueAndSubmit`'s promise as `submitPromise` and chains a corrective `getStanding` re-read off its `.catch(() => {}).then(...)` — fires after the own row (and any concurrent peers) are committed.
+* Both `setStanding` calls guarded: a `null` result never clears a previously-shown standing.
+* Unmount-cancellation guard added: `let cancelled = false` set by the effect cleanup prevents state updates after the player navigates away before the re-read resolves.
+* Submit stays fire-and-forget — `submitPromise` is never `await`ed inline.
+
+**Tests updated/added:** updated "called exactly once" tests to "called exactly twice" (immediate + corrective); added four tests in a `describe('corrective re-read after submit settles')` block: re-read updates standing after submit resolves; null re-read does not clear a shown value; unmount before re-read resolves does not throw; submit failure still triggers corrective re-read.
+
+**Tested:** `npm run build` clean; `npm run test` 402/402 passing (up from 398 — 4 new tests).
+
+**Decisions made:** none — spec fully covers the fix; no unspecified decisions encountered.

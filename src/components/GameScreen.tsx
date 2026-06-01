@@ -135,21 +135,32 @@ export function GameScreen({
   // Report, submit, and read standing on daily completion exactly once.
   const { phase } = game;
   useEffect(() => {
-    if (phase === 'complete' && mode === 'daily' && !hasReportedCompletion.current) {
-      hasReportedCompletion.current = true;
-      deleteInProgress();
-      onDailyComplete?.({ moves: game.moveCount, elapsedMs: game.elapsedMs });
-      void enqueueAndSubmit({
-        grid_size: puzzle.gridSize,
-        day: effectiveDayKey,
-        eventLog: game.eventLog,
-        moveCount: game.moveCount,
-        elapsedMs: game.elapsedMs,
-      });
-      void getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs).then(
-        result => setStanding(result),
-      );
-    }
+    if (phase !== 'complete' || mode !== 'daily' || hasReportedCompletion.current) return;
+    hasReportedCompletion.current = true;
+    let cancelled = false;
+
+    deleteInProgress();
+    onDailyComplete?.({ moves: game.moveCount, elapsedMs: game.elapsedMs });
+
+    const submitPromise = enqueueAndSubmit({
+      grid_size: puzzle.gridSize,
+      day: effectiveDayKey,
+      eventLog: game.eventLog,
+      moveCount: game.moveCount,
+      elapsedMs: game.elapsedMs,
+    });
+
+    void getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs).then(
+      result => { if (!cancelled && result) setStanding(result); },
+    );
+
+    // Corrective re-read after submit settles: own row (and any concurrent peers) are committed.
+    void submitPromise
+      .catch(() => {})
+      .then(() => getStanding(effectiveDayKey, puzzle.gridSize, game.moveCount, game.elapsedMs))
+      .then(result => { if (!cancelled && result) setStanding(result); });
+
+    return () => { cancelled = true; };
   }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
 
   if (game.phase === 'complete') {

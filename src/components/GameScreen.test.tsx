@@ -305,7 +305,7 @@ describe('GameScreen', () => {
     expect(mockEnqueueAndSubmit).not.toHaveBeenCalled();
   });
 
-  it('daily complete calls getStanding exactly once with correct args', async () => {
+  it('daily complete calls getStanding twice (immediate + corrective re-read) with correct args', async () => {
     mockGetStanding.mockResolvedValue({ rank: 2, total: 10 });
     render(
       <GameScreen
@@ -322,7 +322,7 @@ describe('GameScreen', () => {
 
     await act(async () => { await Promise.resolve(); });
 
-    expect(mockGetStanding).toHaveBeenCalledOnce();
+    expect(mockGetStanding).toHaveBeenCalledTimes(2);
     expect(mockGetStanding).toHaveBeenCalledWith('2026-05-26', 4, expect.any(Number), expect.any(Number));
   });
 
@@ -366,7 +366,7 @@ describe('GameScreen', () => {
     expect(screen.queryByTestId('standing-line')).toBeNull();
   });
 
-  it('getStanding fires exactly once — not on re-render', async () => {
+  it('getStanding fires exactly twice (immediate + corrective) — not more on re-render', async () => {
     mockGetStanding.mockResolvedValue({ rank: 1, total: 5 });
     const { rerender } = render(
       <GameScreen
@@ -382,7 +382,7 @@ describe('GameScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
     await act(async () => { await Promise.resolve(); });
 
-    expect(mockGetStanding).toHaveBeenCalledOnce();
+    expect(mockGetStanding).toHaveBeenCalledTimes(2);
 
     rerender(
       <GameScreen
@@ -394,7 +394,7 @@ describe('GameScreen', () => {
     );
     await act(async () => { await Promise.resolve(); });
 
-    expect(mockGetStanding).toHaveBeenCalledOnce();
+    expect(mockGetStanding).toHaveBeenCalledTimes(2);
   });
 
   it('practice mode complete does NOT call getStanding', async () => {
@@ -469,6 +469,155 @@ describe('GameScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getByTestId('timer-value').textContent).toBe(timerBefore);
+  });
+
+  describe('corrective re-read after submit settles', () => {
+    it('updates standing when re-read returns a better value', async () => {
+      let resolveSubmit!: () => void;
+      mockEnqueueAndSubmit.mockReturnValue(
+        new Promise<void>(resolve => { resolveSubmit = resolve; }),
+      );
+      mockGetStanding
+        .mockResolvedValueOnce({ rank: 1, total: 1 })
+        .mockResolvedValueOnce({ rank: 2, total: 2 });
+
+      render(
+        <GameScreen
+          puzzle={makeTestPuzzle()}
+          mode="daily"
+          dayKey="2026-05-25"
+          onPickDifficulty={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#1 of 1 today');
+
+      await act(async () => {
+        resolveSubmit();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#2 of 2 today');
+      expect(mockGetStanding).toHaveBeenCalledTimes(2);
+    });
+
+    it('null corrective re-read does not clear a previously-shown standing', async () => {
+      let resolveSubmit!: () => void;
+      mockEnqueueAndSubmit.mockReturnValue(
+        new Promise<void>(resolve => { resolveSubmit = resolve; }),
+      );
+      mockGetStanding
+        .mockResolvedValueOnce({ rank: 1, total: 1 })
+        .mockResolvedValueOnce(null);
+
+      render(
+        <GameScreen
+          puzzle={makeTestPuzzle()}
+          mode="daily"
+          dayKey="2026-05-25"
+          onPickDifficulty={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#1 of 1 today');
+
+      await act(async () => {
+        resolveSubmit();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#1 of 1 today');
+    });
+
+    it('unmount before re-read resolves does not setState after unmount', async () => {
+      let resolveSubmit!: () => void;
+      mockEnqueueAndSubmit.mockReturnValue(
+        new Promise<void>(resolve => { resolveSubmit = resolve; }),
+      );
+      mockGetStanding.mockResolvedValue({ rank: 1, total: 1 });
+
+      const { unmount } = render(
+        <GameScreen
+          puzzle={makeTestPuzzle()}
+          mode="daily"
+          dayKey="2026-05-25"
+          onPickDifficulty={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+      await act(async () => { await Promise.resolve(); });
+
+      unmount();
+
+      const errorSpy = vi.spyOn(console, 'error');
+      await act(async () => {
+        resolveSubmit();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('submit failure still triggers corrective re-read', async () => {
+      let rejectSubmit!: (e: Error) => void;
+      mockEnqueueAndSubmit.mockReturnValue(
+        new Promise<void>((_, reject) => { rejectSubmit = reject; }),
+      );
+      mockGetStanding
+        .mockResolvedValueOnce({ rank: 1, total: 1 })
+        .mockResolvedValueOnce({ rank: 2, total: 2 });
+
+      render(
+        <GameScreen
+          puzzle={makeTestPuzzle()}
+          mode="daily"
+          dayKey="2026-05-25"
+          onPickDifficulty={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#1 of 1 today');
+
+      await act(async () => {
+        rejectSubmit(new Error('network'));
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('standing-line')).toHaveTextContent('#2 of 2 today');
+      expect(mockGetStanding).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('par-slot (status bar)', () => {

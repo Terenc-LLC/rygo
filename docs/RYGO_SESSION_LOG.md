@@ -173,7 +173,7 @@ Locked-section updates absorbed in this PR:
 
 **M2 follow-ups status:** 6 of 9 shipped (TER-145 / TER-149 / TER-151 / TER-147 / TER-152 / TER-148). Remaining: [TER-150](https://linear.app/terenc/issue/TER-150) unblocked; [TER-146](https://linear.app/terenc/issue/TER-146) unblocked but design pass pending; [TER-153](https://linear.app/terenc/issue/TER-153) design pass pending.
 
-**Next recommended:** [TER-150](https://linear.app/terenc/issue/TER-150) (every-click-counts scoring) — locked spec, narrow blast radius (touches `useGame` reducer + tests). For a parallel design slot, [TER-146](https://linear.app/terenc/issue/TER-146) generator rewrite or [TER-153](https https://linear.app/terenc/issue/TER-153) validation sweep are the two M2 issues still needing design passes.
+**Next recommended:** [TER-150](https://linear.app/terenc/issue/TER-150) (every-click-counts scoring) — locked spec, narrow blast radius (touches `useGame` reducer + tests). For a parallel design slot, [TER-146](https://linear.app/terenc/issue/TER-146) generator rewrite or [TER-153](https://linear.app/terenc/issue/TER-153) validation sweep are the two M2 issues still needing design passes.
 
 ### 2026-05-03 — [TER-150](https://linear.app/terenc/issue/TER-150) Every-click-counts scoring (Claude Code / Sonnet 4.6)
 
@@ -479,6 +479,8 @@ Locked-section updates absorbed in this docs-only PR:
 **Drift guard verified locally:** staged the committed baseline, appended `// drift-test` to `src/engine/types.ts`, ran `npm run sync-engine`, and confirmed `git diff --exit-code -- supabase/functions/_shared/` exits 1 with a visible diff. Reverted and re-synced back to clean.
 
 **Idempotency verified:** running `npm run sync-engine` twice in a row produces `git diff --exit-code` exit 0.
+
+**No runtime behavior changes.** No edits to `useGame`, `GameScreen`, `App`, or any file outside `src/engine/`, `scripts/`, `supabase/functions/_shared/engine/`, `package.json`, `.github/workflows/ci.yml`, and `docs/`.
 
 **Docs changes (allowlisted sections only):**
 * **Architecture notes:** added "Shared-engine delivery" section.

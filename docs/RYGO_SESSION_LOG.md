@@ -864,3 +864,13 @@ One-line fix to `.github/workflows/compute-par.yml`: `node-version: '20'` → `'
 **Tested:** `npm run build` clean; `npm run test` 398/398 passing. CI `build-and-test` does not exercise `compute-par.yml`, so the real validation is a `workflow_dispatch` run against the fix branch (see PR status comment).
 
 **Decisions made:** none — scope is fully specified by the issue; no unspecified decisions encountered.
+
+### 2026-06-01 — [TER-295](https://linear.app/terenc/issue/TER-295) deploy-functions.yml: auto-deploy Supabase edge functions (Claude Code / Sonnet 4.6)
+
+Added `.github/workflows/deploy-functions.yml` — the CI gap that allowed `submit-score` to drift from the client and cause the TER-289 leaderboard outage. First `workflow_dispatch` against the fix branch is the TER-289 remediation (deploys current-main function, restoring submissions).
+
+**What changed:** `.github/workflows/deploy-functions.yml` only (plus allowlisted docs: architecture note + issue-map + session log). No changes to `ci.yml`, `compute-par.yml`, function source, engine, or `supabase/config.toml`.
+
+**Tested:** `npm run build` clean; `npm run test` 398/398 passing. CI `build-and-test` does not exercise this workflow — real validation is a `workflow_dispatch` run against the fix branch (Chris to dispatch and confirm a fresh daily lands a `scores` row; that is also the TER-289 end-to-end fix).
+
+**Decisions made:** all spec-locked (D1: deploy all functions; D3: `workflow_dispatch` + push-to-main on `supabase/functions/**`; D4: no smoke test in v1). No unspecified decisions encountered.

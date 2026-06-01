@@ -245,6 +245,10 @@ Deterministic, seeded puzzle generator. Zero external dependencies. Implementati
 
 GitHub Actions workflow runs on every PR against `main` and every push to `main`. Single job `build-and-test` on `ubuntu-latest`, Node 20 (pinned), npm cache enabled. Steps: `npm ci` → `npm run build` → `npm run test`. The job name `build-and-test` is the required status check for branch protection. Vercel deployment continues to auto-deploy on push to `main` independently.
 
+### Edge function deploy workflow — READY (`.github/workflows/deploy-functions.yml`) [TER-295]
+
+GitHub Actions workflow that auto-deploys all Supabase edge functions. Triggers: `workflow_dispatch` (for manual or first-run remediation) and `push` to `main` filtered on `paths: ['supabase/functions/**']` — catches both direct function edits and engine-sync changes under `supabase/functions/_shared/`. Single job `ubuntu-latest`: `actions/checkout@v4` → `supabase/setup-cli@v1` → `supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}` (no function name = deploys all functions; future-proof for additional functions). `SUPABASE_ACCESS_TOKEN` passed via step `env`. Required secrets: `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` (both set in repo Settings → Secrets → Actions). CI `build-and-test` does not exercise this workflow; validate via `workflow_dispatch`. No post-deploy smoke test in v1 (D4, deferred — would need synthetic JWT + event log).
+
 ### Game state shape
 
 ```ts
@@ -716,6 +720,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
 * [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ Done. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated). Shipped May 30, 2026.
 * [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ In Review. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+).
+* [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ In Review. `deploy-functions.yml` GitHub Actions workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. First dispatch is the TER-289 remediation (deploys current-main `submit-score`, restoring leaderboard submissions).
 
 ## Session log
 

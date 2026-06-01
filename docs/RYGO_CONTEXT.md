@@ -629,7 +629,7 @@ export async function getStanding(
 
 Calls `supabase.rpc('get_standing', { p_day, p_grid_size, p_moves, p_elapsed_ms })`. Returns the `{ rank, total }` object directly from `data`; returns `null` on any error, unexpected shape, or when `supabase === null` (no network call). Never throws. Passes both `moves` and `elapsedMs` so the moves-ASC-then-elapsedMs-ASC tiebreak resolves correctly.
 
-`GameScreen` calls it once in its fire-once completion `useEffect` (daily only, independent of `enqueueAndSubmit`). Stores the result in `useState<{ rank: number; total: number } | null>` and passes it to `Summary` as the `standing` prop.
+`GameScreen` calls it **twice** in its fire-once completion `useEffect` (daily only): once immediately for a fast first paint, and once more chained off `enqueueAndSubmit`'s settlement (`.catch(() => {}).then(...)`) so the corrected count (own row + any concurrent peers committed) heals the display without a page reload. Both `setStanding` calls are guarded: a `null` result never clears a previously-shown standing; a `let cancelled = false` flag (set in the effect cleanup) prevents state updates after unmount. Stores the result in `useState<{ rank: number; total: number } | null>` and passes it to `Summary` as the `standing` prop. Updated in [TER-297](https://linear.app/terenc/issue/TER-297).
 
 `Summary` renders `#R of N today` when `standing` is non-null, where N = `max(rank, total)`. The clamp prevents a briefly low `total` (own row not yet counted by the time the RPC fires) from showing a nonsensical denominator. Omits the line silently on `null`. No spinner and no reserved slot.
 
@@ -721,6 +721,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ Done. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated). Shipped May 30, 2026.
 * [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ In Review. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+).
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ In Review. `deploy-functions.yml` GitHub Actions workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. First dispatch is the TER-289 remediation (deploys current-main `submit-score`, restoring leaderboard submissions).
+* [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ In Review. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; `null`-result guard on both reads; unmount-cancellation flag.
 
 ## Session log
 

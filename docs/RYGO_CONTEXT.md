@@ -719,9 +719,10 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-192](https://linear.app/terenc/issue/TER-192) — ✅ Done. How-to-play rules screen (static reference, picker-only, on-demand). Shipped May 24, 2026.
 * [TER-201](https://linear.app/terenc/issue/TER-201) — ✅ Done. Launch-prep cleanup: dev footer removed, `engines: { node: ">=20" }` locked.
 * [TER-248](https://linear.app/terenc/issue/TER-248) — ✅ Done. Generator v1.5: raise solution-length floor per size (difficulty tuning, parity fixture regenerated). Shipped May 30, 2026.
-* [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ In Review. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+).
-* [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ In Review. `deploy-functions.yml` GitHub Actions workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. First dispatch is the TER-289 remediation (deploys current-main `submit-score`, restoring leaderboard submissions).
-* [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ In Review. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; `null`-result guard on both reads; unmount-cancellation flag.
+* [TER-289](https://linear.app/terenc/issue/TER-289) — ✅ Done. Leaderboard submissions silently failing (regression since ~05-27): deployed submit-score edge function was stale vs the M6 + v1.5 client and rejected every submission. Resolved June 1, 2026 by redeploying via the TER-295 workflow dispatch (ops, no code change).
+* [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ Done. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+). Shipped June 1, 2026 (PR #67).
+* [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
+* [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
 
 ## Session log
 

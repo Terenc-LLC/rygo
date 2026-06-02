@@ -34,6 +34,25 @@ describe('cell count', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Grid container — grid-line treatment
+// ---------------------------------------------------------------------------
+
+describe('grid container', () => {
+  it('has bg-grid-line and dark:bg-ink for grid-line treatment', () => {
+    const { container } = render(<Grid board={makeBoard(4)} size={4} />);
+    const gridDiv = container.firstChild as HTMLElement;
+    expect(gridDiv.className).toContain('bg-grid-line');
+    expect(gridDiv.className).toContain('dark:bg-ink');
+  });
+
+  it('has p-px outer padding so the grid-line background frames the board', () => {
+    const { container } = render(<Grid board={makeBoard(4)} size={4} />);
+    const gridDiv = container.firstChild as HTMLElement;
+    expect(gridDiv.className).toContain('p-px');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Background color classes
 // ---------------------------------------------------------------------------
 

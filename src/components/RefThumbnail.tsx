@@ -98,7 +98,7 @@ export function RefThumbnail({ board, size }: RefThumbnailProps): JSX.Element {
         aria-label="Enlarge target pattern"
         aria-haspopup="dialog"
         data-testid="ref-thumbnail"
-        className={`w-28 grid ${THUMB_COLS[size]} gap-0.5 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
+        className={`w-28 grid ${THUMB_COLS[size]} gap-0.5 p-px bg-grid-line dark:bg-ink cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
         onClick={handleOpen}
       >
         {board.map((row, r) =>
@@ -144,7 +144,7 @@ export function RefThumbnail({ board, size }: RefThumbnailProps): JSX.Element {
               role="img"
               aria-label="Target pattern"
               data-testid="ref-overlay-board"
-              className={`w-full grid ${THUMB_COLS[size]} gap-1`}
+              className={`w-full grid ${THUMB_COLS[size]} gap-1 p-px bg-grid-line dark:bg-ink rounded-md`}
             >
               {board.map((row, r) =>
                 row.map((cell, c) => (

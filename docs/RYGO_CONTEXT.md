@@ -216,6 +216,8 @@ Three shape components in `Shapes.tsx`: `Square`, `Triangle`, `Circle`. All inli
 
 **Updated (May 24, 2026,** [TER-168](https://linear.app/terenc/issue/TER-168)**):** Light-mode empty-cell background changed from `bg-gray-100` to `bg-stone-300` (`#D6D3D1`, ~1.35:1 vs Paper) so empty cells and grid lines are visible in light mode. Dark mode (`dark:bg-gray-800`) unchanged.
 
+**Updated (June 2, 2026,** [TER-290](https://linear.app/terenc/issue/TER-290)**):** Grid container given `bg-grid-line dark:bg-ink p-px rounded-md` — the `--color-grid-line` token (`#78716C`, stone-500) shows through the `gap-1` gaps as hairline dark lines in light mode, and the 1px padding creates an outer edge so the board reads as bounded. Empty-cell fill stays `bg-stone-300`; the line carries structure independently. Dark mode uses `dark:bg-ink` (Ink shows through gaps = current behavior, no regression). WCAG 1.4.11 non-text contrast verified: grid-line `#78716C` is **4.33:1 vs Paper** `#F5F3EE` and **3.22:1 vs stone-300** `#D6D3D1` — both ≥ 3:1 required. Same treatment applied to `RefThumbnail` (thumbnail button container and overlay board).
+
 ### Page chrome theming — UPDATED (`src/App.tsx`, [TER-152](https://linear.app/terenc/issue/TER-152))
 
 `<main>` uses `bg-paper dark:bg-ink`. Primary text uses `text-ink dark:text-paper`. Page background and text respond to the `dark` class on the html element. Game-content colors (cells, shape fills) remain theme-invariant. Brand tokens defined via Tailwind v4 `@theme` block in `src/index.css`. Shipped in [TER-152](https://linear.app/terenc/issue/TER-152), May 2, 2026.
@@ -350,6 +352,7 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 | Page background          | `bg-paper` (`#F5F3EE`)                                 | `bg-ink` (`#14110E`)                                 |
 | Page / heading text      | `text-ink` (`#14110E`)                                 | `text-paper` (`#F5F3EE`)                             |
 | Secondary text / labels  | `text-gray-500`                                        | `text-gray-400`                                      |
+| Grid container (lines)   | `bg-grid-line` (`#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) | `bg-ink` (same as page bg — no regression) |
 | Empty grid cells         | `bg-stone-300` (`#D6D3D1`, ~1.35:1 vs Paper)           | `bg-gray-800`                                        |
 | Default / level buttons  | `bg-gray-100`                                          | `bg-gray-800`                                        |
 | Reveal / action buttons  | `bg-gray-200`                                          | `bg-gray-700`                                        |
@@ -644,7 +647,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * React hooks live in `src/hooks/`.
 * Persistence modules live in `src/persistence/` (introduced in [TER-142](https://linear.app/terenc/issue/TER-142)).
 * No business logic in components.
-* Tailwind v4 for all styling. CSS-based config (no `tailwind.config.js`). Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`) defined via `@theme` block in `index.css` ([TER-152](https://linear.app/terenc/issue/TER-152)). No CSS modules.
+* Tailwind v4 for all styling. CSS-based config (no `tailwind.config.js`). Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`, `grid-line`) defined via `@theme` block in `index.css` ([TER-152](https://linear.app/terenc/issue/TER-152), `grid-line` added in [TER-290](https://linear.app/terenc/issue/TER-290)). No CSS modules.
 * Mobile-first: design at portrait phone width first, adapt up.
 * Use `dark:` variants only on surfaces that actually change between themes. Game-content colors don't need dark variants.
 
@@ -723,6 +726,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ Done. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+). Shipped June 1, 2026 (PR #67).
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
+* [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ In Review. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged.
 
 ## Session log
 

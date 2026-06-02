@@ -931,3 +931,20 @@ Fixed light-mode grid structure wash-out (user-reported, repro confirmed June 2)
 ### 2026-06-02 — TER-290 closed by Opus
 
 Chris reported TER-290's PR merged (PR #71). Opus reviewed the diff — grid-line `#78716C` through `gap-1` on the Grid container and both RefThumbnail surfaces, `dark:bg-ink` = no dark regression, empty-cell fill unchanged, contrast 4.33:1 vs Paper and 3.22:1 vs stone-300 — CI green at 406 tests, marked Done. Process note: the PR also added `grid-line` to the locked Coding-conventions brand-tokens bullet (flagged in review for revert; not reverted before merge). Content is correct, so retained, not churned — logged as a Code-originated locked-section edit, a data point for Process v2.6. Issue map (Unscheduled): TER-290 ✅ In Review → ✅ Done (PR #71).
+
+### 2026-06-02 — [TER-301](https://linear.app/terenc/issue/TER-301) Settings surface (Claude Code / Sonnet 4.6)
+
+Stood up the Settings surface: persistence module, hook, screen component, and App wiring. No audio/haptics consumers yet — this issue is the enabler.
+
+**What shipped:**
+* `src/persistence/settings.ts` — `rygo:settings` versioned blob `{ version: 1, audio: boolean, haptics: boolean }`. `loadSettings()` returns defaults on missing / corrupt / future-version JSON. `setAudioPref` / `setHapticsPref` each read-then-write to never clobber the other field.
+* `src/hooks/useSettings.ts` — mirrors `useTheme`. Reads blob on init, exposes `{ audio, haptics, setAudio, setHaptics }`. Persistence and state only; no consumer.
+* `src/components/SettingsScreen.tsx` — header mirrors StatsScreen / RulesScreen. Sound toggle always shown. Haptics toggle feature-gated on `'vibrate' in navigator` (hidden on iOS Safari / desktop). Both toggles are native `<input type="checkbox" role="switch" aria-label="...">`.
+* `src/components/DifficultyPicker.tsx` — `onShowSettings?: () => void` prop; "Settings" text button rendered alongside "How to play" below the LevelButtons.
+* `src/App.tsx` — `AppView` extended to include `'settings'`; wired `onShowSettings` → `setView('settings')` and `SettingsScreen onBack` → `'difficulty'`.
+
+**Tests:** `src/persistence/settings.test.ts` (11 tests), `src/components/SettingsScreen.test.tsx` (9 tests including App routing). 426 total tests pass. Build clean.
+
+**Decisions made:**
+* Toggle implemented as native `<input type="checkbox" role="switch">` (semantic, keyboard-operable, `aria-label` carried on the input element).
+* "Settings" button sits next to "How to play" in a centered flex row — keeps it out of the contested top corners (Stats top-left, ThemeToggle fixed top-right) per issue spec.

@@ -2,7 +2,7 @@
 
 # Terenc Development Process
 
-> **Status:** v2.5 — May 25, 2026 (session log split into `docs/[PROJECT]_SESSION_LOG.md`; doc edits authored by Opus and applied by Code in docs-only PRs)
+> **Status:** v2.6 — June 2, 2026 (Opus authors all repo-doc edits but never hand-applies them — Code or Chris applies in a docs-only PR; finishes the v2.5 author/apply split and removes residual "Opus opens/pushes docs PRs" language)
 > **Scope:** Standard process for any software project at Terenc that follows the Opus + Claude Code + Chris collaboration model.
 > **Note:** This document is canonical at `docs/Terenc-Development-Process.md` in each Terenc software project's repo. It is referenced from every project's context document and pinned in each project's [claude.ai](<http://claude.ai>) project knowledge.
 
@@ -136,7 +136,7 @@ When Chris reports a PR is merged, Opus:
 
 * Marks the Linear issue as **Done.**
 * Determines whether the merged change requires updates to locked sections of the project context document or to this Process doc (Project identity, Tech stack, Source-of-truth references, etc. — sections Code is not permitted to edit). If yes:
-  * Opens a **docs-only pull request** against `main`. Branch name follows the convention `opus/docs-<short-description>` (e.g., `opus/docs-ter148-closeout`).
+  * **Authors the exact edits** (find/replace blocks + appends) and hands them to Code or Chris to apply as a **docs-only pull request** against `main`, branch `opus/docs-<short-description>` (e.g., `opus/docs-ter148-closeout`). Opus does not open or push the PR itself.
   * Touches only files under `docs/`. Never touches `src/`, tests, config, or app footer (footer is Code's per the existing per-session convention).
   * Pastes the close-out summary into the PR description so the change is auditable.
   * Hands off to Chris to merge. Code's next session will pull main and pick up the changes automatically (per Phase 3 step 4).
@@ -166,7 +166,7 @@ This section exists because Code has, in past sessions, restructured the project
 * Coding conventions
 * The editable-sections allowlist itself
 
-**If Code believes a locked decision needs to change:** Code stops, posts a Linear comment on the current issue describing the proposed change and reasoning, and waits for Opus to update the doc via a docs-only PR. Code does not silently restructure or remove content.
+**If Code believes a locked decision needs to change:** Code stops, posts a Linear comment on the current issue describing the proposed change and reasoning, and waits for Opus to author the update; Code or Chris then applies it in a docs-only PR. Code does not silently restructure or remove content.
 
 ## Definition of done — close-out checklist (paste into every issue body)
 
@@ -208,13 +208,13 @@ The states we use, who moves them, and when:
 
 ## GitHub workflow
 
-* `main` is protected. No direct pushes. All changes go through pull requests — including Opus's docs-only PRs.
+* `main` is protected. No direct pushes. All changes go through pull requests — including docs-only PRs that apply Opus-authored edits.
 * **Branch protection rules** (configured by Chris in the GitHub repo settings):
   * Require a pull request before merging.
   * Require status checks (CI) to pass before merging.
   * The `build-and-test` job from `.github/workflows/ci.yml` is a required check.
 * **Feature branches** (Code) are named per the Linear-provided `gitBranchName` field on the issue.
-* **Docs-only branches** (Opus) are named `opus/docs-<short-description>` (e.g., `opus/docs-ter148-closeout`, `opus/docs-process-v2.5`).
+* **Docs-only branches** are named `opus/docs-<short-description>` (e.g., `opus/docs-ter148-closeout`, `opus/docs-process-v2.6`) — they carry Opus-authored edits and are created by whoever applies them.
 * **PR titles** start with the issue ID for code PRs (`TER-133: Add color placement engine`) or `docs:` for docs-only PRs (`docs: TER-148 close-out + Process v2.4`).
 * **PR descriptions** reference the Linear issue URL and summarize what changed at a high level.
 * **One PR per issue** for code PRs. If scope grows, split the issue rather than mixing concerns. Docs-only PRs may bundle multiple close-outs if they land together.
@@ -233,9 +233,9 @@ Until CI is green, the PR cannot merge. This is the gate that prevents broken co
 
 | Artifact                                                       | Purpose                                                      | Owner                         |
 | -------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------- |
-| Project context document (`docs/[PROJECT]_CONTEXT.md` in repo) | Single canonical Markdown doc Code reads at session start and updates at session end (allowlisted sections only). Locked-section updates land via Opus docs-only PRs. | Code maintains, Opus reviews. |
-| Org Process doc (`docs/Terenc-Development-Process.md` in repo) | This document. Canonical copy lives in each project repo. Updated by Opus via docs-only PR. | Opus.                         |
-| Design docs (`docs/<feature>.md` in repo)                      | Per feature area, capturing architecture decisions and open questions. Created by Opus via docs-only PR. | Opus.                         |
+| Project context document (`docs/[PROJECT]_CONTEXT.md` in repo) | Single canonical Markdown doc Code reads at session start and updates at session end (allowlisted sections only). Locked-section updates are authored by Opus and applied by Code or Chris in a docs-only PR. | Code maintains, Opus reviews. |
+| Org Process doc (`docs/Terenc-Development-Process.md` in repo) | This document. Canonical copy lives in each project repo. Authored by Opus; applied by Code or Chris in a docs-only PR. | Opus.                         |
+| Design docs (`docs/<feature>.md` in repo)                      | Per feature area, capturing architecture decisions and open questions. Authored by Opus; applied by Code or Chris in a docs-only PR. | Opus.                         |
 | Linear project                                                 | Project-level container for milestones and issues only (documents are no longer kept in Linear; they live in the repo). | Opus creates, Chris approves. |
 | GitHub repo                                                    | Code, branches, PRs, and docs. Branch protection on `main`.  | Initialized at project start. |
 | CI workflow                                                    | `.github/workflows/ci.yml` — runs build + test on every PR.  | Initialized at project start. |
@@ -247,7 +247,7 @@ Until CI is green, the PR cannot merge. This is the gate that prevents broken co
 * **GitHub** — code, docs, branches, pull requests, code review.
 * **GitHub Actions** — continuous integration.
 * **Claude Code** — implementation agent, runs in terminal or VS Code. Has Linear MCP read/write and direct git/GitHub access from its environment.
-* **Claude Opus** — architecture, issue authoring, code review, document drafting, issue close-out. Runs in [claude.ai](<http://claude.ai>) with the project pinned. Has Linear MCP read/write, GitHub MCP read access (full repo), and GitHub MCP write access scoped to `docs/` only via docs-only PRs (added v2.4). Opus does not write to `src/`, tests, config, or any non-docs file.
+* **Claude Opus** — architecture, issue authoring, code review, document drafting, issue close-out. Runs in [claude.ai](<http://claude.ai>) with the project pinned. Has Linear MCP read/write and GitHub MCP read access (full repo). Opus **authors** repo-doc edits as text but does **not** apply them — no commits, pushes, or file writes (v2.6, superseding the v2.4 docs/-scoped write). Code or Chris applies.
 * **Google Drive (Terenc workspace)** — long-term doc storage, supplementary research, deliverables.
 
 ## Principles
@@ -259,7 +259,8 @@ Until CI is green, the PR cannot merge. This is the gate that prevents broken co
 * **Code never invents architecture.** If Code hits an unspecified decision, it stops and asks.
 * **Code never closes issues.** "In Review" is the last state Code touches.
 * **Code never restructures the context doc.** Allowlisted sections only.
-* **Opus never edits source.** Docs-only PRs touch only files under `docs/`.
+* **Opus never edits source.** Repo changes Opus is involved in touch only files under `docs/`.
+* **Opus authors doc edits; it never hand-applies them.** Opus produces the exact edit text (find/replace blocks + appends) for any `docs/` change; Code or Chris applies it in a docs-only PR. Opus does not push, commit, or write files to the repo — the applied diff is the verification gate. (Full-file pushes from Opus's write path proved unreliable for large docs; the author/apply split is the fix, locked v2.6.)
 * **Chris merges, Opus closes.** Reduces context-switching for Chris and lets Opus handle related cleanup atomically via docs-only PRs.
 * **Manual testing is part of the loop.** Chris is in the verification path. Some things only humans can verify.
 * **Context docs are living artifacts.** They are updated every Code session, additively, in allowlisted sections only.
@@ -276,6 +277,7 @@ Until CI is green, the PR cannot merge. This is the gate that prevents broken co
 
 ## Changelog
 
+* **v2.6 (June 2, 2026):** **Opus authors repo-doc edits but never hand-applies them.** Finishes the v2.5 author/apply split: Opus produces the exact edit text for any `docs/` change — context doc, this Process doc, design docs — and Code or Chris applies it in a docs-only PR. Opus no longer uses a GitHub write path to the repo; the applied diff is the verification gate. Removed the residual v2.4 "Opus opens/pushes docs-only PRs" and "write access scoped to docs/" language from Phase 5, GitHub workflow, Standard artifacts, and Tools. Motivation: unreliable full-file pushes (the v2.5 rationale) plus a clean author/apply boundary that keeps every doc change reviewable and stops Opus and Code both writing the repo.
 * **v2.5 (May 25, 2026):** Two changes. (1) **Session log split into its own file** (`docs/[PROJECT]_SESSION_LOG.md`). The append-only log was roughly half the context document and its only fast-growing part; splitting it keeps `[PROJECT]_CONTEXT.md` small so locked-section close-outs are cheap, low-risk edits. Code appends session entries to the log file; Opus appends close-out entries there too. (2) **Doc edits authored by Opus, applied by Code.** Full-file pushes from Opus's GitHub MCP write path proved unreliable for large docs; going forward Opus authors the exact edits (find/replace text + appends) and Code applies them surgically in its working tree as a docs-only PR, with the PR diff as the verification gate. Opus still reviews. This supersedes the v2.4 "Opus opens docs-only PRs" mechanism for large/locked-section edits; the docs-only-PR branch/title conventions are unchanged.
 * **v2.4 (May 3, 2026):** Two combined changes:
   1. **Docs migrated from Linear to repo `docs/`.** Project context documents (`docs/[PROJECT]_CONTEXT.md`), the org Process doc (`docs/Terenc-Development-Process.md`), and design docs all now live in each project's GitHub repo under `docs/`. Linear is no longer used for documents — only for issues. Reasons: git history audit trail; no more silent last-write-wins clobbering on parallel edits; docs ride with code in PRs; one source-of-truth medium for everything.

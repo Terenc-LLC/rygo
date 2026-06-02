@@ -927,3 +927,7 @@ Fixed light-mode grid structure wash-out (user-reported, repro confirmed June 2)
 **Tests:** 406 passing (was 402; +4 new). Build clean.
 
 **Manual verification required (Chris, on-device):** light mode on a small/dim phone — grid and thumbnail both read clearly on a mostly-empty board at all four sizes, especially 8×8. Corner webbing (dark line bleeds around `rounded-md` cells) — flag if it looks off. Dark mode: no regression.
+
+### 2026-06-02 — TER-290 closed by Opus
+
+Chris reported TER-290's PR merged (PR #71). Opus reviewed the diff — grid-line `#78716C` through `gap-1` on the Grid container and both RefThumbnail surfaces, `dark:bg-ink` = no dark regression, empty-cell fill unchanged, contrast 4.33:1 vs Paper and 3.22:1 vs stone-300 — CI green at 406 tests, marked Done. Process note: the PR also added `grid-line` to the locked Coding-conventions brand-tokens bullet (flagged in review for revert; not reverted before merge). Content is correct, so retained, not churned — logged as a Code-originated locked-section edit, a data point for Process v2.6. Issue map (Unscheduled): TER-290 ✅ In Review → ✅ Done (PR #71).

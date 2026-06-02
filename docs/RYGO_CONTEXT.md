@@ -726,7 +726,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-293](https://linear.app/terenc/issue/TER-293) — ✅ Done. `compute-par.yml` node-version bump `'20'` → `'22'` (supabase-js createClient requires native WebSocket, Node 22+). Shipped June 1, 2026 (PR #67).
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
-* [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ In Review. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged.
+* [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ Done. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged. Shipped June 2, 2026 (PR #71).
 
 ## Session log
 

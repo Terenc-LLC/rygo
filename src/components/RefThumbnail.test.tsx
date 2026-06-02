@@ -34,6 +34,21 @@ describe('RefThumbnail — button and overlay', () => {
     expect(btn).toHaveAttribute('data-testid', 'ref-thumbnail');
   });
 
+  it('thumbnail button has bg-grid-line and dark:bg-ink for grid-line treatment', () => {
+    render(<RefThumbnail board={TEST_BOARD} size={4} />);
+    const btn = screen.getByTestId('ref-thumbnail');
+    expect(btn.className).toContain('bg-grid-line');
+    expect(btn.className).toContain('dark:bg-ink');
+  });
+
+  it('overlay board has bg-grid-line and dark:bg-ink for grid-line treatment', () => {
+    render(<RefThumbnail board={TEST_BOARD} size={4} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Enlarge target pattern' }));
+    const overlayBoard = screen.getByTestId('ref-overlay-board');
+    expect(overlayBoard.className).toContain('bg-grid-line');
+    expect(overlayBoard.className).toContain('dark:bg-ink');
+  });
+
   it('overlay is not present on initial render', () => {
     render(<RefThumbnail board={TEST_BOARD} size={4} />);
     expect(screen.queryByTestId('ref-overlay')).toBeNull();

@@ -904,3 +904,26 @@ Diagnosed and resolved two concurrent production issues, both rooted in deployed
 Also: filed **TER-290** (low grid contrast, user-reported, parked pending repro). Trimmed **TER-216** — idea #1 ("re-check today's rank") shipped as TER-297; two ideas remain (yesterday's final rank, first-place stars).
 
 Open follow-ups: generator-path `push` trigger on `compute-par.yml` (par-staleness half of deploy-parity); Process v2.6 (Opus authors repo-doc edits, Code/Chris applies). Post-v1.5 the 6×6 par proven-rate dropped (~40% in the sampled window) — meets the TER-240 promotion trigger; awaiting Chris's decision.
+
+### 2026-06-02 — [TER-290](https://linear.app/terenc/issue/TER-290) Low grid contrast in light mode — grid-line treatment (Claude Code / Sonnet 4.6)
+
+Fixed light-mode grid structure wash-out (user-reported, repro confirmed June 2). Added a dark grid-line background to the grid containers in `Grid.tsx` and `RefThumbnail.tsx` so the gap-1 gaps show as hairline dark lines regardless of empty-cell fill brightness.
+
+**Root cause:** TER-168 raised empty-cell fill to `bg-stone-300` but structure still depended on the fill being visually distinct from Paper — insufficiently differentiated on a small/dim display.
+
+**Approach:** `--color-grid-line: #78716C` (stone-500) added to `src/index.css` `@theme`. Applied `bg-grid-line dark:bg-ink p-px rounded-md` to the Grid container and the RefThumbnail thumbnail button + overlay board. The 1px padding (`p-px`) makes the line color visible around the board perimeter as well as through the internal gaps. Empty-cell fill stays `bg-stone-300` — unchanged. Dark mode uses `bg-ink` (same as the page background currently showing through the gaps — no visual regression).
+
+**WCAG 1.4.11 non-text contrast (computed):**
+- `#78716C` vs Paper `#F5F3EE`: **4.33:1** ✓ (≥ 3:1 required)
+- `#78716C` vs stone-300 `#D6D3D1`: **3.22:1** ✓ (≥ 3:1 required)
+
+**Files changed:**
+* `src/index.css` — `--color-grid-line: #78716C` added to `@theme`.
+* `src/components/Grid.tsx` — grid container: `bg-grid-line dark:bg-ink p-px rounded-md` added.
+* `src/components/RefThumbnail.tsx` — thumbnail button container and overlay board: `bg-grid-line dark:bg-ink p-px` added (overlay board also gets `rounded-md`).
+* `src/components/Grid.test.tsx` — two new tests: container has `bg-grid-line`/`dark:bg-ink`, container has `p-px`.
+* `src/components/RefThumbnail.test.tsx` — two new tests: thumbnail button has `bg-grid-line`/`dark:bg-ink`; overlay board has `bg-grid-line`/`dark:bg-ink`.
+
+**Tests:** 406 passing (was 402; +4 new). Build clean.
+
+**Manual verification required (Chris, on-device):** light mode on a small/dim phone — grid and thumbnail both read clearly on a mostly-empty board at all four sizes, especially 8×8. Corner webbing (dark line bleeds around `rounded-md` cells) — flag if it looks off. Dark mode: no regression.

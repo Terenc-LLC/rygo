@@ -49,7 +49,7 @@ export function Grid({ board, onCellTap, size }: GridProps): JSX.Element {
   const interactive = onCellTap !== undefined;
 
   return (
-    <div className={`w-full grid ${GRID_COLS[size]} gap-1`}>
+    <div className={`w-full grid ${GRID_COLS[size]} gap-1 p-px bg-grid-line dark:bg-ink rounded-md`}>
       {board.map((row, rowIdx) =>
         row.map((state, colIdx) => (
           <button

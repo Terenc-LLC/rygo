@@ -948,3 +948,22 @@ Stood up the Settings surface: persistence module, hook, screen component, and A
 **Decisions made:**
 * Toggle implemented as native `<input type="checkbox" role="switch">` (semantic, keyboard-operable, `aria-label` carried on the input element).
 * "Settings" button sits next to "How to play" in a centered flex row — keeps it out of the contested top corners (Stats top-left, ThemeToggle fixed top-right) per issue spec.
+
+### 2026-06-04 — [TER-310](https://linear.app/terenc/issue/TER-310) Audio + haptics feedback engine (Claude Code / Sonnet 4.6)
+
+Wired real sound and vibration behind the Sound and Haptics toggles. First consumer of `useSettings`.
+
+**What shipped:**
+* `src/audio/sounds.ts` — dependency-free Web Audio synthesis engine. Module-level lazily-created `AudioContext` singleton with full no-op fallback when unavailable (jsdom, old browsers, SSR). `resume()` unlocks a suspended context. `playTap()` — noise burst through a bandpass filter, ~40ms wooden click. `playWinChime()` — three ascending sine tones C5→E5→G5 mapping R→Y→G (low→high), total ~0.9s. `playUnderPar()` — triangle-wave arpeggio C6→E6→G6 starting ~850ms in (after the chime).
+* `src/hooks/useGameFeedback.ts` — orchestrator. Consumes `useSettings()`. On mount: one-time `pointerdown`/`keydown` unlock listener for Web Audio autoplay policy. Tap effect: `playTap()` + `navigator.vibrate(15)` when `moveCount` increases while `phase === 'playing'`; suppressed on the completing move because that move's render already has `phase === 'validating'`. Win effect: `playWinChime()` + `navigator.vibrate([50, 50, 100])` + `playUnderPar()` (if `underPar`) fires exactly once on the `'playing'→'validating'` transition. All sound gated on `settings.audio`; all vibration gated on `settings.haptics && 'vibrate' in navigator`.
+* `src/components/GameScreen.tsx` — `useGameFeedback({ moveCount: game.moveCount, phase: game.phase, underPar })` called at hook level (before conditional returns). `underPar = dailyPar != null && game.moveCount < (displayedPar(dailyPar.par) ?? Infinity)`.
+* `src/components/SettingsScreen.tsx` — WCAG 2.5.3 Label-in-Name fix: `aria-label` updated to `"Sound"` (was `"Sound effects"`) and `"Haptics"` (was `"Haptic feedback"`) so visible text is contained in the accessible name.
+* `src/components/SettingsScreen.test.tsx` — label assertions updated to match new aria-labels; "haptics shown" test teardown changed from `value: undefined` (which left `'vibrate' in navigator` true) to `delete (navigator as any).vibrate`.
+
+**Tests:** `src/audio/sounds.test.ts` (8 tests), `src/hooks/useGameFeedback.test.ts` (24 tests), plus `src/components/GameScreen.test.tsx` updated (mock for `../audio/sounds`, 5 new integration tests). 462 total tests pass. Build clean.
+
+**Decisions made:**
+* Singleton init uses `undefined` (not attempted) vs `null` (unavailable) to avoid re-trying on every call while still lazily deferring the `new AudioContext()` until first use.
+* Tap suppression on completing move achieved purely by checking `phase === 'playing'` — no special-case logic needed, because React batches the `moveCount++` and `phase→'validating'` into a single render.
+* `prevMoveCount` and `prevPhase` refs are updated after the condition check, so settings-driven re-runs of an effect never re-fire the sound (previous value already matches current value).
+* `playUnderPar()` starts 850ms into the timeline so it layers after the chime's three notes without overlap.

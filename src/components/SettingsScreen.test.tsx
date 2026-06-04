@@ -22,18 +22,18 @@ describe('SettingsScreen', () => {
 
   it('always renders the Sound toggle', () => {
     render(<SettingsScreen onBack={() => {}} />);
-    expect(screen.getByRole('switch', { name: /sound effects/i })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /^sound$/i })).toBeInTheDocument();
   });
 
   it('Sound toggle defaults to checked (on)', () => {
     render(<SettingsScreen onBack={() => {}} />);
-    expect(screen.getByRole('switch', { name: /sound effects/i })).toBeChecked();
+    expect(screen.getByRole('switch', { name: /^sound$/i })).toBeChecked();
   });
 
   it('Sound toggle persists when toggled off', () => {
     render(<SettingsScreen onBack={() => {}} />);
-    fireEvent.click(screen.getByRole('switch', { name: /sound effects/i }));
-    expect(screen.getByRole('switch', { name: /sound effects/i })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('switch', { name: /^sound$/i }));
+    expect(screen.getByRole('switch', { name: /^sound$/i })).not.toBeChecked();
     const stored = JSON.parse(localStorage.getItem('rygo:settings')!);
     expect(stored.audio).toBe(false);
   });
@@ -48,7 +48,7 @@ describe('SettingsScreen', () => {
   it('Haptics toggle is hidden when navigator.vibrate is absent', () => {
     // jsdom does not implement navigator.vibrate by default
     render(<SettingsScreen onBack={() => {}} />);
-    expect(screen.queryByRole('switch', { name: /haptic feedback/i })).toBeNull();
+    expect(screen.queryByRole('switch', { name: /^haptics$/i })).toBeNull();
   });
 
   it('Haptics toggle is shown when navigator.vibrate is present', () => {
@@ -57,9 +57,9 @@ describe('SettingsScreen', () => {
       configurable: true,
     });
     render(<SettingsScreen onBack={() => {}} />);
-    expect(screen.getByRole('switch', { name: /haptic feedback/i })).toBeInTheDocument();
-    // clean up
-    Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true });
+    expect(screen.getByRole('switch', { name: /^haptics$/i })).toBeInTheDocument();
+    // delete removes the property so 'vibrate' in navigator is false again
+    delete (navigator as unknown as Record<string, unknown>).vibrate;
   });
 });
 

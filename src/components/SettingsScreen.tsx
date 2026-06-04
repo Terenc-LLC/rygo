@@ -82,7 +82,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): JSX.Element {
         <ToggleRow
           id="settings-audio"
           label="Sound"
-          ariaLabel="Sound effects"
+          ariaLabel="Sound"
           checked={audio}
           onChange={setAudio}
         />
@@ -90,7 +90,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): JSX.Element {
           <ToggleRow
             id="settings-haptics"
             label="Haptics"
-            ariaLabel="Haptic feedback"
+            ariaLabel="Haptics"
             checked={haptics}
             onChange={setHaptics}
           />

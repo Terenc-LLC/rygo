@@ -247,6 +247,12 @@ Deterministic, seeded puzzle generator. Zero external dependencies. Implementati
 
 GitHub Actions workflow runs on every PR against `main` and every push to `main`. Single job `build-and-test` on `ubuntu-latest`, Node 20 (pinned), npm cache enabled. Steps: `npm ci` → `npm run build` → `npm run test`. The job name `build-and-test` is the required status check for branch protection. Vercel deployment continues to auto-deploy on push to `main` independently.
 
+### Par pipeline push trigger — READY (`.github/workflows/compute-par.yml`) [TER-314]
+
+Added a `push` trigger to `.github/workflows/compute-par.yml` filtered to engine paths (`src/engine/**`, excluding test files, plus `scripts/compute-par.ts`). A merge to `main` that changes the generator, placement engine, solver, board-hash, or compute script now kicks off `compute-par` automatically — closing the staleness window where `getDailyPar` silently returned `null` after an engine change (e.g. TER-248 retune). The weekly Monday cron and `workflow_dispatch` are unchanged. Known limitation: solver-only changes that leave generated boards unchanged (same `generation_hash`) still skip re-solve — those continue to need a manual `workflow_dispatch` (deliberate; no `compute-par.ts` change needed here).
+
+Shipped in [TER-314](https://linear.app/terenc/issue/TER-314), June 4, 2026.
+
 ### Edge function deploy workflow — READY (`.github/workflows/deploy-functions.yml`) [TER-295]
 
 GitHub Actions workflow that auto-deploys all Supabase edge functions. Triggers: `workflow_dispatch` (for manual or first-run remediation) and `push` to `main` filtered on `paths: ['supabase/functions/**']` — catches both direct function edits and engine-sync changes under `supabase/functions/_shared/`. Single job `ubuntu-latest`: `actions/checkout@v4` → `supabase/setup-cli@v1` → `supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}` (no function name = deploys all functions; future-proof for additional functions). `SUPABASE_ACCESS_TOKEN` passed via step `env`. Required secrets: `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` (both set in repo Settings → Secrets → Actions). CI `build-and-test` does not exercise this workflow; validate via `workflow_dispatch`. No post-deploy smoke test in v1 (D4, deferred — would need synthetic JWT + event log).
@@ -767,7 +773,9 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
 * [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ Done. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged. Shipped June 2, 2026 (PR #71).
-* [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ Done. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026. Shipped June 4, 2026 (PR #76).
+* [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ In Review. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026.
+* [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ In Review. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Filed June 4, 2026.
+* [TER-314](https://linear.app/terenc/issue/TER-314) — ✅ In Review. `compute-par.yml` push trigger on engine paths: auto-refreshes `daily_par` on merge to `main` touching `src/engine/**` (excl. test files) or `scripts/compute-par.ts`. Closes the par-staleness gap after generator/engine changes. Filed June 4, 2026.
 
 ## Session log
 

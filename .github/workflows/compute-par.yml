@@ -2,11 +2,20 @@ name: Compute daily par
 
 # Runs weekly on Monday 02:00 UTC, precomputing the next 14 days of par values.
 # The rolling 14-day buffer means a single missed run never strands a game-day.
-# workflow_dispatch allows manual re-runs (e.g. after an engine change).
+# workflow_dispatch allows manual re-runs (e.g. after a solver-only change).
+# push trigger auto-refreshes daily_par when engine paths change on main
+# (generator retune, placement changes, etc.) without waiting for the weekly cron.
+# Test-only engine changes are excluded.
 on:
   schedule:
     - cron: '0 2 * * 1'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/engine/**'
+      - '!src/engine/**/*.test.ts'
+      - 'scripts/compute-par.ts'
 
 jobs:
   compute:

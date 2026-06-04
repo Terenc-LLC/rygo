@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { DifficultyPicker } from './components/DifficultyPicker';
 import { GameScreen } from './components/GameScreen';
 import { RulesScreen } from './components/RulesScreen';
+import { SettingsScreen } from './components/SettingsScreen';
 import { StatsScreen } from './components/StatsScreen';
 import { ThemeToggle } from './components/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
@@ -17,7 +18,7 @@ import {
 import { loadInProgress } from './persistence/inProgress';
 import type { InProgressBlob } from './persistence/inProgress';
 
-type AppView = 'difficulty' | 'game' | 'stats' | 'rules';
+type AppView = 'difficulty' | 'game' | 'stats' | 'rules' | 'settings';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -82,11 +83,13 @@ export default function App() {
             onSelect={handleSelectDifficulty}
             onShowStats={() => setView('stats')}
             onShowRules={() => setView('rules')}
+            onShowSettings={() => setView('settings')}
             completedToday={completedToday}
           />
         )}
         {view === 'stats' && <StatsScreen onBack={() => setView('difficulty')} />}
         {view === 'rules' && <RulesScreen onBack={() => setView('difficulty')} />}
+        {view === 'settings' && <SettingsScreen onBack={() => setView('difficulty')} />}
         {view === 'game' && puzzle !== null && (
           <GameScreen
             puzzle={puzzle}

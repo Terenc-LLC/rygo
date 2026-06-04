@@ -1011,3 +1011,7 @@ Added CSS-only screen fade transitions. No animation library, no JS animation lo
 * CSS-only under `@media (prefers-reduced-motion: no-preference)` — consistent with the `rowGlow` sweep approach from TER-153; no animation library.
 * `key={view}` on the wrapper div is sufficient to remount and replay on every view change without additional state.
 * ThemeToggle is already in a fixed overlay div outside `<main>`, so it naturally escapes the fade wrapper with no structural change needed.
+
+### 2026-06-04 — TER-311 closed by Opus — PR #76 merged + get_admin_metrics() migration applied. Reviewed (RPC verbatim, null-safe reader, dashboard, pathname branch + rewrite; allowlist-clean; CI 478). Notes: anon-callable by design (Option B), bare-path match. Issue map (Unscheduled): TER-311 ✅ In Review → ✅ Done (PR #76).
+
+### 2026-06-04 — TER-313 closed by Opus — PR #77 merged. Reviewed (CSS-only fade, motion-safe gating, keyed App wrapper, Summary wrapper composing after the sweep; allowlist-clean; CI 481). Completes the pre-launch feel floor (TER-301 + TER-310 + TER-313); cascade/tutorial/breathing-room remain post-launch in TER-154. Issue map: TER-313 moved Unscheduled → M4, ✅ In Review → ✅ Done (PR #77).

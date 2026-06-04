@@ -727,6 +727,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
 * [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ Done. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended. Shipped June 2, 2026 (PR #73).
 * [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ Done. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`). Shipped June 4, 2026 (PR #74).
+* [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ Done. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Shipped June 4, 2026 (PR #77).
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 
@@ -766,8 +767,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
 * [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ Done. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged. Shipped June 2, 2026 (PR #71).
-* [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ In Review. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026.
-* [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ In Review. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Filed June 4, 2026.
+* [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ Done. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026. Shipped June 4, 2026 (PR #76).
 
 ## Session log
 

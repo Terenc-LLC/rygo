@@ -442,6 +442,22 @@ Diagrams are visual, not ASCII/prose:
 
 **MiniGrid / MiniCell** — local helpers inside `RulesScreen.tsx`. `MiniCell` is a non-interactive `div` with `role="img"` and `aria-label` matching the live Grid format ("Red cell at row N, column N"). `MiniGrid` uses inline `gridTemplateColumns` style (dynamic column count). Same color tokens (`bg-rygo-red` / `bg-rygo-yellow` / `bg-rygo-green` / `bg-stone-300 dark:bg-gray-800`) and shape fills (`text-paper` / `text-ink`) as the live Grid. `BLOCKING_BEFORE` and `BLOCKING_AFTER` boards are module-level constants.
 
+### Admin metrics dashboard — READY (`src/components/AdminDashboard.tsx`, `src/backend/getAdminMetrics.ts`) [TER-311]
+
+Read-only internal admin page at `/tabs`. Option B: unguarded (anyone with the URL), backed by an anon-callable aggregates RPC that returns only aggregate counts (no `user_id`, no PII).
+
+**Routing (no router library):** `src/main.tsx` branches on `window.location.pathname === '/tabs'` — renders `<AdminDashboard />` or `<App />`, both inside `StrictMode`. `vercel.json` adds a targeted rewrite so hard navigation to `/tabs` serves the SPA shell without breaking `/`.
+
+**Migration** (`supabase/migrations/20260604000000_admin_metrics_rpc.sql`): `public.get_admin_metrics()` — `security definer`, `set search_path = ''`, `grant execute … to anon`. Returns a single JSON object: `unique_players`, `total_submissions`, `by_day` (last 90 days, `day / players / submissions`, newest first). Never returns `user_id`.
+
+**Client reader** (`src/backend/getAdminMetrics.ts`): `getAdminMetrics(): Promise<AdminMetrics | null>`. Guards on `supabase !== null`, validates the three required fields (`unique_players: number`, `total_submissions: number`, `by_day: array`), returns `null` on any error or unexpected shape, never throws. Mirrors the `getStanding` / `getDailyPar` pattern.
+
+**Dashboard component** (`src/components/AdminDashboard.tsx`): renders loading state → two totals → per-day table (newest first). Shows "Metrics unavailable" (not blank, not a throw) when `getAdminMetrics` returns `null`. Brand-token styling (`bg-paper dark:bg-ink`, `text-ink dark:text-paper`). No game imports beyond the metrics reader. No authentication — Option B is unguarded by design; genuine protection is a later Option-C escalation.
+
+**Deploy note (Chris-side):** migration must be applied to Supabase before `/tabs` shows live numbers. The RPC must exist; Vercel deploy does not auto-apply migrations.
+
+Shipped in [TER-311](https://linear.app/terenc/issue/TER-311), June 4, 2026.
+
 ### Settings persistence — READY (`src/persistence/settings.ts`, `src/hooks/useSettings.ts`, `src/components/SettingsScreen.tsx`, [TER-301](https://linear.app/terenc/issue/TER-301))
 
 **Persistence module** (`src/persistence/settings.ts`): localStorage key `rygo:settings`, versioned blob `{ version: 1, audio: boolean, haptics: boolean }`. `loadSettings()` returns defaults `{ audio: true, haptics: true }` on missing / corrupt JSON / `version > CURRENT_VERSION`; all I/O wrapped in try/catch. `setAudioPref(value)` and `setHapticsPref(value)` each read-then-write so toggling one key never clobbers the other.
@@ -748,6 +764,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-295](https://linear.app/terenc/issue/TER-295) — ✅ Done. `deploy-functions.yml` workflow: auto-deploys all Supabase edge functions on push to `main` touching `supabase/functions/**` and via `workflow_dispatch`. Closes the edge-function deploy-parity gap. Shipped June 1, 2026 (PR #68).
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
 * [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ Done. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged. Shipped June 2, 2026 (PR #71).
+* [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ In Review. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026.
 
 ## Session log
 

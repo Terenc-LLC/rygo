@@ -218,6 +218,8 @@ Three shape components in `Shapes.tsx`: `Square`, `Triangle`, `Circle`. All inli
 
 **Updated (June 2, 2026,** [TER-290](https://linear.app/terenc/issue/TER-290)**):** Grid container given `bg-grid-line dark:bg-ink p-px rounded-md` — the `--color-grid-line` token (`#78716C`, stone-500) shows through the `gap-1` gaps as hairline dark lines in light mode, and the 1px padding creates an outer edge so the board reads as bounded. Empty-cell fill stays `bg-stone-300`; the line carries structure independently. Dark mode uses `dark:bg-ink` (Ink shows through gaps = current behavior, no regression). WCAG 1.4.11 non-text contrast verified: grid-line `#78716C` is **4.33:1 vs Paper** `#F5F3EE` and **3.22:1 vs stone-300** `#D6D3D1` — both ≥ 3:1 required. Same treatment applied to `RefThumbnail` (thumbnail button container and overlay board).
 
+**Updated (June 4, 2026,** [TER-332](https://linear.app/terenc/issue/TER-332)**):** Light-mode contrast pass. `CELL_BG.empty` changed from `bg-stone-300` to `bg-stone-400` (darker empty tiles). Grid container background changed from `bg-grid-line` to `bg-paper` — gaps now show the page color, so no divider lines or intersection dots appear in light mode. Dark mode unchanged (`dark:bg-gray-800` empty tiles, `dark:bg-ink` container). `--color-grid-line` token retained in `src/index.css` — `RefThumbnail.tsx` is also a consumer (thumbnail button container and overlay board). `Grid.test.tsx` assertions updated accordingly.
+
 ### Page chrome theming — UPDATED (`src/App.tsx`, [TER-152](https://linear.app/terenc/issue/TER-152))
 
 `<main>` uses `bg-paper dark:bg-ink`. Primary text uses `text-ink dark:text-paper`. Page background and text respond to the `dark` class on the html element. Game-content colors (cells, shape fills) remain theme-invariant. Brand tokens defined via Tailwind v4 `@theme` block in `src/index.css`. Shipped in [TER-152](https://linear.app/terenc/issue/TER-152), May 2, 2026.
@@ -360,8 +362,8 @@ Brand tokens defined in `src/index.css` via `@theme` block. Shipped in [TER-152]
 | Page background          | `bg-paper` (`#F5F3EE`)                                 | `bg-ink` (`#14110E`)                                 |
 | Page / heading text      | `text-ink` (`#14110E`)                                 | `text-paper` (`#F5F3EE`)                             |
 | Secondary text / labels  | `text-gray-500`                                        | `text-gray-400`                                      |
-| Grid container (lines)   | `bg-grid-line` (`#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) | `bg-ink` (same as page bg — no regression) |
-| Empty grid cells         | `bg-stone-300` (`#D6D3D1`, ~1.35:1 vs Paper)           | `bg-gray-800`                                        |
+| Grid container (gaps)    | `bg-paper` (`#F5F3EE` — gaps show page color, no dividers) | `bg-ink` (same as page bg — no regression)    |
+| Empty grid cells         | `bg-stone-400` (`#A8A29E`)                             | `bg-gray-800`                                        |
 | Default / level buttons  | `bg-gray-100`                                          | `bg-gray-800`                                        |
 | Reveal / action buttons  | `bg-gray-200`                                          | `bg-gray-700`                                        |
 | Summary card             | `bg-gray-100`                                          | `bg-gray-800`                                        |
@@ -779,6 +781,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-240](https://linear.app/terenc/issue/TER-240) — ✅ Done. 6×6 par budget bump: flat `BUDGET_MS = 30s` → per-size map `{ 4: 30s, 5: 30s, 6: 90s, 8: 0 }` in `scripts/compute-par.ts`. Lifts 6×6 proven rate from 7/14 baseline; 8×8 budget 0 skips pointless search. Fast-follow from TER-222 + TER-248. Shipped June 4, 2026 (PR #80).
 * [TER-321](https://linear.app/terenc/issue/TER-321) — ✅ Done. Set `LAUNCH_DAY = '2026-06-04'` in `validate.ts` (was placeholder `'2026-05-25'`); updated `validate.test.ts` fixtures to use the new floor. Auto-deploys via `deploy-functions.yml` on merge. Shipped June 4, 2026 (PR #81).
 * [TER-322](https://linear.app/terenc/issue/TER-322) — ✅ In Review. Privacy disclosure line on SettingsScreen: "Privacy" section heading + approved copy ("No account, no personal data. Your device gets a random ID to record daily leaderboard scores — that's all.") rendered below the toggles with `text-gray-500 dark:text-gray-400` secondary styling. Static, no toggle, no link-out. Test asserts heading and copy render. Filed June 4, 2026.
+* [TER-332](https://linear.app/terenc/issue/TER-332) — ✅ In Review. Light game board contrast pass: `CELL_BG.empty` `bg-stone-300` → `bg-stone-400`; grid container `bg-grid-line` → `bg-paper` (dividers gone, gaps show page color). `--color-grid-line` token retained (`RefThumbnail` still consumes it). `Grid.test.tsx` updated. Dark mode unchanged. Filed June 4, 2026.
 
 ## Session log
 

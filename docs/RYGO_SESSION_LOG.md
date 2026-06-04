@@ -1077,3 +1077,18 @@ Added the Gate 3 privacy disclosure to the Settings screen.
 **Decisions made:**
 * Section heading styled `text-xs font-semibold uppercase tracking-wide` — consistent with common settings-section label patterns and avoids introducing a new heading level that would clash with the existing `<h1 class="text-base font-semibold">` page heading.
 * Secondary color token `text-gray-500 dark:text-gray-400` — already in use on the back button and in the broader screen; meets WCAG AA contrast in both light (`#6B7280` vs Paper `#F5F3EE`, ~4.6:1) and dark (`#9CA3AF` vs Ink `#14110E`, ~4.6:1) without introducing a new token.
+
+### 2026-06-04 — [TER-332](https://linear.app/terenc/issue/TER-332) Light game board: darken empty tiles + remove grid dividers (Claude Code / Sonnet 4.6)
+
+Light-mode game board contrast pass.
+
+**What shipped:**
+* `src/components/Grid.tsx` — `CELL_BG.empty`: `'bg-stone-300 dark:bg-gray-800'` → `'bg-stone-400 dark:bg-gray-800'` (darker empty tiles in light mode). Grid container `className`: `bg-grid-line` → `bg-paper` so gaps show the page color — divider lines and intersection dots gone.
+* `src/components/Grid.test.tsx` — updated two describe-block comments and three assertions: `bg-grid-line` → `bg-paper` (container test), `bg-stone-300` → `bg-stone-400` (empty-cell test).
+* `src/index.css` — **no change.** `--color-grid-line` token retained.
+
+**Tests:** 482 total tests pass. Build clean.
+
+**Decisions made / grep result:**
+* `grid-line` grep across `src/`: `RefThumbnail.tsx` has two uses of `bg-grid-line` (thumbnail button container at line 101 and overlay board at line 147) in addition to `Grid.tsx`. Token is not sole-consumed by `Grid.tsx`, so `--color-grid-line: #78716C` was left in `src/index.css`. Noted in status comment per issue spec.
+* Dark mode unchanged — `dark:bg-gray-800` on empty cells and `dark:bg-ink` on the container are untouched.

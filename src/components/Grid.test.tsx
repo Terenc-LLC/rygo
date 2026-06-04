@@ -34,18 +34,18 @@ describe('cell count', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Grid container — grid-line treatment
+// Grid container — paper background (no dividers)
 // ---------------------------------------------------------------------------
 
 describe('grid container', () => {
-  it('has bg-grid-line and dark:bg-ink for grid-line treatment', () => {
+  it('has bg-paper and dark:bg-ink for grid container background', () => {
     const { container } = render(<Grid board={makeBoard(4)} size={4} />);
     const gridDiv = container.firstChild as HTMLElement;
-    expect(gridDiv.className).toContain('bg-grid-line');
+    expect(gridDiv.className).toContain('bg-paper');
     expect(gridDiv.className).toContain('dark:bg-ink');
   });
 
-  it('has p-px outer padding so the grid-line background frames the board', () => {
+  it('has p-px outer padding so the container frames the board', () => {
     const { container } = render(<Grid board={makeBoard(4)} size={4} />);
     const gridDiv = container.firstChild as HTMLElement;
     expect(gridDiv.className).toContain('p-px');
@@ -57,10 +57,10 @@ describe('grid container', () => {
 // ---------------------------------------------------------------------------
 
 describe('cell background classes', () => {
-  it('empty cells have bg-stone-300 and dark:bg-gray-800', () => {
+  it('empty cells have bg-stone-400 and dark:bg-gray-800', () => {
     render(<Grid board={makeBoard(4, 'empty')} size={4} />);
     screen.getAllByRole('button').forEach(btn => {
-      expect(btn.className).toContain('bg-stone-300');
+      expect(btn.className).toContain('bg-stone-400');
       expect(btn.className).toContain('dark:bg-gray-800');
     });
   });

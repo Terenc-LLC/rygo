@@ -171,21 +171,23 @@ export function GameScreen({
     const streak =
       mode === 'daily' ? computeGlobalStreak(loadState(), todayKey()).current : null;
     return (
-      <Summary
-        gridSize={game.gridSize}
-        moveCount={game.moveCount}
-        elapsedMs={game.elapsedMs}
-        date={effectiveDayKey}
-        mode={mode}
-        streak={streak}
-        standing={standing}
-        dailyPar={dailyPar}
-        onPlayAgain={() => {
-          game.reset();
-          game.resumeTimer();
-        }}
-        onPickDifficulty={onPickDifficulty}
-      />
+      <div className="screen-fade">
+        <Summary
+          gridSize={game.gridSize}
+          moveCount={game.moveCount}
+          elapsedMs={game.elapsedMs}
+          date={effectiveDayKey}
+          mode={mode}
+          streak={streak}
+          standing={standing}
+          dailyPar={dailyPar}
+          onPlayAgain={() => {
+            game.reset();
+            game.resumeTimer();
+          }}
+          onPickDifficulty={onPickDifficulty}
+        />
+      </div>
     );
   }
 

@@ -78,28 +78,30 @@ export default function App() {
         <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
       </div>
       <main className="min-h-screen bg-paper dark:bg-ink pt-14 pb-8">
-        {view === 'difficulty' && (
-          <DifficultyPicker
-            onSelect={handleSelectDifficulty}
-            onShowStats={() => setView('stats')}
-            onShowRules={() => setView('rules')}
-            onShowSettings={() => setView('settings')}
-            completedToday={completedToday}
-          />
-        )}
-        {view === 'stats' && <StatsScreen onBack={() => setView('difficulty')} />}
-        {view === 'rules' && <RulesScreen onBack={() => setView('difficulty')} />}
-        {view === 'settings' && <SettingsScreen onBack={() => setView('difficulty')} />}
-        {view === 'game' && puzzle !== null && (
-          <GameScreen
-            puzzle={puzzle}
-            mode={gameMode}
-            dayKey={dayKey}
-            resume={resumeBlob}
-            onPickDifficulty={() => setView('difficulty')}
-            onDailyComplete={handleDailyComplete}
-          />
-        )}
+        <div key={view} className="screen-fade">
+          {view === 'difficulty' && (
+            <DifficultyPicker
+              onSelect={handleSelectDifficulty}
+              onShowStats={() => setView('stats')}
+              onShowRules={() => setView('rules')}
+              onShowSettings={() => setView('settings')}
+              completedToday={completedToday}
+            />
+          )}
+          {view === 'stats' && <StatsScreen onBack={() => setView('difficulty')} />}
+          {view === 'rules' && <RulesScreen onBack={() => setView('difficulty')} />}
+          {view === 'settings' && <SettingsScreen onBack={() => setView('difficulty')} />}
+          {view === 'game' && puzzle !== null && (
+            <GameScreen
+              puzzle={puzzle}
+              mode={gameMode}
+              dayKey={dayKey}
+              resume={resumeBlob}
+              onPickDifficulty={() => setView('difficulty')}
+              onDailyComplete={handleDailyComplete}
+            />
+          )}
+        </div>
       </main>
     </>
   );

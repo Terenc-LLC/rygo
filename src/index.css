@@ -16,3 +16,12 @@
   20%,
   80% { opacity: 1; }
 }
+
+@keyframes screenFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .screen-fade { animation: screenFade 180ms ease-out; }
+}

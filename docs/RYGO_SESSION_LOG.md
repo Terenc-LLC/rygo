@@ -1015,3 +1015,20 @@ Added CSS-only screen fade transitions. No animation library, no JS animation lo
 ### 2026-06-04 — TER-311 closed by Opus — PR #76 merged + get_admin_metrics() migration applied. Reviewed (RPC verbatim, null-safe reader, dashboard, pathname branch + rewrite; allowlist-clean; CI 478). Notes: anon-callable by design (Option B), bare-path match. Issue map (Unscheduled): TER-311 ✅ In Review → ✅ Done (PR #76).
 
 ### 2026-06-04 — TER-313 closed by Opus — PR #77 merged. Reviewed (CSS-only fade, motion-safe gating, keyed App wrapper, Summary wrapper composing after the sweep; allowlist-clean; CI 481). Completes the pre-launch feel floor (TER-301 + TER-310 + TER-313); cascade/tutorial/breathing-room remain post-launch in TER-154. Issue map: TER-313 moved Unscheduled → M4, ✅ In Review → ✅ Done (PR #77).
+
+### 2026-06-04 — [TER-240](https://linear.app/terenc/issue/TER-240) 6×6 par budget bump (Claude Code / Sonnet 4.6)
+
+Raised the 6×6 solver time budget from 30s to 90s and made the 8×8 budget explicit `0` in `scripts/compute-par.ts`.
+
+**What shipped:**
+* `scripts/compute-par.ts` — replaced `export const BUDGET_MS = 30_000` with `export const BUDGET_MS_BY_SIZE: Record<4 | 5 | 6 | 8, number> = { 4: 30_000, 5: 30_000, 6: 90_000, 8: 0 }`. Per-size loop now calls `solveWithFallback(puzzle, BUDGET_MS_BY_SIZE[size])`. No other changes to solver, generator, upsert logic, or client path.
+
+**Tests:** 481 total tests pass; build clean. `compute-par.ts` is an offline ops script with no automated CI coverage (same posture as TER-222 / TER-314).
+
+**Decisions made:**
+* 8×8 budget set to `0`. The existing `solveWithFallback` guard already short-circuits on `gridSize === 8` before calling the solver (OOM protection), so budget=0 is defense-in-depth. Identical output (soft par, `proven:false`), saves ~30s/day of pointless search.
+
+**Post-merge ops required (Chris):**
+1. Delete future 6×6 rows: `delete from daily_par where grid_size = 6 and date >= current_date;`
+2. Run `compute-par` workflow via `workflow_dispatch` (push trigger will also fire on merge).
+3. Re-count proven/fallback: `select count(*) filter (where proven) as proven_days, count(*) filter (where not proven) as fallback_days, count(*) as total_days from daily_par where grid_size = 6;`

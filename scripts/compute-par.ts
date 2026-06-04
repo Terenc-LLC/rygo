@@ -23,7 +23,7 @@ import { boardHash } from '../src/engine/boardHash.ts';
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const LOOKAHEAD_DAYS = 14;
-export const BUDGET_MS = 30_000;
+export const BUDGET_MS_BY_SIZE: Record<4 | 5 | 6 | 8, number> = { 4: 30_000, 5: 30_000, 6: 90_000, 8: 0 };
 const SIZES = [4, 5, 6, 8] as const;
 
 // ── Pure helpers (exported for tests) ─────────────────────────────────────
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
       }
 
       const start = Date.now();
-      const result = solveWithFallback(puzzle, BUDGET_MS);
+      const result = solveWithFallback(puzzle, BUDGET_MS_BY_SIZE[size]);
       const elapsed = Date.now() - start;
 
       const row = buildParRow(dateStr, size, result, puzzle.solution.length, hash);

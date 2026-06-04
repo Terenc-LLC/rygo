@@ -5,8 +5,8 @@ import { replayEventLog } from '../_shared/engine/replay.ts';
 export const MAX_EVENTS = 2000;
 export const ELAPSED_FLOOR_MS = 1500;
 export const ELAPSED_CEILING_MS = 7_200_000;
-// Floor date for accepted submissions. Chris confirms the actual launch date at deploy.
-export const LAUNCH_DAY = '2026-05-25';
+// Floor date for accepted submissions.
+export const LAUNCH_DAY = '2026-06-04';
 
 export type GridSize = 4 | 5 | 6 | 8;
 

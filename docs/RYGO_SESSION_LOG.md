@@ -1032,3 +1032,22 @@ Raised the 6×6 solver time budget from 30s to 90s and made the 8×8 budget expl
 1. Delete future 6×6 rows: `delete from daily_par where grid_size = 6 and date >= current_date;`
 2. Run `compute-par` workflow via `workflow_dispatch` (push trigger will also fire on merge).
 3. Re-count proven/fallback: `select count(*) filter (where proven) as proven_days, count(*) filter (where not proven) as fallback_days, count(*) as total_days from daily_par where grid_size = 6;`
+
+### 2026-06-04 — [TER-321](https://linear.app/terenc/issue/TER-321) Set LAUNCH_DAY to 2026-06-04 (Claude Code / Sonnet 4.6)
+
+Set the submission floor to the real go-live date so pre-launch test-window days can't seed the live leaderboard via late retry-queue submissions.
+
+**Files changed:**
+* `supabase/functions/submit-score/validate.ts` — `LAUNCH_DAY` updated from `'2026-05-25'` (placeholder) to `'2026-06-04'` (go-live date). One-line change; no other logic altered.
+* `supabase/functions/submit-score/validate.test.ts` — `faithfulDailyFixture` start date changed from hardcoded `'2026-05-25T00:00:00Z'` to `` `${LAUNCH_DAY}T00:00:00Z` `` so it remains relative to the imported constant. All six `validateSubmission` reject-path fixtures (future-day, eventLog cap, board mismatch, moveCount mismatch, elapsedMs below floor, elapsedMs above ceiling) updated from seed `'RYGO-2026-05-25'` / `serverToday '2026-05-25'` to `'RYGO-2026-06-04'` / `'2026-06-04'` so they test the intended rejection reason rather than landing on the launch-floor rejection.
+* `docs/RYGO_CONTEXT.md` — `LAUNCH_DAY` constant in the architecture note updated; TER-321 added to Unscheduled issue map as ✅ In Review.
+* `docs/RYGO_SESSION_LOG.md` — this entry.
+
+**Tests:** 26/26 Deno validator tests pass; 481/481 npm Vitest tests pass; build clean.
+
+**Decisions made:**
+* Only `validate.ts` and `validate.test.ts` changed — no client code, no `ELAPSED_FLOOR_MS`, no other validator logic.
+* `faithfulDailyFixture` made relative to the imported `LAUNCH_DAY` constant so future floor moves don't require fixture date updates again.
+* `parsePayload`-only tests retain `'2026-05-25'` seeds — `parsePayload` doesn't check `LAUNCH_DAY`, so those tests are unaffected and their dates are correct for what they test.
+* Before-floor reject test retains `pre = '2025-12-31'` — clearly below any plausible floor, no update needed.
+* Auto-deploys to Supabase via `deploy-functions.yml` on merge (no manual deploy needed per TER-295).

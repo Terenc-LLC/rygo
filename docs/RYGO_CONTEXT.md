@@ -539,7 +539,7 @@ Supabase Edge Function (Deno) that server-verifies a submitted daily result and 
 export const MAX_EVENTS = 2000;
 export const ELAPSED_FLOOR_MS = 1500;
 export const ELAPSED_CEILING_MS = 7_200_000;
-export const LAUNCH_DAY = '2026-05-25'; // Chris confirms at deploy
+export const LAUNCH_DAY = '2026-06-04'; // go-live floor (set on launch day, TER-321)
 
 export class BadRequestError extends Error { ... }
 export function parsePayload(body: unknown): SubmitPayload  // throws BadRequestError on malformed
@@ -777,6 +777,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ In Review. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Filed June 4, 2026.
 * [TER-314](https://linear.app/terenc/issue/TER-314) — ✅ In Review. `compute-par.yml` push trigger on engine paths: auto-refreshes `daily_par` on merge to `main` touching `src/engine/**` (excl. test files) or `scripts/compute-par.ts`. Closes the par-staleness gap after generator/engine changes. Filed June 4, 2026.
 * [TER-240](https://linear.app/terenc/issue/TER-240) — ✅ In Review. 6×6 par budget bump: flat `BUDGET_MS = 30s` → per-size map `{ 4: 30s, 5: 30s, 6: 90s, 8: 0 }` in `scripts/compute-par.ts`. Lifts 6×6 proven rate from 7/14 baseline; 8×8 budget 0 skips pointless search. Fast-follow from TER-222 + TER-248. Filed June 4, 2026.
+* [TER-321](https://linear.app/terenc/issue/TER-321) — ✅ In Review. Set `LAUNCH_DAY = '2026-06-04'` in `validate.ts` (was placeholder `'2026-05-25'`); updated `validate.test.ts` fixtures to use the new floor. Auto-deploys via `deploy-functions.yml` on merge. Filed June 4, 2026.
 
 ## Session log
 

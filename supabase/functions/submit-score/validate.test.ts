@@ -94,7 +94,7 @@ function faithfulDailyFixture(
   gridSize: 4 | 5 | 6 | 8,
   elapsedMs = ELAPSED_FLOOR_MS + 1000,
 ): { grid_size: 4 | 5 | 6 | 8; day: string; eventLog: GameEvent[]; moveCount: number; elapsedMs: number } {
-  const base = new Date('2026-05-25T00:00:00Z'); // LAUNCH_DAY
+  const base = new Date(`${LAUNCH_DAY}T00:00:00Z`);
   for (let i = 0; i < 400; i++) {
     const day = dailySeed(new Date(base.getTime() + i * 86400000)).slice(5); // YYYY-MM-DD
     const puzzle = generatePuzzle(`RYGO-${day}`, gridSize);
@@ -226,10 +226,10 @@ Deno.test('validateSubmission: accepts a correct 5×5 replay', () => {
 });
 
 Deno.test('validateSubmission: future day throws BadRequestError (security hard stop)', () => {
-  const payload = parsePayload(goodPayload('RYGO-2026-05-25', 4));
-  const tomorrow = '2026-05-26';
+  const payload = parsePayload(goodPayload('RYGO-2026-06-04', 4));
+  const tomorrow = '2026-06-05';
   const spoofedPayload = { ...payload, day: tomorrow };
-  assertThrowsBadRequest(() => validateSubmission(spoofedPayload, '2026-05-25'), 'future');
+  assertThrowsBadRequest(() => validateSubmission(spoofedPayload, '2026-06-04'), 'future');
 });
 
 Deno.test('validateSubmission: day before launch floor → accepted:false', () => {
@@ -248,40 +248,40 @@ Deno.test('validateSubmission: day before launch floor → accepted:false', () =
 });
 
 Deno.test('validateSubmission: eventLog over cap → accepted:false', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4);
+  const base = goodPayload('RYGO-2026-06-04', 4);
   const bigLog: GameEvent[] = Array.from({ length: MAX_EVENTS + 1 }, () => ({
     type: 'hide' as const,
   }));
   const payload = parsePayload({ ...base, eventLog: bigLog, moveCount: 0 });
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, '2026-06-04');
   assertEquals(result.accepted, false);
 });
 
 Deno.test('validateSubmission: board mismatch (wrong tap) → accepted:false', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4);
+  const base = goodPayload('RYGO-2026-06-04', 4);
   // Truncate the event log — board won't match target
   const shortLog = base.eventLog.slice(0, 2);
   const { moveCount: shortCount } = replayEventLog(
-    generatePuzzle('RYGO-2026-05-25', 4),
+    generatePuzzle('RYGO-2026-06-04', 4),
     shortLog,
   );
   const payload = parsePayload({ ...base, eventLog: shortLog, moveCount: shortCount });
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, '2026-06-04');
   assertEquals(result.accepted, false);
 });
 
 Deno.test('validateSubmission: moveCount mismatch → accepted:false', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4);
+  const base = goodPayload('RYGO-2026-06-04', 4);
   // Submit correct board but wrong claimed moveCount
   const payload = parsePayload({ ...base, moveCount: base.moveCount + 999 });
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, '2026-06-04');
   assertEquals(result.accepted, false);
 });
 
 Deno.test('validateSubmission: elapsedMs below floor → accepted:false (reject, not clamp)', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4, ELAPSED_FLOOR_MS - 1);
+  const base = goodPayload('RYGO-2026-06-04', 4, ELAPSED_FLOOR_MS - 1);
   const payload = parsePayload(base);
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, '2026-06-04');
   assertEquals(result.accepted, false);
 });
 
@@ -300,9 +300,9 @@ Deno.test('validateSubmission: elapsedMs at ceiling → accepted:true', () => {
 });
 
 Deno.test('validateSubmission: elapsedMs above ceiling → accepted:false (reject, not clamp)', () => {
-  const base = goodPayload('RYGO-2026-05-25', 4, ELAPSED_CEILING_MS + 1);
+  const base = goodPayload('RYGO-2026-06-04', 4, ELAPSED_CEILING_MS + 1);
   const payload = parsePayload(base);
-  const result = validateSubmission(payload, '2026-05-25');
+  const result = validateSubmission(payload, '2026-06-04');
   assertEquals(result.accepted, false);
 });
 

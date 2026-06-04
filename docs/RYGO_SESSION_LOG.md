@@ -975,3 +975,23 @@ Reviewed (settings persistence + hook + SettingsScreen + wiring; allowlist-clean
 ### 2026-06-04 — TER-310 closed by Opus
 
 Reviewed (Web Audio engine no-op-safe, useGameFeedback orchestrator, GameScreen wiring, carried TER-301 fixes; allowlist-clean; CI 462); two non-blocking nits logged (dead mocked-AudioContext test block, rare under-par/dailyPar race). Issue map: TER-310 ✅ In Review → ✅ Done (PR #74).
+
+### 2026-06-04 — [TER-311](https://linear.app/terenc/issue/TER-311) Admin metrics dashboard at /tabs — Option B (Claude Code / Sonnet 4.6)
+
+Stood up the internal admin metrics page at `/tabs`. Unguarded (anon aggregates RPC, no auth). Read-only.
+
+**What shipped:**
+* `supabase/migrations/20260604000000_admin_metrics_rpc.sql` — `public.get_admin_metrics()` RPC: `security definer`, `set search_path = ''`, granted to `anon`. Returns `unique_players`, `total_submissions`, and `by_day` (last 90 days, newest first). No `user_id` in output.
+* `src/backend/getAdminMetrics.ts` — `getAdminMetrics(): Promise<AdminMetrics | null>`. Guards on `supabase !== null`, validates shape, returns `null` on any failure, never throws. Mirrors `getStanding` / `getDailyPar` pattern.
+* `src/components/AdminDashboard.tsx` — on mount calls `getAdminMetrics()`; shows loading → two totals + per-day table; shows "Metrics unavailable" on `null`. Brand tokens (`bg-paper dark:bg-ink`, `text-ink dark:text-paper`). No game imports beyond the metrics reader.
+* `src/main.tsx` — pathname branch: `window.location.pathname === '/tabs'` renders `<AdminDashboard />`, else `<App />`. Both wrapped in existing `StrictMode`.
+* `vercel.json` — created (did not previously exist). One rewrite: `{ "source": "/tabs", "destination": "/index.html" }`. Targeted to `/tabs` only; does not alter `/` behavior.
+
+**Tests:** `src/backend/getAdminMetrics.test.ts` (11 tests), `src/components/AdminDashboard.test.tsx` (5 tests). 478 total tests pass; build clean.
+
+**Decisions made:**
+* `vercel.json` created from scratch (no prior file to merge).
+* `main.tsx` pathname check uses `window.location.pathname` directly — no router dependency per spec.
+* `by_day` table hidden when empty (no table rendered for `by_day: []`).
+
+**Deploy note for Chris:** apply `supabase/migrations/20260604000000_admin_metrics_rpc.sql` to Supabase before visiting `/tabs`; Vercel deploy does not auto-apply migrations.

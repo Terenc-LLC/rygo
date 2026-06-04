@@ -96,6 +96,17 @@ export function SettingsScreen({ onBack }: SettingsScreenProps): JSX.Element {
           />
         )}
       </div>
+
+      {/* Privacy */}
+      <div className="w-full flex flex-col gap-1" data-testid="settings-privacy">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Privacy
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          No account, no personal data. Your device gets a random ID to record daily leaderboard
+          scores — that's all.
+        </p>
+      </div>
     </div>
   );
 }

@@ -778,6 +778,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-314](https://linear.app/terenc/issue/TER-314) — ✅ Done. `compute-par.yml` push trigger on engine paths: auto-refreshes `daily_par` on merge to `main` touching `src/engine/**` (excl. test files) or `scripts/compute-par.ts`. Closes the par-staleness gap after generator/engine changes. Shipped June 4, 2026 (PR #79).
 * [TER-240](https://linear.app/terenc/issue/TER-240) — ✅ Done. 6×6 par budget bump: flat `BUDGET_MS = 30s` → per-size map `{ 4: 30s, 5: 30s, 6: 90s, 8: 0 }` in `scripts/compute-par.ts`. Lifts 6×6 proven rate from 7/14 baseline; 8×8 budget 0 skips pointless search. Fast-follow from TER-222 + TER-248. Shipped June 4, 2026 (PR #80).
 * [TER-321](https://linear.app/terenc/issue/TER-321) — ✅ Done. Set `LAUNCH_DAY = '2026-06-04'` in `validate.ts` (was placeholder `'2026-05-25'`); updated `validate.test.ts` fixtures to use the new floor. Auto-deploys via `deploy-functions.yml` on merge. Shipped June 4, 2026 (PR #81).
+* [TER-322](https://linear.app/terenc/issue/TER-322) — ✅ In Review. Privacy disclosure line on SettingsScreen: "Privacy" section heading + approved copy ("No account, no personal data. Your device gets a random ID to record daily leaderboard scores — that's all.") rendered below the toggles with `text-gray-500 dark:text-gray-400` secondary styling. Static, no toggle, no link-out. Test asserts heading and copy render. Filed June 4, 2026.
 
 ## Session log
 

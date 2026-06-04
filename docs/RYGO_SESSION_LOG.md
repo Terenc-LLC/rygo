@@ -1051,3 +1051,15 @@ Set the submission floor to the real go-live date so pre-launch test-window days
 * `parsePayload`-only tests retain `'2026-05-25'` seeds — `parsePayload` doesn't check `LAUNCH_DAY`, so those tests are unaffected and their dates are correct for what they test.
 * Before-floor reject test retains `pre = '2025-12-31'` — clearly below any plausible floor, no update needed.
 * Auto-deploys to Supabase via `deploy-functions.yml` on merge (no manual deploy needed per TER-295).
+
+### 2026-06-04 — TER-314 closed by Opus
+
+PR #79 merged. Reviewed: `compute-par.yml` gains a `push` trigger on engine paths (`src/engine/**` excl. tests, `scripts/compute-par.ts`); cron, `workflow_dispatch`, and job body unchanged; docs allowlist-clean. Auto-refreshes `daily_par` on engine-path merges; solver-only changes still need a manual `workflow_dispatch` (documented limitation). Issue map (Unscheduled): TER-314 ✅ In Review → ✅ Done (PR #79).
+
+### 2026-06-04 — TER-240 closed by Opus
+
+PR #80 merged. Reviewed: per-size par budget map `{ 4: 30s, 5: 30s, 6: 90s, 8: 0 }` in `scripts/compute-par.ts` (6×6 raised from 30s; 8×8 → 0 is defense-in-depth — `solveWithFallback` already short-circuits gridSize 8). CI green, 481 tests, allowlist-clean. Post-merge ops are Chris-side: delete future 6×6 `daily_par` rows → `workflow_dispatch` compute-par → re-count proven/fallback vs the 7/14 baseline (the idempotency guard skips unchanged boards, so the budget won't apply without the delete). Issue map (Unscheduled): TER-240 ✅ In Review → ✅ Done (PR #80).
+
+### 2026-06-04 — TER-321 closed by Opus
+
+PR #81 merged. Reviewed: `LAUNCH_DAY = '2026-06-04'` in `validate.ts` (was `'2026-05-25'`); `validate.test.ts` fixtures re-anchored to the imported `LAUNCH_DAY` constant + six reject-path seeds bumped to the new floor; 26/26 Deno + 481/481 Vitest green; allowlist-clean. `submit-score` auto-deploys via `deploy-functions.yml` on merge (TER-295). Gate 1 of the TER-212 launch checklist. Issue map (Unscheduled): TER-321 ✅ In Review → ✅ Done (PR #81).

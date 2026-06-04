@@ -23,7 +23,7 @@ const STATE_LABEL: Record<CellState, string> = {
 };
 
 const CELL_BG: Record<CellState, string> = {
-  empty: 'bg-stone-300 dark:bg-gray-800',
+  empty: 'bg-stone-400 dark:bg-gray-800',
   red: 'bg-rygo-red',
   yellow: 'bg-rygo-yellow',
   green: 'bg-rygo-green',
@@ -49,7 +49,7 @@ export function Grid({ board, onCellTap, size }: GridProps): JSX.Element {
   const interactive = onCellTap !== undefined;
 
   return (
-    <div className={`w-full grid ${GRID_COLS[size]} gap-1 p-px bg-grid-line dark:bg-ink rounded-md`}>
+    <div className={`w-full grid ${GRID_COLS[size]} gap-1 p-px bg-paper dark:bg-ink rounded-md`}>
       {board.map((row, rowIdx) =>
         row.map((state, colIdx) => (
           <button

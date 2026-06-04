@@ -1063,3 +1063,17 @@ PR #80 merged. Reviewed: per-size par budget map `{ 4: 30s, 5: 30s, 6: 90s, 8: 0
 ### 2026-06-04 — TER-321 closed by Opus
 
 PR #81 merged. Reviewed: `LAUNCH_DAY = '2026-06-04'` in `validate.ts` (was `'2026-05-25'`); `validate.test.ts` fixtures re-anchored to the imported `LAUNCH_DAY` constant + six reject-path seeds bumped to the new floor; 26/26 Deno + 481/481 Vitest green; allowlist-clean. `submit-score` auto-deploys via `deploy-functions.yml` on merge (TER-295). Gate 1 of the TER-212 launch checklist. Issue map (Unscheduled): TER-321 ✅ In Review → ✅ Done (PR #81).
+
+### 2026-06-04 — [TER-322](https://linear.app/terenc/issue/TER-322) Privacy disclosure line on SettingsScreen (Claude Code / Sonnet 4.6)
+
+Added the Gate 3 privacy disclosure to the Settings screen.
+
+**What shipped:**
+* `src/components/SettingsScreen.tsx` — new "Privacy" section below the Sound/Haptics toggles. `<h2>` heading (`text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400`) + `<p>` disclosure ("No account, no personal data. Your device gets a random ID to record daily leaderboard scores — that's all." — verbatim approved copy, `text-sm text-gray-500 dark:text-gray-400`). Static, no toggle, no link-out. Uses the existing secondary-text token (`text-gray-500 dark:text-gray-400`) already in use on the screen — no new color.
+* `src/components/SettingsScreen.test.tsx` — one new test asserting the privacy heading and disclosure copy render.
+
+**Tests:** 482 total tests pass (was 481; +1 new). Build clean.
+
+**Decisions made:**
+* Section heading styled `text-xs font-semibold uppercase tracking-wide` — consistent with common settings-section label patterns and avoids introducing a new heading level that would clash with the existing `<h1 class="text-base font-semibold">` page heading.
+* Secondary color token `text-gray-500 dark:text-gray-400` — already in use on the back button and in the broader screen; meets WCAG AA contrast in both light (`#6B7280` vs Paper `#F5F3EE`, ~4.6:1) and dark (`#9CA3AF` vs Ink `#14110E`, ~4.6:1) without introducing a new token.

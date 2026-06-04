@@ -45,6 +45,16 @@ describe('SettingsScreen', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
+  it('renders the privacy disclosure text', () => {
+    render(<SettingsScreen onBack={() => {}} />);
+    expect(
+      screen.getByText(
+        /No account, no personal data\. Your device gets a random ID to record daily leaderboard/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /privacy/i })).toBeInTheDocument();
+  });
+
   it('Haptics toggle is hidden when navigator.vibrate is absent', () => {
     // jsdom does not implement navigator.vibrate by default
     render(<SettingsScreen onBack={() => {}} />);

@@ -664,6 +664,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * React components live in `src/components/`.
 * React hooks live in `src/hooks/`.
 * Persistence modules live in `src/persistence/` (introduced in [TER-142](https://linear.app/terenc/issue/TER-142)).
+* Audio synthesis modules live in `src/audio/` (introduced in TER-310).
 * No business logic in components.
 * Tailwind v4 for all styling. CSS-based config (no `tailwind.config.js`). Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`, `grid-line`) defined via `@theme` block in `index.css` ([TER-152](https://linear.app/terenc/issue/TER-152), `grid-line` added in [TER-290](https://linear.app/terenc/issue/TER-290)). No CSS modules.
 * Mobile-first: design at portrait phone width first, adapt up.
@@ -706,8 +707,8 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 ### M4 — Polish (post-launch)
 
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
-* [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ In Review. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended.
-* [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ In Review. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`).
+* [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ Done. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended. Shipped June 2, 2026 (PR #73).
+* [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ Done. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`). Shipped June 4, 2026 (PR #74).
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 

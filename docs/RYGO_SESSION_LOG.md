@@ -967,3 +967,11 @@ Wired real sound and vibration behind the Sound and Haptics toggles. First consu
 * Tap suppression on completing move achieved purely by checking `phase === 'playing'` — no special-case logic needed, because React batches the `moveCount++` and `phase→'validating'` into a single render.
 * `prevMoveCount` and `prevPhase` refs are updated after the condition check, so settings-driven re-runs of an effect never re-fire the sound (previous value already matches current value).
 * `playUnderPar()` starts 850ms into the timeline so it layers after the chime's three notes without overlap.
+
+### 2026-06-02 — TER-301 closed by Opus
+
+Reviewed (settings persistence + hook + SettingsScreen + wiring; allowlist-clean; CI 426); two nits carried into TER-310 (Label-in-Name, vibrate teardown). Issue map: TER-301 ✅ In Review → ✅ Done (PR #73).
+
+### 2026-06-04 — TER-310 closed by Opus
+
+Reviewed (Web Audio engine no-op-safe, useGameFeedback orchestrator, GameScreen wiring, carried TER-301 fixes; allowlist-clean; CI 462); two non-blocking nits logged (dead mocked-AudioContext test block, rare under-par/dailyPar race). Issue map: TER-310 ✅ In Review → ✅ Done (PR #74).

@@ -1011,3 +1011,16 @@ Added CSS-only screen fade transitions. No animation library, no JS animation lo
 * CSS-only under `@media (prefers-reduced-motion: no-preference)` — consistent with the `rowGlow` sweep approach from TER-153; no animation library.
 * `key={view}` on the wrapper div is sufficient to remount and replay on every view change without additional state.
 * ThemeToggle is already in a fixed overlay div outside `<main>`, so it naturally escapes the fade wrapper with no structural change needed.
+
+### 2026-06-04 — [TER-314](https://linear.app/terenc/issue/TER-314) compute-par.yml: push trigger on engine paths (Claude Code / Sonnet 4.6)
+
+Added a `push` trigger to `.github/workflows/compute-par.yml` so `daily_par` auto-refreshes when engine paths change on `main` — closing the staleness gap that surfaced after the TER-248 generator retune (client `generation_hash` mismatched stored rows until the next Monday cron).
+
+**What shipped:**
+* `.github/workflows/compute-par.yml` — `on:` block extended with a `push` trigger: `branches: [main]`, `paths: ['src/engine/**', '!src/engine/**/*.test.ts', 'scripts/compute-par.ts']`. Weekly cron and `workflow_dispatch` unchanged. Job body (Node 22, `npm ci`, `npx tsx scripts/compute-par.ts`, secrets) untouched.
+
+**Tests:** No automated tests — workflow-only change; same posture as TER-295. Build clean; 481/481 passing (unchanged).
+
+**Decisions made:**
+* Test-file exclusion (`!src/engine/**/*.test.ts`) prevents a test-only engine change from burning a compute-par run — test files have no effect on generated boards.
+* Solver-only changes (e.g. TER-240 6×6 budget bump) that leave generated boards unchanged keep the same `generation_hash` and still skip re-solve under the idempotency guard. Those continue to need a manual `workflow_dispatch`. Forcing a full bypass would require a `compute-par.ts` change and is out of scope here (noted in the issue as a deliberate limitation).

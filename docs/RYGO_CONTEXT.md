@@ -733,6 +733,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
 * [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ Done. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended. Shipped June 2, 2026 (PR #73).
 * [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ Done. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`). Shipped June 4, 2026 (PR #74).
+* [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ Done. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Shipped June 4, 2026 (PR #77).
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 

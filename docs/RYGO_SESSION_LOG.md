@@ -1092,3 +1092,9 @@ Light-mode game board contrast pass.
 **Decisions made / grep result:**
 * `grid-line` grep across `src/`: `RefThumbnail.tsx` has two uses of `bg-grid-line` (thumbnail button container at line 101 and overlay board at line 147) in addition to `Grid.tsx`. Token is not sole-consumed by `Grid.tsx`, so `--color-grid-line: #78716C` was left in `src/index.css`. Noted in status comment per issue spec.
 * Dark mode unchanged — `dark:bg-gray-800` on empty cells and `dark:bg-ink` on the container are untouched.
+
+### 2026-06-04 — TER-332 closed by Opus
+
+PR #86 merged. Reviewed via `get_files` + `get_diff` + `get_check_runs`: `Grid.tsx` `CELL_BG.empty` `bg-stone-300` → `bg-stone-400` and container `bg-grid-line` → `bg-paper` (light-mode dividers/intersection dots gone, gaps show Paper); dark mode untouched (`dark:bg-gray-800` / `dark:bg-ink`). `--color-grid-line` correctly retained — independently confirmed `RefThumbnail.tsx` still consumes it (thumbnail button container + overlay board), so `Grid.tsx` was not the sole consumer. `Grid.test.tsx` assertions updated; CI `build-and-test` green at 482/482; allowlist-clean (Grid arch note appended, theme-palette table updated, issue-map + session-log entries — no locked-section edits). Issue map (Unscheduled): TER-332 ✅ In Review → ✅ Done (PR #86).
+
+Non-blocking follow-up flagged (out of TER-332 scope): the play board now uses the Paper-gap treatment while `RefThumbnail` (thumbnail + overlay) keeps the old `bg-grid-line` dividers and `bg-stone-300` empties — board and its own thumbnail diverge in light mode. Candidate one-line follow-up if it reads as inconsistent on device.

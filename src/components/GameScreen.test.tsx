@@ -4,10 +4,13 @@ import { GameScreen, IN_PROGRESS_KEY } from './GameScreen';
 import type { GeneratedPuzzle } from '../engine/generator';
 import type { Board } from '../engine/types';
 
-const { mockEnqueueAndSubmit, mockGetStanding, mockGetDailyPar } = vi.hoisted(() => ({
+const { mockEnqueueAndSubmit, mockGetStanding, mockGetDailyPar, mockPlayTap, mockPlayWinChime, mockPlayUnderPar } = vi.hoisted(() => ({
   mockEnqueueAndSubmit: vi.fn().mockResolvedValue(undefined),
   mockGetStanding: vi.fn().mockResolvedValue(null),
   mockGetDailyPar: vi.fn().mockResolvedValue(null),
+  mockPlayTap: vi.fn(),
+  mockPlayWinChime: vi.fn(),
+  mockPlayUnderPar: vi.fn(),
 }));
 
 vi.mock('../persistence/submitScore', () => ({
@@ -21,6 +24,13 @@ vi.mock('../backend/getStanding', () => ({
 
 vi.mock('../backend/getDailyPar', () => ({
   getDailyPar: mockGetDailyPar,
+}));
+
+vi.mock('../audio/sounds', () => ({
+  resume: vi.fn(),
+  playTap: mockPlayTap,
+  playWinChime: mockPlayWinChime,
+  playUnderPar: mockPlayUnderPar,
 }));
 
 // Minimal 4×4 puzzle: placing red at (0,0) achieves the target in one move.
@@ -58,6 +68,9 @@ describe('GameScreen', () => {
     mockGetStanding.mockResolvedValue(null);
     mockGetDailyPar.mockClear();
     mockGetDailyPar.mockResolvedValue(null);
+    mockPlayTap.mockClear();
+    mockPlayWinChime.mockClear();
+    mockPlayUnderPar.mockClear();
   });
 
   afterEach(() => {
@@ -656,6 +669,55 @@ describe('GameScreen', () => {
       await act(async () => { await Promise.resolve(); });
 
       expect(mockGetDailyPar).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('audio + haptics feedback (useGameFeedback integration)', () => {
+    it('tap sound fires on each non-completing move', () => {
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 2, column 2'));
+      expect(mockPlayTap).toHaveBeenCalledOnce();
+    });
+
+    it('win chime fires on the completing move (not tap)', () => {
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1')); // completes puzzle
+      expect(mockPlayWinChime).toHaveBeenCalledOnce();
+      expect(mockPlayTap).not.toHaveBeenCalled();
+    });
+
+    it('under-par accent fires when par is beaten', async () => {
+      // par 9 → displayedPar 10; completing in 1 move is under par
+      mockGetDailyPar.mockResolvedValue({ par: 9, proven: true });
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); }); // par loads
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      expect(mockPlayUnderPar).toHaveBeenCalledOnce();
+    });
+
+    it('under-par accent does not fire when par is not beaten', async () => {
+      // par 0 → displayedPar 1; completing in 1 move is NOT under par (1 < 1 is false)
+      mockGetDailyPar.mockResolvedValue({ par: 0, proven: true });
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      expect(mockPlayUnderPar).not.toHaveBeenCalled();
+    });
+
+    it('under-par accent does not fire when dailyPar is null', async () => {
+      mockGetDailyPar.mockResolvedValue(null);
+      render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+      await act(async () => { await Promise.resolve(); });
+
+      fireEvent.click(screen.getByLabelText('Select red'));
+      fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+      expect(mockPlayUnderPar).not.toHaveBeenCalled();
     });
   });
 });

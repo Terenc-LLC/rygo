@@ -14,6 +14,7 @@ import { enqueueAndSubmit } from '../persistence/submitScore';
 import { getStanding } from '../backend/getStanding';
 import { getDailyPar } from '../backend/getDailyPar';
 import { displayedPar } from '../display/parDisplay';
+import { useGameFeedback } from '../hooks/useGameFeedback';
 import type { Board } from '../engine/types';
 
 interface GameScreenProps {
@@ -162,6 +163,9 @@ export function GameScreen({
 
     return () => { cancelled = true; };
   }, [phase, mode, onDailyComplete, puzzle.gridSize, effectiveDayKey, game.eventLog, game.moveCount, game.elapsedMs]);
+
+  const underPar = dailyPar != null && game.moveCount < (displayedPar(dailyPar.par) ?? Infinity);
+  useGameFeedback({ moveCount: game.moveCount, phase: game.phase, underPar });
 
   if (game.phase === 'complete') {
     const streak =

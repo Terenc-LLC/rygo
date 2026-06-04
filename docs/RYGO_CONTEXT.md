@@ -444,13 +444,21 @@ Diagrams are visual, not ASCII/prose:
 
 ### Settings persistence — READY (`src/persistence/settings.ts`, `src/hooks/useSettings.ts`, `src/components/SettingsScreen.tsx`, [TER-301](https://linear.app/terenc/issue/TER-301))
 
-**Persistence module** (`src/persistence/settings.ts`): localStorage key `rygo:settings`, versioned blob `{ version: 1, audio: boolean, haptics: boolean }`. `loadSettings()` returns defaults `{ audio: true, haptics: true }` on missing / corrupt JSON / `version > CURRENT_VERSION`; all I/O wrapped in try/catch. `setAudioPref(value)` and `setHapticsPref(value)` each read-then-write so toggling one key never clobbers the other. No consumer yet (sound engine and `navigator.vibrate` calls land in the next sub-issue).
+**Persistence module** (`src/persistence/settings.ts`): localStorage key `rygo:settings`, versioned blob `{ version: 1, audio: boolean, haptics: boolean }`. `loadSettings()` returns defaults `{ audio: true, haptics: true }` on missing / corrupt JSON / `version > CURRENT_VERSION`; all I/O wrapped in try/catch. `setAudioPref(value)` and `setHapticsPref(value)` each read-then-write so toggling one key never clobbers the other.
 
-**Hook** (`src/hooks/useSettings.ts`): mirrors `useTheme`. Reads blob on init, exposes `{ audio, haptics, setAudio, setHaptics }`. State and persistence only; applies nothing.
+**Hook** (`src/hooks/useSettings.ts`): mirrors `useTheme`. Reads blob on init, exposes `{ audio, haptics, setAudio, setHaptics }`. State and persistence only; consumed by `useGameFeedback`.
 
-**SettingsScreen** (`src/components/SettingsScreen.tsx`): header mirrors StatsScreen / RulesScreen (Back button `aria-label="Back to difficulty picker"` + centered "Settings" title). Two labeled toggle rows — Sound (always shown) and Haptics (feature-gated: `'vibrate' in navigator` guard so the row is hidden on iOS Safari and desktop where `vibrate` is absent). Toggles are native `<input type="checkbox" role="switch" aria-label="...">` elements; accessible labels: `"Sound effects"` and `"Haptic feedback"`.
+**SettingsScreen** (`src/components/SettingsScreen.tsx`): header mirrors StatsScreen / RulesScreen (Back button `aria-label="Back to difficulty picker"` + centered "Settings" title). Two labeled toggle rows — Sound (always shown) and Haptics (feature-gated: `'vibrate' in navigator` guard so the row is hidden on iOS Safari and desktop where `vibrate` is absent). Toggles are native `<input type="checkbox" role="switch" aria-label="...">` elements; accessible labels: `"Sound"` and `"Haptics"` (WCAG 2.5.3 Label-in-Name: visible text is contained in the accessible name — updated in [TER-310](https://linear.app/terenc/issue/TER-310)).
 
 **App wiring (TER-301):** `AppView` extended to `'difficulty' | 'game' | 'stats' | 'rules' | 'settings'`. DifficultyPicker gains `onShowSettings?: () => void` and a centered secondary "Settings" text button rendered alongside "How to play" below the four LevelButtons. Back on SettingsScreen returns to `'difficulty'`. Theme toggle unchanged (fixed overlay).
+
+### Audio + haptics feedback engine — READY (`src/audio/sounds.ts`, `src/hooks/useGameFeedback.ts`, [TER-310](https://linear.app/terenc/issue/TER-310))
+
+**Sounds engine** (`src/audio/sounds.ts`): dependency-free Web Audio synthesis. Module-level, lazily-created `AudioContext` singleton (feature-detected via `window.AudioContext` / `window.webkitAudioContext`). When unavailable (jsdom, old browsers, SSR) all four exported methods are safe no-ops. Exports: `resume()` (unlocks a suspended context), `playTap()` (noise burst + bandpass filter, ~40ms wooden click), `playWinChime()` (three ascending sine tones C5→E5→G5, i.e. R→Y→G, total ~0.9s), `playUnderPar()` (triangle wave arpeggio C6→E6→G6 starting ~850ms after the chime). No `<audio>` elements or npm dependencies.
+
+**Feedback hook** (`src/hooks/useGameFeedback.ts`): consumes `useSettings()`. On mount registers a one-time `pointerdown`/`keydown` unlock listener (Web Audio autoplay policy). Two effects track state transitions: (1) **Tap** — fires when `moveCount` increases while `phase === 'playing'`; because the completing move transitions to `'validating'` in the same render, the tap is suppressed on that move with no special case needed. `navigator.vibrate(15)` fires alongside if haptics are on and the API is present. (2) **Win** — fires once on the `'playing' → 'validating'` transition: `playWinChime()` + `navigator.vibrate([50, 50, 100])`; if `underPar` is true at that moment, `playUnderPar()` is also called. All sound gated on `settings.audio`; all vibration gated on `settings.haptics && 'vibrate' in navigator`.
+
+**GameScreen wiring** ([TER-310](https://linear.app/terenc/issue/TER-310)): `useGameFeedback({ moveCount: game.moveCount, phase: game.phase, underPar })` called at the top level of `GameScreen`. `underPar = dailyPar != null && game.moveCount < (displayedPar(dailyPar.par) ?? Infinity)`.
 
 ### Event-log capture — READY (`src/hooks/useGame.ts`, `src/persistence/inProgress.ts`) [TER-205]
 
@@ -699,6 +707,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 
 * [TER-154](https://linear.app/terenc/issue/TER-154) **(parent)** — M4 Feel polish: haptic feedback, audio cues (R-Y-G chime + percussive tap), screen transitions, breathing-room layout pass. Sub-issues filed when M4 starts.
 * [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ In Review. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended.
+* [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ In Review. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`).
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 

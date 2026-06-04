@@ -452,6 +452,16 @@ describe('GameScreen', () => {
     expect(screen.getByTestId('par-slot')).toBeInTheDocument();
   });
 
+  it('Summary container has screen-fade class on completion', () => {
+    const { container } = render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Select red'));
+    fireEvent.click(screen.getByLabelText('Empty cell at row 1, column 1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to summary' }));
+
+    expect(container.querySelector('.screen-fade')).toBeInTheDocument();
+  });
+
   it('opening and closing the ref thumbnail overlay does not change moveCount', () => {
     render(<GameScreen puzzle={makeTestPuzzle()} onPickDifficulty={vi.fn()} />);
 

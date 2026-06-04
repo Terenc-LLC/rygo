@@ -995,3 +995,19 @@ Stood up the internal admin metrics page at `/tabs`. Unguarded (anon aggregates 
 * `by_day` table hidden when empty (no table rendered for `by_day: []`).
 
 **Deploy note for Chris:** apply `supabase/migrations/20260604000000_admin_metrics_rpc.sql` to Supabase before visiting `/tabs`; Vercel deploy does not auto-apply migrations.
+
+### 2026-06-04 — [TER-313](https://linear.app/terenc/issue/TER-313) Screen transitions: fade between views + Summary (Claude Code / Sonnet 4.6)
+
+Added CSS-only screen fade transitions. No animation library, no JS animation logic.
+
+**What shipped:**
+* `src/index.css` — `@keyframes screenFade` (opacity `0→1`, `translateY(6px→none)`, 180ms ease-out) + `.screen-fade` rule scoped under `@media (prefers-reduced-motion: no-preference)`. Under `prefers-reduced-motion: reduce` the class is a no-op; no separate JS check needed.
+* `src/App.tsx` — all screen conditionals wrapped in `<div key={view} className="screen-fade">` inside `<main>`. The `key={view}` remounts the wrapper on every view change so the animation replays. The fixed `ThemeToggle` overlay stays outside this wrapper and never animates on navigation.
+* `src/components/GameScreen.tsx` — `phase === 'complete'` branch wraps `<Summary>` in `<div className="screen-fade">` so Summary fades in after tap-to-advance. The row-glow sweep and "Tap to continue" button are untouched.
+
+**Tests:** 2 new tests in `App.test.tsx` (screen-fade class on wrapper at initial render and after navigation), 1 new test in `GameScreen.test.tsx` (screen-fade class on Summary container after completion). 481 total tests pass; build clean.
+
+**Decisions made:**
+* CSS-only under `@media (prefers-reduced-motion: no-preference)` — consistent with the `rowGlow` sweep approach from TER-153; no animation library.
+* `key={view}` on the wrapper div is sufficient to remount and replay on every view change without additional state.
+* ThemeToggle is already in a fixed overlay div outside `<main>`, so it naturally escapes the fade wrapper with no structural change needed.

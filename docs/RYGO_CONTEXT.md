@@ -334,6 +334,8 @@ App manages a two-state view machine (`'difficulty' | 'game'`), calls `useTheme(
 
 **Win-state row-glow sweep (shipped in** [TER-153](https://linear.app/terenc/issue/TER-153)**, May 24, 2026):** during `'validating'`, an absolutely-positioned overlay grid (matching `grid-cols-N gap-1`) renders one div per cell carrying the `rowGlow` CSS animation — an inset green ring (`box-shadow inset 0 0 0 3px #2E9D5C`) that fades in/out, staggered per row by `SWEEP_MS / gridSize` (`SWEEP_MS = 850`). Overlay is `pointer-events-none` and does not recolor the cells underneath. `@keyframes rowGlow` lives in `src/index.css`. `prefers-reduced-motion` is captured once at mount in a `useRef`; when set, the overlay is skipped and the hold is 400ms.
 
+**Screen fade transitions (shipped in** [TER-313](https://linear.app/terenc/issue/TER-313)**, June 4, 2026):** CSS-only, no animation library. `@keyframes screenFade` (opacity `0→1` + `translateY(6px→none)`, 180ms ease-out) and `.screen-fade` rule are in `src/index.css` under `@media (prefers-reduced-motion: no-preference)` — under `prefers-reduced-motion: reduce` the class is a no-op (instant). In `App.tsx`, all screen conditionals are wrapped in `<div key={view} className="screen-fade">` inside `<main>`; the `key={view}` remounts the wrapper on every view change so the fade replays. The fixed `ThemeToggle` overlay div sits outside this wrapper and never animates on navigation. In `GameScreen.tsx`, the `phase === 'complete'` branch wraps `<Summary>` in `<div className="screen-fade">` so Summary fades in after the tap-to-advance; the row-glow sweep and "Tap to continue" button are untouched.
+
 ### Theme system — READY (`src/hooks/useTheme.ts`, [TER-137](https://linear.app/terenc/issue/TER-137))
 
 ```ts
@@ -765,6 +767,7 @@ Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 * [TER-297](https://linear.app/terenc/issue/TER-297) — ✅ Done. Summary rank stale fix: corrective `getStanding` re-read chained off `enqueueAndSubmit` settlement; null-result guard; unmount-cancellation flag. Shipped June 1, 2026 (PR #69).
 * [TER-290](https://linear.app/terenc/issue/TER-290) — ✅ Done. Low grid contrast in light mode: grid-line treatment (`--color-grid-line` `#78716C`, 4.33:1 vs Paper, 3.22:1 vs stone-300) applied to Grid and RefThumbnail containers; empty-cell fill unchanged. Shipped June 2, 2026 (PR #71).
 * [TER-311](https://linear.app/terenc/issue/TER-311) — ✅ In Review. Admin metrics dashboard at `/tabs` (Option B: anon aggregates RPC, no router): `get_admin_metrics()` RPC migration, `getAdminMetrics.ts` client reader, `AdminDashboard.tsx` component, `main.tsx` pathname branch, `vercel.json` rewrite. Unguarded by design. Filed June 4, 2026.
+* [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ In Review. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Filed June 4, 2026.
 
 ## Session log
 

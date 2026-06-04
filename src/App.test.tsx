@@ -42,4 +42,15 @@ describe('App', () => {
     expect(cells).toHaveLength(25);
   });
 
+  it('screen wrapper has screen-fade class on initial render', () => {
+    const { container } = render(<App />);
+    expect(container.querySelector('.screen-fade')).toBeInTheDocument();
+  });
+
+  it('screen wrapper has screen-fade class after navigating to game view', () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByText('Easy'));
+    expect(container.querySelector('.screen-fade')).toBeInTheDocument();
+  });
+
 });

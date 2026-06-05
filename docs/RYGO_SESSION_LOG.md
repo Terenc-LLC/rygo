@@ -1265,3 +1265,25 @@ Wired the Share button to emit a per-result unfurl link, completing the B-server
 * **Architecture notes:** added "Client share URL" section before the TER-344 "Share unfurl page" section.
 * **Issue map M4:** TER-345 added as ✅ In Review.
 * **Session log:** this entry.
+
+### 2026-06-05 — [TER-226](https://linear.app/terenc/issue/TER-226) solver/engine parity test (Claude Code / Sonnet 4.6)
+
+Added a property/fuzz parity test that pins parSolver's internal apply functions to the canonical `applyMove` from `placement.ts`.
+
+**What shipped:**
+
+* `src/engine/parSolver.ts` — added `flatToBoard(b: Flat, size: number): Board` helper and `_solverTestSeam` export at the end of the file. Exposes `{ boardToFlat, flatToBoard, applyRed, applyYellow, applyGreen }` for test use only; not a public API change.
+* `src/engine/parSolver.parity.test.ts` (new) — 12 tests (3 colors × 4 grid sizes). For each size: generates 30 random boards via a seeded LCG (deterministic/reproducible), then asserts that the solver's apply result matches `applyMove` at every valid (row, col). Yellow uses an all-empty target to suppress R2 (solver pruning, not a semantics difference). Green tests cover pre-populated boards (the divergence-prone case). Null returns (R3 no-op) are mapped to the original board before comparison.
+
+**Decisions:**
+
+* Test seam pattern (underscore-prefixed export + JSDoc `@internal` comment) rather than a runtime guard — simpler, sufficient for a private codebase.
+* All-empty target for yellow to isolate placement semantics from R2 pruning. R2 is a search heuristic, not a placement correctness issue; testing with it in play would require a separate category of "solver skips this move" vs "solver applies it wrong."
+* 30 boards per size × all (row,col) positions: 12,690 total comparisons, runs in ~300ms.
+
+**Tests:** 515 passing (12 new). Build clean.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** "Par solver" section updated — added test seam description and TER-226 reference.
+* **Issue map M6:** TER-226 Backlog → ✅ In Review.
+* **Session log:** this entry.

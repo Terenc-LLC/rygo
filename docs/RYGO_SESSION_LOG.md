@@ -1154,4 +1154,32 @@ Replaced the thin `<head>` meta block in `index.html` with the full SEO + social
 
 PR #91 merged. Reviewed via `get_diff` + `get_check_runs`: `index.html` head replaced with the full SEO + social meta set — `<title>` "RYGO — The daily color-logic puzzle", canonical, description, theme-color `#14110E`, full `og:*` (type/site_name/title/description/image/image:width=1200/image:height=630/url) and `twitter:*` (card/title/description/image); favicons and `class="dark"` retained; mixed-case domain retained. `og:image` dimensions verified against `public/rygo-share-card-dark.png` (1200×630, IHDR). CI `build-and-test` green. Allowlist-clean. This PR also landed `docs/RYGO_Share-Cards-Design.md` (v1.0) — the source of truth for the share-cards feature. Issue map: TER-342 ✅ In Review → ✅ Done (PR #91).
 
+### 2026-06-05 — [TER-343](https://linear.app/terenc/issue/TER-343) Dynamic OG card renderer (Claude Code / Sonnet 4.6)
+
+Implemented the `/api/og` Vercel Edge function and shared result-payload codec. First Vercel serverless function in this repo.
+
+**Files added:**
+* `src/share/resultCodec.ts` — shared encode/decode module. Pipe-delimited format (`v|d|s|m` or `v|d|s|m|p`) → base64url. `encodeResult(input)` / `decodeResult(encoded: string): ResultPayload | null`. Schema version `v = 1`. Returns `null` on any invalid/corrupt input. Imports `btoa`/`atob` (browser/Edge globals; available in jsdom test env).
+* `src/share/resultCodec.test.ts` — 16 unit tests: round-trips with and without par, all four grid sizes, URL-safety (no `+`/`/`/`=`), length compactness, and six invalid-input cases (empty string, garbage, bad size, bad date format, negative moves, wrong part count).
+* `api/og.tsx` — Vercel Edge function (`export const config = { runtime: 'edge' }`). Uses `@vercel/og` (Satori). Fetches JetBrains Mono 400 + 600 WOFF from `${origin}/fonts/` at request time. Renders 1200×630 dark framed card: header row (RYGO DAILY / formatted date), stoplight mark + RYGO wordmark, result block (size label, hero moves + MOVES, par-outcome line in RYGO Green when under par — omitted when `p` absent), footer. Invalid/missing payload → brand-only default card, HTTP 200. `Cache-Control: public, immutable, max-age=31536000` on valid payloads; `max-age=3600` on fallback.
+* `public/fonts/JetBrainsMono-Regular.woff` + `public/fonts/JetBrainsMono-SemiBold.woff` — OFL-licensed, sourced from `@fontsource/jetbrains-mono` v5. WOFF format (Satori requires TTF/OTF/WOFF; WOFF2 not supported).
+
+**Dependencies added:**
+* `@vercel/og` — runtime dependency (Vercel builds the Edge function; must be a prod dep).
+* `@fontsource/jetbrains-mono` — devDependency (source for WOFF files; fonts committed to `public/fonts/`).
+
+**Tests:** 497 passing (was 482; +16 new `resultCodec` tests). Includes the full prior suite — no regressions. `npm run build` clean (TypeScript check + Vite build). `api/og.tsx` is not in `tsconfig.app.json` include — intentional; the Edge function is validated on the Vercel deploy preview, not CI (per issue spec).
+
+**Non-obvious decisions:**
+* WOFF from `@fontsource` instead of TTF: avoids sourcing from a separate GitHub repo; fontsource ships both WOFF and WOFF2; Satori accepts WOFF but not WOFF2.
+* Font fetch via `${origin}/fonts/`: files live in `public/` and are served as static assets by Vercel, so the Edge function can fetch them from the same deployment origin — no CDN dependency or font embedding in the bundle.
+* Default card is a rendered Satori card (brand-only, no result fields) rather than a redirect to `rygo-share-card-dark.png`. Single code path, avoids a cross-origin fetch risk in Edge runtime.
+* `api/og.tsx` uses `/** @jsxImportSource react */` pragma so esbuild (Vercel's bundler) resolves JSX via React's import-source transform. React 19 is already a prod dep.
+* Codec `v` field is always `1` in `encodeResult` (version is not caller-settable). `decodeResult` reads and returns it — future callers can switch on `v` without a new function.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Dynamic OG card renderer" section.
+* **Issue map M4:** TER-343 added as ✅ In Review.
+* **Session log:** this entry.
+
 Remaining share-card pipeline in Backlog (M4 — Polish): TER-343 (`/api/og` renderer), TER-344 (`/s` page + rewrites), TER-345 (client unfurl link). Recommended build order 343 → 344 → 345.

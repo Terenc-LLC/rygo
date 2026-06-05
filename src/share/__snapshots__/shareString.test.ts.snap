@@ -3,12 +3,10 @@
 exports[`buildShareString > daily 4×4 with streak — snapshot 1`] = `
 "RYGO · 2026-05-24 · Easy (4×4)
 10 moves · 1:05
-🔥 7-day streak
-playRYGO.com"
+🔥 7-day streak"
 `;
 
 exports[`buildShareString > practice 8×8 — snapshot (tagged, no streak) 1`] = `
 "RYGO · 2026-05-24 · Extreme (8×8) · Practice
-25 moves · 2:41
-playRYGO.com"
+25 moves · 2:41"
 `;

@@ -1240,3 +1240,28 @@ Implemented the unfurl-target share page for per-result share links. This is the
 PR #95 merged. Reviewed via `get_diff` + `get_check_runs`: `api/s.ts` (Node-runtime, plain TS — no JSX, no `@vercel/og`, no `src/` imports) server-renders branded OG/Twitter meta for `/s/<payload>` with absolute URLs from the forwarded host headers, `og:image` → `/api/og?p=<payload>`, `noindex`, and a meta-refresh + `location.replace('/')` redirect for human visitors; `vercel.json` adds the `/s/:payload` → `/api/s?p=:payload` rewrite above `/tabs`. Payload is `encodeURIComponent`'d (injection-safe); no validation in `/s` (bad payloads degrade through `/api/og`'s default card). CI `build-and-test` green; build verified on the Vercel preview. Allowlist-clean. Issue map (M4): TER-344 ✅ In Review → ✅ Done (PR #95). No locked-section change — the Tech stack "Serverless functions" bullet (added at the TER-343 close-out) already covers `/api`.
 
 With TER-343 + TER-344 live, the unfurl infrastructure is complete. TER-345 (client emits the `/s/<payload>` link via `navigator.share({ text, url })`) is the last piece — promoted to Todo.
+
+### 2026-06-05 — [TER-345](https://linear.app/terenc/issue/TER-345) share button emits per-result unfurl link (Claude Code / Sonnet 4.6)
+
+Wired the Share button to emit a per-result unfurl link, completing the B-server unfurl pipeline (TER-343 renderer + TER-344 `/s` page are both live).
+
+**What shipped:**
+
+* `src/share/shareUrl.ts` (new) — `buildShareUrl({ date, gridSize, moves, dailyPar? })`. Strips dashes from the YYYY-MM-DD date prop (codec requires YYYYMMDD). Encodes `p = displayedPar(dailyPar?.par ?? null)` — displayed par (raw + PAR_SLACK), not raw par, so the card's outcome matches what the player saw. Omits `p` when `dailyPar` is null. Calls `encodeResult` from `src/share/resultCodec.ts` (one codec only — not forked). Returns `https://playRYGO.com/s/<payload>`.
+* `src/components/Summary.tsx` — builds `shareUrl` via `buildShareUrl`. `navigator.share` now passes `{ text: shareText, url: shareUrl }`. Clipboard fallback writes `${shareText}\n${shareUrl}`. Textarea fallback `value` includes the URL.
+* `src/share/shareString.ts` — removed the trailing `playRYGO.com` bare-domain line; the URL travels in the native share `url` field.
+* `src/share/shareUrl.test.ts` (new) — 6 unit tests: URL prefix, round-trip with par, round-trip without par (null and undefined), date conversion, displayed-par (raw + PAR_SLACK) encoding.
+* `src/share/shareString.test.ts` — updated `footer is playRYGO.com` test to assert the domain line is absent; snapshots updated (2 updated).
+
+**Decisions:**
+
+* Encode `displayedPar` (not raw par) — the share card's under/even/over outcome is computed from `m` vs `p` in `/api/og`; encoding raw par would produce a card that disagrees with the Summary the player just saw.
+* Omit `p` when `dailyPar` is null — card shows no par line, matching practice mode and the par-absent Summary state.
+* Use `encodeURIComponent`-safe base64url already handled by the codec — no extra encoding needed in `buildShareUrl`.
+
+**Tests:** 503 passing (503 was the count after adding new tests; 2 snapshots updated). Build clean.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Client share URL" section before the TER-344 "Share unfurl page" section.
+* **Issue map M4:** TER-345 added as ✅ In Review.
+* **Session log:** this entry.

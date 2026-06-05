@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { buildShareString } from '../share/shareString';
+import { buildShareUrl } from '../share/shareUrl';
 import { displayedPar } from '../display/parDisplay';
 
 interface SummaryProps {
@@ -73,15 +74,17 @@ export function Summary({
     mode,
   });
 
+  const shareUrl = buildShareUrl({ date, gridSize, moves: moveCount, dailyPar });
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ text: shareText });
+        await navigator.share({ text: shareText, url: shareUrl });
       } catch {
         // user canceled or share failed — no error UI
       }
     } else if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(shareText);
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } else {
@@ -153,7 +156,7 @@ export function Summary({
       {showFallback && (
         <textarea
           readOnly
-          value={shareText}
+          value={`${shareText}\n${shareUrl}`}
           className="w-full rounded-xl p-3 text-sm bg-gray-100 dark:bg-gray-800 text-ink dark:text-paper resize-none"
           rows={5}
           data-testid="share-fallback"

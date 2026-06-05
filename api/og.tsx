@@ -213,13 +213,16 @@ function Card({
 }
 
 export default async function handler(request: Request): Promise<Response> {
-  const { searchParams, origin } = new URL(request.url);
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? 'localhost';
+  const base = `${forwardedProto}://${forwardedHost}`;
+  const { searchParams } = new URL(request.url, base);
   const p = searchParams.get('p') ?? '';
   const payload = decodeResult(p);
 
   const [fontRegular, fontSemiBold] = await Promise.all([
-    fetch(`${origin}/fonts/JetBrainsMono-Regular.woff`).then((r) => r.arrayBuffer()),
-    fetch(`${origin}/fonts/JetBrainsMono-SemiBold.woff`).then((r) => r.arrayBuffer()),
+    fetch(`${base}/fonts/JetBrainsMono-Regular.woff`).then((r) => r.arrayBuffer()),
+    fetch(`${base}/fonts/JetBrainsMono-SemiBold.woff`).then((r) => r.arrayBuffer()),
   ]);
 
   const fontConfig = [

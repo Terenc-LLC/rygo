@@ -1,6 +1,8 @@
 /** @jsxImportSource react */
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { Readable } from 'node:stream';
 import { ImageResponse } from '@vercel/og';
-import { decodeResult } from '../src/share/resultCodec';
+import { decodeResult } from '../src/share/resultCodec.js';
 
 const SIZE_LABELS: Record<number, string> = {
   4: 'EASY · 4×4',
@@ -212,12 +214,12 @@ function Card({
   );
 }
 
-export default async function handler(request: Request): Promise<Response> {
-  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
-  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? 'localhost';
-  const base = `${forwardedProto}://${forwardedHost}`;
-  const { searchParams } = new URL(request.url, base);
-  const p = searchParams.get('p') ?? '';
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const proto = (req.headers['x-forwarded-proto'] as string) ?? 'https';
+  const host = (req.headers['x-forwarded-host'] as string) ?? req.headers.host ?? 'localhost';
+  const base = `${proto}://${host}`;
+  const url = new URL(req.url ?? '/', base);
+  const p = url.searchParams.get('p') ?? '';
   const payload = decodeResult(p);
 
   const [fontRegular, fontSemiBold] = await Promise.all([
@@ -230,34 +232,39 @@ export default async function handler(request: Request): Promise<Response> {
     { name: 'JetBrains Mono', data: fontSemiBold, weight: 600 as const, style: 'normal' as const },
   ];
 
+  const cacheControl = payload
+    ? 'public, immutable, max-age=31536000'
+    : 'public, max-age=3600';
+
+  let image: ImageResponse;
   if (!payload) {
-    // Render brand-only default card — never a broken image
-    return new ImageResponse(
+    image = new ImageResponse(
       <Card dateStr={null} sizeLabel={null} moves={null} outcome={null} />,
-      {
-        width: 1200,
-        height: 630,
-        fonts: fontConfig,
-        headers: { 'Cache-Control': 'public, max-age=3600' },
-      },
+      { width: 1200, height: 630, fonts: fontConfig },
+    );
+  } else {
+    const { d, s, m, p: par } = payload;
+    const outcome = par !== undefined ? parOutcomeLabel(m, par) : null;
+    image = new ImageResponse(
+      <Card
+        dateStr={formatDate(d)}
+        sizeLabel={SIZE_LABELS[s] ?? `${s}×${s}`}
+        moves={m}
+        outcome={outcome}
+      />,
+      { width: 1200, height: 630, fonts: fontConfig },
     );
   }
 
-  const { d, s, m, p: par } = payload;
-  const outcome = par !== undefined ? parOutcomeLabel(m, par) : null;
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', cacheControl);
+  res.statusCode = 200;
 
-  return new ImageResponse(
-    <Card
-      dateStr={formatDate(d)}
-      sizeLabel={SIZE_LABELS[s] ?? `${s}×${s}`}
-      moves={m}
-      outcome={outcome}
-    />,
-    {
-      width: 1200,
-      height: 630,
-      fonts: fontConfig,
-      headers: { 'Cache-Control': 'public, immutable, max-age=31536000' },
-    },
-  );
+  try {
+    const buf = Buffer.from(await image.arrayBuffer());
+    res.end(buf);
+  } catch {
+    // arrayBuffer() may not work in all Node environments; fall back to piping the web stream
+    Readable.fromWeb(image.body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
+  }
 }

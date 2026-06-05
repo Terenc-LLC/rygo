@@ -1,12 +1,14 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
+
 const TITLE = 'RYGO — The daily color-logic puzzle';
 const DESCRIPTION =
   'A free daily color-logic puzzle. Rebuild the day’s pattern in the fewest moves. New puzzle every day.';
 
-export default async function handler(request: Request): Promise<Response> {
-  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
-  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? 'localhost';
-  const base = `${forwardedProto}://${forwardedHost}`;
-  const url = new URL(request.url, base);
+export default function handler(req: IncomingMessage, res: ServerResponse): void {
+  const proto = (req.headers['x-forwarded-proto'] as string) ?? 'https';
+  const host = (req.headers['x-forwarded-host'] as string) ?? req.headers.host ?? 'localhost';
+  const base = `${proto}://${host}`;
+  const url = new URL(req.url ?? '/', base);
   const p = url.searchParams.get('p') ?? '';
 
   const ogImage = `${base}/api/og?p=${encodeURIComponent(p)}`;
@@ -39,7 +41,7 @@ export default async function handler(request: Request): Promise<Response> {
 </body>
 </html>`;
 
-  return new Response(html, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.statusCode = 200;
+  res.end(html);
 }

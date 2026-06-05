@@ -86,9 +86,9 @@ describe('buildShareString', () => {
     expect(result).toContain('🔥 12-day streak');
   });
 
-  it('footer is playRYGO.com', () => {
+  it('does not include a bare domain line', () => {
     const result = buildShareString(baseInput());
-    expect(result.split('\n').at(-1)).toBe('playRYGO.com');
+    expect(result).not.toContain('playRYGO.com');
   });
 
   it('output contains no board or cell emoji', () => {

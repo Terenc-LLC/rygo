@@ -25,7 +25,5 @@ export function buildShareString(input: {
     lines.push(`🔥 ${streak}-day streak`);
   }
 
-  lines.push('playRYGO.com');
-
   return lines.join('\n');
 }

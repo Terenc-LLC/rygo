@@ -701,6 +701,18 @@ Vercel serverless function at `/api/og?p=<payload>` that decodes a result payloa
 
 Shipped in [TER-343](https://linear.app/terenc/issue/TER-343), June 5, 2026.
 
+### Client share URL — READY (`src/share/shareUrl.ts`, `src/components/Summary.tsx`) [TER-345]
+
+`buildShareUrl({ date, gridSize, moves, dailyPar? })` in `src/share/shareUrl.ts` — builds a `https://playRYGO.com/s/<payload>` URL. Date conversion: strips dashes from the YYYY-MM-DD prop to produce the codec's required YYYYMMDD format. Par encoding: calls `displayedPar(dailyPar?.par ?? null)` — encodes displayed par (raw + PAR_SLACK), not raw par, so the share card's under/even/over outcome matches what the player saw on Summary. When `dailyPar` is null, `p` is omitted; the card then shows no par line. Calls `encodeResult` from `src/share/resultCodec.ts` — **one codec only**.
+
+`Summary.tsx` now builds a `shareUrl` and passes it to all three share paths: `navigator.share({ text: shareText, url: shareUrl })` (native), clipboard writeText `${shareText}\n${shareUrl}`, and textarea `value={${shareText}\n${shareUrl}}`.
+
+`buildShareString` (`src/share/shareString.ts`) no longer emits a trailing `playRYGO.com` line — the URL travels in the `url` field of the native share API. Share-string snapshots and the `footer is playRYGO.com` test updated accordingly.
+
+**Unit tests (`src/share/shareUrl.test.ts`):** 6 tests — URL prefix check, full round-trip through `decodeResult` (with par), par-absent round-trip (null and undefined dailyPar), date-conversion verification, displayed-par (raw + PAR_SLACK) encoding.
+
+Shipped in [TER-345](https://linear.app/terenc/issue/TER-345), June 5, 2026.
+
 ### Share unfurl page — READY (`api/s.ts`, `vercel.json`) [TER-344]
 
 Vercel serverless function at `/api/s?p=<payload>` (mapped from pretty URL `/s/<payload>` via `vercel.json` rewrite). Returns server-rendered HTML with full OG/Twitter meta so messaging-app scrapers unfurl the personalized share card, then redirects a human visitor to `/` (meta-refresh + JS). Part of the B-server unfurl pipeline (design doc: `docs/RYGO_Share-Cards-Design.md` §7). Consumes the `/api/og?p=<payload>` image contract from [TER-343](https://linear.app/terenc/issue/TER-343).
@@ -767,6 +779,7 @@ Shipped in [TER-344](https://linear.app/terenc/issue/TER-344), June 5, 2026.
 * [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ Done. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Shipped June 4, 2026 (PR #77).
 * [TER-343](https://linear.app/terenc/issue/TER-343) — ✅ Done. Dynamic OG card renderer: `api/og.tsx` (Vercel Node runtime, `@vercel/og`/Satori, 1200×630 PNG), `api/tsconfig.json`, `src/share/resultCodec.ts` (base64url codec, 16 unit tests), `public/fonts/` WOFF font files. Part of the B-server unfurl pipeline. Shipped June 5, 2026 (PR #93).
 * [TER-344](https://linear.app/terenc/issue/TER-344) — ✅ Done. Share unfurl page: `api/s.ts` (Node runtime, plain TS — server-renders OG/Twitter meta for `/s/<payload>`, redirects humans to `/`), `vercel.json` (`/s/:payload` → `/api/s?p=:payload` rewrite). Final piece of the B-server unfurl pipeline before client share-button wiring (TER-345). Shipped June 5, 2026 (PR #95).
+* [TER-345](https://linear.app/terenc/issue/TER-345) — ✅ In Review. Share button emits per-result unfurl link: `buildShareUrl` (`src/share/shareUrl.ts`) — date YYYY-MM-DD → YYYYMMDD, `p = displayedPar(par)` (not raw), `encodeResult` → `https://playRYGO.com/s/<payload>`. `Summary.tsx` wired to `navigator.share({ text, url })` + clipboard/textarea fallbacks both include URL. `buildShareString` bare-domain line removed. 6 `buildShareUrl` tests; 2 snapshots updated. Completes the B-server unfurl pipeline.
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 

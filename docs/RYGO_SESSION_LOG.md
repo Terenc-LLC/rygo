@@ -1149,3 +1149,9 @@ Replaced the thin `<head>` meta block in `index.html` with the full SEO + social
 **Decisions made:**
 * No JS-set meta — static tags only per issue spec.
 * Mixed-case domain `playRYGO.com` retained per project decision (no migration in scope).
+
+### 2026-06-05 — TER-342 closed by Opus
+
+PR #91 merged. Reviewed via `get_diff` + `get_check_runs`: `index.html` head replaced with the full SEO + social meta set — `<title>` "RYGO — The daily color-logic puzzle", canonical, description, theme-color `#14110E`, full `og:*` (type/site_name/title/description/image/image:width=1200/image:height=630/url) and `twitter:*` (card/title/description/image); favicons and `class="dark"` retained; mixed-case domain retained. `og:image` dimensions verified against `public/rygo-share-card-dark.png` (1200×630, IHDR). CI `build-and-test` green. Allowlist-clean. This PR also landed `docs/RYGO_Share-Cards-Design.md` (v1.0) — the source of truth for the share-cards feature. Issue map: TER-342 ✅ In Review → ✅ Done (PR #91).
+
+Remaining share-card pipeline in Backlog (M4 — Polish): TER-343 (`/api/og` renderer), TER-344 (`/s` page + rewrites), TER-345 (client unfurl link). Recommended build order 343 → 344 → 345.

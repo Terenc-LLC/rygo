@@ -368,3 +368,17 @@ export function solveOptimalPar(
   // for valid generator-produced puzzles; budget or cap fires first in practice).
   return { proven: false };
 }
+
+// ── Test seam ─────────────────────────────────────────────────────────────
+// Only import _solverTestSeam in parSolver.parity.test.ts — not in production code.
+
+function flatToBoard(b: Flat, size: number): Board {
+  return Array.from({ length: size }, (_, r) =>
+    Array.from({ length: size }, (_, c) => {
+      const v = b[r * size + c];
+      return v === RED ? 'red' : v === YELLOW ? 'yellow' : v === GREEN ? 'green' : 'empty';
+    }) as Board[number],
+  ) as Board;
+}
+
+export const _solverTestSeam = { boardToFlat, flatToBoard, applyRed, applyYellow, applyGreen };

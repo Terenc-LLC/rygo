@@ -1122,3 +1122,11 @@ Light-mode alignment of RefThumbnail with the main play board (follow-up to TER-
 **Note for Opus (locked section — do not edit):** The Coding conventions bullet reads "Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`, `grid-line`) defined via `@theme` block in `index.css`." With `grid-line` now retired, this list is stale. Needs Opus to author a docs-only update removing `grid-line` from the token list.
 
 **App footer:** The dev footer was removed in TER-201 and the per-session footer-update convention is no longer in the Coding conventions. No footer action taken.
+
+### 2026-06-05 — TER-338 closed by Opus; issue-map drift cleanup
+
+PR #89 merged. Reviewed via `get_diff` + `get_check_runs`: `RefThumbnail.tsx` `CELL_BG.empty` `bg-stone-300` → `bg-stone-400` and both containers (thumbnail button + overlay board) `bg-grid-line` → `bg-paper dark:bg-ink`; `src/index.css` `--color-grid-line` removed (grep-confirmed RefThumbnail was the last consumer); `RefThumbnail.test.tsx` assertions updated. Dark mode untouched; `Grid.tsx` untouched. CI `build-and-test` green at 482/482. Allowlist-clean. RefThumbnail now matches the play board's Paper-gap treatment in light mode.
+
+Locked-section close-out: removed `grid-line` from the Coding-conventions brand-token inventory (the token no longer exists after TER-338) — flagged by Code during the session and correctly left for Opus. Issue map: TER-338 ✅ In Review → ✅ Done (PR #89).
+
+Drift cleanup caught during close-out: three Unscheduled issue-map entries still read ✅ In Review despite being merged/Done — corrected to ✅ Done: TER-311 (admin dashboard), TER-313 (screen fades, PR #77), TER-322 (privacy line). All three verified Done in Linear.

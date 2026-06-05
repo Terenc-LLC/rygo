@@ -1204,3 +1204,13 @@ The card logic, codec, payload contract, and default-card fallback are unchanged
 * **Architecture notes:** updated "Dynamic OG card renderer" section to record Node runtime and the Edge runtime failure reason.
 * **Issue map M4:** TER-343 entry updated to note Node runtime.
 * **Session log:** this entry.
+
+### 2026-06-05 — TER-343 closed by Opus
+
+PR #93 merged. Reviewed via `get_files` + `get_diff` + `get_check_runs`, plus a Vercel-preview build/render gate. The renderer (`api/og.tsx`) and shared codec (`src/share/resultCodec.ts`, 16 tests) implement the dynamic share card per design doc §5–§6: dark framed 1200×630 card (RYGO DAILY + date, stoplight + wordmark, size label, hero moves, par-outcome line green-when-under and omitted when par absent), immutable cache on valid payloads, brand-only default card on bad payload.
+
+Build-pipeline defect caught on the Vercel preview (not CI): the original Edge-runtime function failed with TS17004 (no JSX compile) and "referencing unsupported modules" (@vercel/og + the relative codec import) — this Vite repo has no Vercel function build pipeline (the existing functions are Supabase-hosted). Fixed on the same branch by switching to the Node.js runtime (removed `export const config = { runtime: 'edge' }` → `@vercel/node` bundles deps via esbuild and compiles TSX) plus `api/tsconfig.json` (`jsx: react-jsx`). Preview then built green and rendered across under/even/over par, par-absent, and all sizes. Institutional note for future Vercel functions in this repo: use the Node runtime unless/until a Vite→Vercel edge build pipeline is added.
+
+Locked-section close-out: added a Serverless functions bullet to Tech stack. Issue map (M4): TER-343 ✅ In Review → ✅ Done (PR #93). Code had already updated the "Dynamic OG card renderer" architecture note to reflect the Node-runtime approach during the fix.
+
+Next in the unfurl pipeline: TER-344 (`/s/<payload>` share page + vercel.json rewrites), then TER-345 (client emits the unfurl link).

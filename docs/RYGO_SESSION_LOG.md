@@ -1130,3 +1130,22 @@ PR #89 merged. Reviewed via `get_diff` + `get_check_runs`: `RefThumbnail.tsx` `C
 Locked-section close-out: removed `grid-line` from the Coding-conventions brand-token inventory (the token no longer exists after TER-338) — flagged by Code during the session and correctly left for Opus. Issue map: TER-338 ✅ In Review → ✅ Done (PR #89).
 
 Drift cleanup caught during close-out: three Unscheduled issue-map entries still read ✅ In Review despite being merged/Done — corrected to ✅ Done: TER-311 (admin dashboard), TER-313 (screen fades, PR #77), TER-322 (privacy line). All three verified Done in Linear.
+
+### 2026-06-05 — [TER-342](https://linear.app/terenc/issue/TER-342) Homepage SEO + social meta hardening (Claude Code / Sonnet 4.6)
+
+Replaced the thin `<head>` meta block in `index.html` with the full SEO + social set.
+
+**What shipped (`index.html`):**
+* `<title>` updated to `RYGO — The daily color-logic puzzle` (was "RYGO — Daily logic constraints").
+* Added: `<link rel="canonical">`, `<meta name="description">`, `<meta name="theme-color" content="#14110E">`.
+* Added: `og:type`, `og:site_name`, `og:title`, `og:description`, `og:image`, `og:image:width`, `og:image:height`, `og:url`.
+* Added: `twitter:title`, `twitter:description`, `twitter:image`.
+* Retained: `twitter:card`, existing favicon/apple-touch-icon links, `class="dark"` on `<html>`.
+
+**Pre-flight verified:** `public/rygo-share-card-dark.png` dimensions confirmed 1200×630 (PNG IHDR read) — `og:image:width/height` set to match.
+
+**Tests:** 482 total (no meta snapshot tests existed; no new tests needed). Build clean.
+
+**Decisions made:**
+* No JS-set meta — static tags only per issue spec.
+* Mixed-case domain `playRYGO.com` retained per project decision (no migration in scope).

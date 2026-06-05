@@ -11,7 +11,7 @@ const THUMB_COLS: Record<4 | 5 | 6 | 8, string> = {
 };
 
 const CELL_BG: Record<CellState, string> = {
-  empty: 'bg-stone-300 dark:bg-gray-800',
+  empty: 'bg-stone-400 dark:bg-gray-800',
   red: 'bg-rygo-red',
   yellow: 'bg-rygo-yellow',
   green: 'bg-rygo-green',
@@ -98,7 +98,7 @@ export function RefThumbnail({ board, size }: RefThumbnailProps): JSX.Element {
         aria-label="Enlarge target pattern"
         aria-haspopup="dialog"
         data-testid="ref-thumbnail"
-        className={`w-28 grid ${THUMB_COLS[size]} gap-0.5 p-px bg-grid-line dark:bg-ink cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
+        className={`w-28 grid ${THUMB_COLS[size]} gap-0.5 p-px bg-paper dark:bg-ink cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
         onClick={handleOpen}
       >
         {board.map((row, r) =>
@@ -144,7 +144,7 @@ export function RefThumbnail({ board, size }: RefThumbnailProps): JSX.Element {
               role="img"
               aria-label="Target pattern"
               data-testid="ref-overlay-board"
-              className={`w-full grid ${THUMB_COLS[size]} gap-1 p-px bg-grid-line dark:bg-ink rounded-md`}
+              className={`w-full grid ${THUMB_COLS[size]} gap-1 p-px bg-paper dark:bg-ink rounded-md`}
             >
               {board.map((row, r) =>
                 row.map((cell, c) => (

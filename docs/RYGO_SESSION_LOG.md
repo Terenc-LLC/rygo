@@ -1102,3 +1102,23 @@ Non-blocking follow-up flagged (out of TER-332 scope): the play board now uses t
 ### 2026-06-04 — Share-card grid/frame change backfilled (Opus)
 
 Retroactive provenance note. The share-card visual change shipped in two merged PRs off `chrisball/share-card-grid-frame` without a Linear issue or log entry. Backfilled as [TER-337](https://linear.app/terenc/issue/TER-337/share-card-gridframe-polish-framed-dark-card-open-grid-light-card) (Done): PR #84 added a full-weight perimeter frame to the share cards; PR #85 raised the light share-card grid-line opacity to 0.14 and removed the frame (open-grid light card), partially superseding #84 on the light side. Net state: framed dark share card + open-grid 0.14 light share card. Asset/share-card only — no app logic, no engine, no test changes.
+
+### 2026-06-05 — [TER-338](https://linear.app/terenc/issue/TER-338) RefThumbnail light-mode consistency: Paper gaps + retire grid-line token (Claude Code / Sonnet 4.6)
+
+Light-mode alignment of RefThumbnail with the main play board (follow-up to TER-332).
+
+**What shipped:**
+* `src/components/RefThumbnail.tsx` — three edits: (1) `CELL_BG.empty`: `'bg-stone-300 dark:bg-gray-800'` → `'bg-stone-400 dark:bg-gray-800'` (consistency with board; never visibly renders on full-coverage targets). (2) Thumbnail `<button>` container: `bg-grid-line dark:bg-ink` → `bg-paper dark:bg-ink`. (3) Overlay board container: `bg-grid-line dark:bg-ink` → `bg-paper dark:bg-ink`.
+* `src/components/RefThumbnail.test.tsx` — updated two it-block descriptions and four assertions: `bg-grid-line` → `bg-paper` (thumbnail container test + overlay board test).
+* `src/index.css` — removed `--color-grid-line: #78716C;` from the `@theme` block. Grep confirmed zero consumers in `src/` after the RefThumbnail edits.
+
+**Tests:** 482 total tests pass (unchanged count — no new tests; existing assertions updated). Build clean.
+
+**Decisions made / grep result:**
+* `grid-line` grep across `src/` after edits: **zero consumers** — only the definition line in `index.css` appeared, confirming RefThumbnail was the last consumer. Token removed per issue spec.
+* Dark mode untouched — `dark:bg-ink` on both containers and `dark:bg-gray-800` on empty cells unchanged.
+* `Grid.tsx` not touched (out of scope per issue).
+
+**Note for Opus (locked section — do not edit):** The Coding conventions bullet reads "Brand tokens (`ink`, `paper`, `rygo-red`, `rygo-yellow`, `rygo-green`, `grid-line`) defined via `@theme` block in `index.css`." With `grid-line` now retired, this list is stale. Needs Opus to author a docs-only update removing `grid-line` from the token list.
+
+**App footer:** The dev footer was removed in TER-201 and the per-session footer-update convention is no longer in the Coding conventions. No footer action taken.

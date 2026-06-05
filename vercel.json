@@ -1,3 +1,6 @@
 {
-  "rewrites": [{ "source": "/tabs", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/s/:payload", "destination": "/api/s?p=:payload" },
+    { "source": "/tabs", "destination": "/index.html" }
+  ]
 }

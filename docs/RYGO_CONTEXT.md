@@ -624,7 +624,9 @@ Pure, deterministic, dependency-free. A* search with a Map-based closed set (ful
 
 Benchmark script: `scripts/par-solver-benchmark.ts` — run with `npx tsx scripts/par-solver-benchmark.ts`. Reuses spike seed set (15 seeds per size, RYGO-2026-01-01 through -01-15).
 
-Shipped in [TER-220](https://linear.app/terenc/issue/TER-220), May 26, 2026.
+**Test seam ([TER-226](https://linear.app/terenc/issue/TER-226)):** `_solverTestSeam` is exported from `parSolver.ts` and exposes `{ boardToFlat, flatToBoard, applyRed, applyYellow, applyGreen }`. Used only by `parSolver.parity.test.ts` — do not import in production code. The parity test asserts, over 30 random boards × all (row,col) × all three colors × all four grid sizes, that the solver's internal apply functions produce the same board state as `applyMove` from `placement.ts`.
+
+Shipped in [TER-220](https://linear.app/terenc/issue/TER-220), May 26, 2026. Parity test added in [TER-226](https://linear.app/terenc/issue/TER-226), June 5, 2026.
 
 ### Daily par pipeline — READY (`scripts/compute-par.ts`, `src/backend/getDailyPar.ts`) [TER-222]
 
@@ -803,7 +805,7 @@ First backend for RYGO. Design: `docs/RYGO_Leaderboard-Design.md` (approved May 
 4. [TER-222](https://linear.app/terenc/issue/TER-222) — ✅ Done. Offline daily-par pipeline.
 5. [TER-223](https://linear.app/terenc/issue/TER-223) — ✅ Done. Par display (Score vs Par, +1 slack, relative-to-par framing).
 6. TER-225 — Backlog (Low). Clear-enabled optimality cross-check.
-7. TER-226 — Backlog (Low). Solver/engine parity test.
+7. TER-226 — ✅ In Review. Solver/engine parity test.
 
 Spike: [TER-217](https://linear.app/terenc/issue/TER-217) — ✅ Done.
 

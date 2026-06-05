@@ -2,10 +2,6 @@
 import { ImageResponse } from '@vercel/og';
 import { decodeResult } from '../src/share/resultCodec';
 
-export const config = {
-  runtime: 'edge',
-};
-
 const SIZE_LABELS: Record<number, string> = {
   4: 'EASY · 4×4',
   5: 'NORMAL · 5×5',

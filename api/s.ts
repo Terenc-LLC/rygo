@@ -3,12 +3,11 @@ const DESCRIPTION =
   'A free daily color-logic puzzle. Rebuild the day’s pattern in the fewest moves. New puzzle every day.';
 
 export default async function handler(request: Request): Promise<Response> {
-  const url = new URL(request.url);
-  const p = url.searchParams.get('p') ?? '';
-
-  const forwardedProto = request.headers.get('x-forwarded-proto') ?? url.protocol.replace(':', '');
-  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? url.host;
+  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+  const forwardedHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? 'localhost';
   const base = `${forwardedProto}://${forwardedHost}`;
+  const url = new URL(request.url, base);
+  const p = url.searchParams.get('p') ?? '';
 
   const ogImage = `${base}/api/og?p=${encodeURIComponent(p)}`;
   const shareUrl = `${base}/s/${encodeURIComponent(p)}`;

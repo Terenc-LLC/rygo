@@ -1183,3 +1183,24 @@ Implemented the `/api/og` Vercel Edge function and shared result-payload codec. 
 * **Session log:** this entry.
 
 Remaining share-card pipeline in Backlog (M4 — Polish): TER-343 (`/api/og` renderer), TER-344 (`/s` page + rewrites), TER-345 (client unfurl link). Recommended build order 343 → 344 → 345.
+
+### 2026-06-05 — [TER-343](https://linear.app/terenc/issue/TER-343) build fix: Node runtime (same PR #93, Claude Code / Sonnet 4.6)
+
+Vercel preview deploy failed with two errors:
+1. `TS17004: Cannot use JSX unless the '--jsx' flag is provided` (Vercel shipped the raw `.tsx` without JSX compilation)
+2. `Error: The Edge Function "api/og" is referencing unsupported modules: @vercel/og, ../src/share/resultCodec` (Edge runtime rejects bundled deps in a raw Vite project)
+
+Root cause: this is a plain Vite SPA — no Next.js build pipeline — so the Edge runtime tried to serve `api/og.tsx` raw, which fails both the JSX check and the module import gate.
+
+**Fix applied (steps 1 + 2):**
+* **Step 1** — Removed `export const config = { runtime: 'edge' }` from `api/og.tsx`. With no runtime config, Vercel uses `@vercel/node`, which bundles the file via esbuild. esbuild resolves `@vercel/og` and the `../src/share/resultCodec` import correctly, and the Edge "unsupported modules" gate no longer applies.
+* **Step 2** — Added `api/tsconfig.json` with `{ "jsx": "react-jsx", "jsxImportSource": "react" }` so esbuild has explicit JSX configuration for the `api/` directory (belt-and-suspenders with the existing `/** @jsxImportSource react */` pragma).
+
+The card logic, codec, payload contract, and default-card fallback are unchanged. `@vercel/og` runs under Node.js runtime using `sharp` for PNG generation.
+
+**Tests:** 497 passing; build clean. CI green.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** updated "Dynamic OG card renderer" section to record Node runtime and the Edge runtime failure reason.
+* **Issue map M4:** TER-343 entry updated to note Node runtime.
+* **Session log:** this entry.

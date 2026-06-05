@@ -682,6 +682,24 @@ Calls `supabase.rpc('get_standing', { p_day, p_grid_size, p_moves, p_elapsed_ms 
 
 Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 
+### Dynamic OG card renderer — READY (`api/og.tsx`, `src/share/resultCodec.ts`) [TER-343]
+
+Vercel serverless function at `/api/og?p=<payload>` that decodes a result payload and returns a 1200×630 PNG personalized share card. Part of the B-server unfurl pipeline (design doc: `docs/RYGO_Share-Cards-Design.md` §5–§6).
+
+**Payload codec (`src/share/resultCodec.ts`):** stateless base64url-encoded format. Fields: `v` (schema version, starts at `1`), `d` (date YYYYMMDD), `s` (size 4/5/6/8), `m` (moves), `p` (par — optional). Pipe-delimited before base64url encoding: `"1|YYYYMMDD|size|moves"` or `"1|YYYYMMDD|size|moves|par"`. `encodeResult(input)` / `decodeResult(encoded)` — shared module imported by both the function and the future client share integration. `v` bump allows cache-bust on redesign without changing the URL shape.
+
+**Function (`api/og.tsx`):** `@vercel/og` (Satori → PNG), **Node.js runtime** (no `export const config` — `@vercel/node` builder bundles deps via esbuild and compiles TSX). The Edge runtime was tried first but rejected `@vercel/og` and the relative `../src/share/resultCodec` import as unsupported modules in this Vite project (no Next.js build pipeline). Node runtime resolves both. `api/tsconfig.json` provides explicit `jsx: "react-jsx"` / `jsxImportSource: "react"` for esbuild. Font bytes (JetBrains Mono 400 + 600 WOFF) served from `public/fonts/` and fetched at request time via the request origin URL. Card layout: Ink `#14110E` background + dot-grid texture + perimeter frame (Paper at 12% opacity), header row (RYGO DAILY / formatted date), vertical stoplight mark (red/yellow/green dots) + RYGO wordmark at 600 weight, result block (size label, hero moves number + MOVES, par-outcome line in RYGO Green `#2E9D5C` when under par — omitted when `p` absent), footer `playRYGO.com`. Size → label: 4 Easy, 5 Normal, 6 Hard, 8 Extreme.
+
+**Caching:** `Cache-Control: public, immutable, max-age=31536000` on valid payloads (deterministic by `payload + v`). Default-card fallback at `max-age=3600`.
+
+**Error handling:** unparseable/missing `p` → renders brand-only default card (no result fields), HTTP 200, never a broken image.
+
+**Font files:** `public/fonts/JetBrainsMono-Regular.woff` + `public/fonts/JetBrainsMono-SemiBold.woff` (OFL-licensed, sourced from `@fontsource/jetbrains-mono` v5). Satori requires TTF/OTF/WOFF; WOFF2 is not supported.
+
+**First Vercel serverless function in this repo** (separate from Supabase edge functions). `api/og.tsx` and `api/tsconfig.json` are not in `tsconfig.app.json` include — intentional; function is validated on the Vercel deploy preview, not CI. The shared codec (`src/share/resultCodec.ts`) IS covered by CI type-check and has 16 unit tests.
+
+Shipped in [TER-343](https://linear.app/terenc/issue/TER-343), June 5, 2026.
+
 ## Coding conventions
 
 * TypeScript strict mode on. No `any` without an explicit comment justifying it.
@@ -736,6 +754,7 @@ Shipped in [TER-215](https://linear.app/terenc/issue/TER-215), May 26, 2026.
 * [TER-301](https://linear.app/terenc/issue/TER-301) — ✅ Done. Settings surface: SettingsScreen + persisted Sound/Haptics toggles (no consumers yet). `rygo:settings` blob, `useSettings` hook, Settings button on DifficultyPicker, `AppView` extended. Shipped June 2, 2026 (PR #73).
 * [TER-310](https://linear.app/terenc/issue/TER-310) — ✅ Done. Audio + haptics feedback engine: `src/audio/sounds.ts` Web Audio synthesis (tap click, R-Y-G win chime, under-par accent), `src/hooks/useGameFeedback.ts` orchestrator consuming `useSettings`, wired into `GameScreen`. WCAG 2.5.3 Label-in-Name fix in `SettingsScreen` (aria-labels now `"Sound"` / `"Haptics"`). Shipped June 4, 2026 (PR #74).
 * [TER-313](https://linear.app/terenc/issue/TER-313) — ✅ Done. Screen fade transitions (CSS-only, reduced-motion-instant): `@keyframes screenFade` + `.screen-fade` in `index.css`, keyed `<div key={view}>` wrapper in `App.tsx`, Summary wrapper in `GameScreen.tsx`. Shipped June 4, 2026 (PR #77).
+* [TER-343](https://linear.app/terenc/issue/TER-343) — ✅ In Review. Dynamic OG card renderer: `api/og.tsx` (Vercel Node runtime, `@vercel/og`/Satori, 1200×630 PNG), `api/tsconfig.json`, `src/share/resultCodec.ts` (base64url codec, 16 unit tests), `public/fonts/` WOFF font files. Part of the B-server unfurl pipeline.
 
 ### M5 — Anonymous daily leaderboard (pre-launch feature)
 

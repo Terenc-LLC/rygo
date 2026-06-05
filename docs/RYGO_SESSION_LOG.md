@@ -1234,3 +1234,9 @@ Implemented the unfurl-target share page for per-result share links. This is the
 * **Architecture notes:** added "Share unfurl page" section.
 * **Issue map M4:** TER-344 added as ✅ In Review.
 * **Session log:** this entry.
+
+### 2026-06-05 — TER-344 closed by Opus
+
+PR #95 merged. Reviewed via `get_diff` + `get_check_runs`: `api/s.ts` (Node-runtime, plain TS — no JSX, no `@vercel/og`, no `src/` imports) server-renders branded OG/Twitter meta for `/s/<payload>` with absolute URLs from the forwarded host headers, `og:image` → `/api/og?p=<payload>`, `noindex`, and a meta-refresh + `location.replace('/')` redirect for human visitors; `vercel.json` adds the `/s/:payload` → `/api/s?p=:payload` rewrite above `/tabs`. Payload is `encodeURIComponent`'d (injection-safe); no validation in `/s` (bad payloads degrade through `/api/og`'s default card). CI `build-and-test` green; build verified on the Vercel preview. Allowlist-clean. Issue map (M4): TER-344 ✅ In Review → ✅ Done (PR #95). No locked-section change — the Tech stack "Serverless functions" bullet (added at the TER-343 close-out) already covers `/api`.
+
+With TER-343 + TER-344 live, the unfurl infrastructure is complete. TER-345 (client emits the `/s/<payload>` link via `navigator.share({ text, url })`) is the last piece — promoted to Todo.

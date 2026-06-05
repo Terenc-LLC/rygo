@@ -1214,3 +1214,23 @@ Build-pipeline defect caught on the Vercel preview (not CI): the original Edge-r
 Locked-section close-out: added a Serverless functions bullet to Tech stack. Issue map (M4): TER-343 ✅ In Review → ✅ Done (PR #93). Code had already updated the "Dynamic OG card renderer" architecture note to reflect the Node-runtime approach during the fix.
 
 Next in the unfurl pipeline: TER-344 (`/s/<payload>` share page + vercel.json rewrites), then TER-345 (client emits the unfurl link).
+
+### 2026-06-05 — [TER-344](https://linear.app/terenc/issue/TER-344) `/s/<payload>` share page + vercel.json rewrites (Claude Code / Sonnet 4.6)
+
+Implemented the unfurl-target share page for per-result share links. This is the penultimate piece of the B-server unfurl pipeline (before client wiring, TER-345).
+
+**What shipped:**
+
+* `api/s.ts` — Plain TypeScript, Node.js runtime (no Edge config), no JSX, no `@vercel/og`, no `src/` imports. Reads `p` from `url.searchParams`. Derives absolute base URL from `x-forwarded-proto` + `x-forwarded-host`/`host` headers (so preview and prod both resolve correctly without hard-coding the domain). Returns HTML with: `<title>` + `og:title` = "RYGO — The daily color-logic puzzle", `og:description` = homepage description string, `og:url` = `/s/<payload>`, `og:image` = `/api/og?p=<payload>`, full `twitter:*` (card=summary_large_image, title, description, image), `<meta name="robots" content="noindex">`. Body: "Opening RYGO…" + `meta http-equiv="refresh" content="0;url=/"` + `window.location.replace('/')`. No payload validation — invalid payloads pass through to `/api/og`, which renders the brand-only default card.
+* `vercel.json` — Added `{ "source": "/s/:payload", "destination": "/api/s?p=:payload" }` rewrite above the existing `/tabs` rewrite. All other routes unaffected.
+
+**Decisions:**
+* No payload validation in `/s` (per issue spec) — keeps the file free of `src/` imports and lets `/api/og` handle bad payloads gracefully.
+* Followed the TER-343 institutional note: Node.js runtime, plain TypeScript, same `export default async function handler(request: Request): Promise<Response>` signature as `api/og.tsx`.
+
+**Tests:** 497 passing (unchanged — no new logic to unit test). Build clean.
+
+**Docs changes (allowlisted sections only):**
+* **Architecture notes:** added "Share unfurl page" section.
+* **Issue map M4:** TER-344 added as ✅ In Review.
+* **Session log:** this entry.
